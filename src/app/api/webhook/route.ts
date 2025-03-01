@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { validateWebhookKey, addMessage } from '@/lib/server/db';
+import { addMessage } from '@/lib/db/messages';
+import { getUser } from '@/lib/db/users';
 
 export async function POST(request: NextRequest) {
     try {
@@ -13,9 +14,13 @@ export async function POST(request: NextRequest) {
             );
         }
 
-        const validateResult = await validateWebhookKey(webhookKey);
-        if (!validateResult.success) {
-            return NextResponse.json(validateResult, { status: 401 });
+        // 验证 webhook key
+        const userResult = await getUser(username);
+        if (!userResult.success || !userResult.data || userResult.data.webhookKey !== webhookKey) {
+            return NextResponse.json(
+                { success: false, message: 'Webhook Key 验证失败' },
+                { status: 401 }
+            );
         }
 
         const body = await request.json();

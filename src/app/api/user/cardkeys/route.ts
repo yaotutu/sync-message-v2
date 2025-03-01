@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { validateUser, getUserCardKeys, addCardKey } from '@/lib/server/db';
+import { validateUser } from '@/lib/db/users';
+import { getUserCardKeys, addCardKey } from '@/lib/db/cards';
 
 export async function GET(request: NextRequest) {
     try {

@@ -1,12 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { addUser, deleteUser, getUsers, validateAdminPassword } from '@/lib/server/db';
+import { addUser, deleteUser, getUsers } from '@/lib/db/users';
+import { validateAdminPassword } from '@/lib/auth';
 
 // 获取用户列表
 export async function GET(request: NextRequest) {
-    const adminPassword = request.headers.get('x-admin-password');
-    if (!adminPassword || !(await validateAdminPassword(adminPassword))) {
-        return NextResponse.json({ success: false, message: '管理员密码错误' }, { status: 401 });
-    }
+    const authError = await validateAdminPassword(request);
+    if (authError) return authError;
 
     const result = await getUsers();
     return NextResponse.json(result);
@@ -14,10 +13,8 @@ export async function GET(request: NextRequest) {
 
 // 添加新用户
 export async function POST(request: NextRequest) {
-    const adminPassword = request.headers.get('x-admin-password');
-    if (!adminPassword || !(await validateAdminPassword(adminPassword))) {
-        return NextResponse.json({ success: false, message: '管理员密码错误' }, { status: 401 });
-    }
+    const authError = await validateAdminPassword(request);
+    if (authError) return authError;
 
     const body = await request.json();
     const { username, password } = body;
@@ -32,10 +29,8 @@ export async function POST(request: NextRequest) {
 
 // 删除用户
 export async function DELETE(request: NextRequest) {
-    const adminPassword = request.headers.get('x-admin-password');
-    if (!adminPassword || !(await validateAdminPassword(adminPassword))) {
-        return NextResponse.json({ success: false, message: '管理员密码错误' }, { status: 401 });
-    }
+    const authError = await validateAdminPassword(request);
+    if (authError) return authError;
 
     const username = request.nextUrl.searchParams.get('username');
     if (!username) {

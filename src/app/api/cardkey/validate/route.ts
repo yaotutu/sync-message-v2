@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { validateCardKey } from '@/lib/server/db';
+import { validateCardKey } from '@/lib/db/cards';
 
 export async function POST(request: NextRequest) {
     try {

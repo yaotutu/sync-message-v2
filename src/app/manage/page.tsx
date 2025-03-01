@@ -10,7 +10,18 @@ export default function ManagePage() {
                 <AdminLogin>
                     <div className="space-y-6">
                         <div className="bg-white dark:bg-gray-800 rounded-lg shadow p-6">
-                            <h2 className="text-2xl font-bold mb-6 text-gray-900 dark:text-white">管理后台</h2>
+                            <div className="flex items-center justify-between mb-6">
+                                <h2 className="text-2xl font-bold text-gray-900 dark:text-white">管理后台</h2>
+                                <button
+                                    onClick={() => {
+                                        localStorage.removeItem('admin_auth');
+                                        window.location.reload();
+                                    }}
+                                    className="text-sm text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-300"
+                                >
+                                    退出登录
+                                </button>
+                            </div>
                             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                                 <Link
                                     href="/manage/users"
