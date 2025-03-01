@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { verifyAdminPassword } from '@/lib/auth';
+import { validateAdminPassword } from '@/lib/auth';
 import { addRule, deleteRule } from '@/lib/templates';
+import { getDb } from '@/lib/db';
 import { CreateRuleDTO } from '@/types/templates';
 
 // 添加规则
@@ -8,10 +9,12 @@ export async function POST(
     req: NextRequest,
     { params }: { params: { id: string } }
 ) {
-    const authError = await verifyAdminPassword(req);
-    if (authError) return authError;
-
     try {
+        const authError = await validateAdminPassword(req);
+        if (authError) return authError;
+
+        // 确保数据库连接可用
+        await getDb();
         const data = await req.json() as CreateRuleDTO;
 
         // 验证必填字段
@@ -23,16 +26,18 @@ export async function POST(
         }
 
         // 验证正则表达式是否有效
-        try {
-            new RegExp(data.pattern);
-        } catch (e) {
-            return NextResponse.json(
-                { success: false, message: '无效的正则表达式' },
-                { status: 400 }
-            );
+        if (data.mode === 'regex') {
+            try {
+                new RegExp(data.pattern);
+            } catch (e) {
+                return NextResponse.json(
+                    { success: false, message: '无效的正则表达式' },
+                    { status: 400 }
+                );
+            }
         }
 
-        const rule = addRule(params.id, data);
+        const rule = await addRule(params.id, data);
         if (!rule) {
             return NextResponse.json(
                 { success: false, message: '模板不存在' },
@@ -55,10 +60,12 @@ export async function DELETE(
     req: NextRequest,
     { params }: { params: { id: string } }
 ) {
-    const authError = await verifyAdminPassword(req);
-    if (authError) return authError;
-
     try {
+        const authError = await validateAdminPassword(req);
+        if (authError) return authError;
+
+        // 确保数据库连接可用
+        await getDb();
         const { searchParams } = new URL(req.url);
         const ruleId = searchParams.get('ruleId');
 
@@ -69,7 +76,7 @@ export async function DELETE(
             );
         }
 
-        const success = deleteRule(params.id, ruleId);
+        const success = await deleteRule(params.id, ruleId);
         if (!success) {
             return NextResponse.json(
                 { success: false, message: '模板或规则不存在' },

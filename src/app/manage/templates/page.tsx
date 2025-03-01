@@ -9,22 +9,14 @@ export default function TemplatesPage() {
     const [templates, setTemplates] = useState<AppTemplate[]>([]);
     const [error, setError] = useState('');
     const [isLoading, setIsLoading] = useState(false);
-    const [selectedTemplate, setSelectedTemplate] = useState<AppTemplate | null>(null);
 
-    // 新建模板的状态
-    const [isCreating, setIsCreating] = useState(false);
-    const [newTemplate, setNewTemplate] = useState<CreateTemplateDTO>({
+    // 统一的表单状态
+    const [isFormOpen, setIsFormOpen] = useState(false);
+    const [editingId, setEditingId] = useState<string | null>(null);
+    const [formData, setFormData] = useState<CreateTemplateDTO & { rules: CreateRuleDTO[] }>({
         name: '',
-        description: ''
-    });
-
-    // 新建规则的状态
-    const [isAddingRule, setIsAddingRule] = useState(false);
-    const [newRule, setNewRule] = useState<CreateRuleDTO>({
-        type: 'include',
-        mode: 'simple',
-        pattern: '',
-        description: ''
+        description: '',
+        rules: [{ type: 'include', mode: 'simple_include', pattern: '', description: '' }]
     });
 
     // 获取管理员密码
@@ -70,100 +62,49 @@ export default function TemplatesPage() {
         }
     };
 
-    // 创建新模板
-    const createTemplate = async () => {
-        if (!newTemplate.name.trim()) {
+    // 保存模板(创建或更新)
+    const saveTemplate = async () => {
+        if (!formData.name.trim()) {
             setError('请输入应用名称');
             return;
         }
 
-        setIsLoading(true);
-        setError('');
-        try {
-            const response = await fetch('/api/manage/templates', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'x-admin-password': getAdminPassword(),
-                },
-                body: JSON.stringify(newTemplate),
-            });
-
-            const data = await response.json();
-            if (data.success) {
-                await loadTemplates();
-                setIsCreating(false);
-                setNewTemplate({ name: '', description: '' });
-            } else {
-                setError(data.message || '创建应用模板失败');
-            }
-        } catch (error) {
-            console.error('Create template error:', error);
-            setError('网络错误，请检查网络连接后重试');
-        } finally {
-            setIsLoading(false);
+        if (formData.rules.length === 0) {
+            setError('请至少添加一条规则');
+            return;
         }
-    };
 
-    // 添加新规则
-    const addRule = async () => {
-        if (!selectedTemplate) return;
-        if (!newRule.pattern.trim()) {
-            setError('请输入规则表达式');
+        if (formData.rules.some(rule => !rule.pattern.trim())) {
+            setError('规则表达式不能为空');
             return;
         }
 
         setIsLoading(true);
         setError('');
         try {
-            const response = await fetch(`/api/manage/templates/${selectedTemplate.id}/rules`, {
-                method: 'POST',
+            const isEditing = !!editingId;
+            const url = isEditing ? `/api/manage/templates/${editingId}` : '/api/manage/templates';
+            const method = isEditing ? 'PATCH' : 'POST';
+
+            const response = await fetch(url, {
+                method,
                 headers: {
                     'Content-Type': 'application/json',
                     'x-admin-password': getAdminPassword(),
                 },
-                body: JSON.stringify(newRule),
+                body: JSON.stringify(formData),
             });
 
             const data = await response.json();
-            if (data.success) {
-                await loadTemplates();
-                setIsAddingRule(false);
-                setNewRule({ type: 'include', mode: 'simple', pattern: '', description: '' });
-            } else {
-                setError(data.message || '添加规则失败');
+            if (!data.success) {
+                throw new Error(data.message || `${isEditing ? '更新' : '创建'}应用模板失败`);
             }
+
+            await loadTemplates();
+            closeForm();
         } catch (error) {
-            console.error('Add rule error:', error);
-            setError('网络错误，请检查网络连接后重试');
-        } finally {
-            setIsLoading(false);
-        }
-    };
-
-    // 删除规则
-    const deleteRule = async (templateId: string, ruleId: string) => {
-        if (!confirm('确定要删除这条规则吗？')) return;
-
-        setIsLoading(true);
-        setError('');
-        try {
-            const response = await fetch(`/api/manage/templates/${templateId}/rules/${ruleId}`, {
-                method: 'DELETE',
-                headers: {
-                    'x-admin-password': getAdminPassword(),
-                },
-            });
-
-            const data = await response.json();
-            if (data.success) {
-                await loadTemplates();
-            } else {
-                setError(data.message || '删除规则失败');
-            }
-        } catch (error) {
-            console.error('Delete rule error:', error);
-            setError('网络错误，请检查网络连接后重试');
+            console.error('Save template error:', error);
+            setError(error instanceof Error ? error.message : '保存失败，请稍后重试');
         } finally {
             setIsLoading(false);
         }
@@ -186,7 +127,6 @@ export default function TemplatesPage() {
             const data = await response.json();
             if (data.success) {
                 await loadTemplates();
-                setSelectedTemplate(null);
             } else {
                 setError(data.message || '删除应用模板失败');
             }
@@ -196,6 +136,75 @@ export default function TemplatesPage() {
         } finally {
             setIsLoading(false);
         }
+    };
+
+    // 添加规则输入框
+    const addRuleInput = () => {
+        setFormData(prev => ({
+            ...prev,
+            rules: [...prev.rules, { type: 'include', mode: 'simple_include', pattern: '', description: '' }]
+        }));
+    };
+
+    // 删除规则输入框
+    const removeRuleInput = (index: number) => {
+        if (formData.rules.length === 1) {
+            setError('至少需要保留一条规则');
+            return;
+        }
+        setFormData(prev => ({
+            ...prev,
+            rules: prev.rules.filter((_, i) => i !== index)
+        }));
+    };
+
+    // 更新规则输入
+    const updateRule = (index: number, field: keyof CreateRuleDTO, value: string) => {
+        setFormData(prev => ({
+            ...prev,
+            rules: prev.rules.map((rule, i) =>
+                i === index ? { ...rule, [field]: value } : rule
+            )
+        }));
+    };
+
+    // 开始编辑模板
+    const startEditing = (template: AppTemplate) => {
+        setEditingId(template.id);
+        setFormData({
+            name: template.name,
+            description: template.description,
+            rules: template.rules.map(rule => ({
+                type: rule.type,
+                mode: rule.mode,
+                pattern: rule.pattern,
+                description: rule.description
+            }))
+        });
+        setIsFormOpen(true);
+    };
+
+    // 开始创建模板
+    const startCreating = () => {
+        setEditingId(null);
+        setFormData({
+            name: '',
+            description: '',
+            rules: [{ type: 'include', mode: 'simple_include', pattern: '', description: '' }]
+        });
+        setIsFormOpen(true);
+    };
+
+    // 关闭表单
+    const closeForm = () => {
+        setIsFormOpen(false);
+        setEditingId(null);
+        setFormData({
+            name: '',
+            description: '',
+            rules: [{ type: 'include', mode: 'simple_include', pattern: '', description: '' }]
+        });
+        setError('');
     };
 
     // 在组件挂载后加载数据
@@ -222,9 +231,9 @@ export default function TemplatesPage() {
                                     >
                                         返回管理后台
                                     </Link>
-                                    {!isCreating && (
+                                    {!isFormOpen && (
                                         <button
-                                            onClick={() => setIsCreating(true)}
+                                            onClick={startCreating}
                                             className="px-4 py-2 text-sm bg-blue-500 text-white rounded-lg hover:bg-blue-600 dark:bg-blue-600 dark:hover:bg-blue-700 focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 dark:focus:ring-offset-gray-800 transition-all"
                                         >
                                             新建应用模板
@@ -237,10 +246,12 @@ export default function TemplatesPage() {
                                 <div className="text-red-500 dark:text-red-400 text-sm mb-4">{error}</div>
                             )}
 
-                            {/* 新建模板表单 */}
-                            {isCreating && (
+                            {/* 模板表单 */}
+                            {isFormOpen && (
                                 <div className="mb-6 p-4 border border-blue-100 dark:border-blue-900 rounded-lg bg-blue-50 dark:bg-blue-900/20">
-                                    <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">新建应用模板</h3>
+                                    <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">
+                                        {editingId ? '编辑应用模板' : '新建应用模板'}
+                                    </h3>
                                     <div className="space-y-4">
                                         <div>
                                             <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
@@ -248,10 +259,11 @@ export default function TemplatesPage() {
                                             </label>
                                             <input
                                                 type="text"
-                                                value={newTemplate.name}
-                                                onChange={(e) => setNewTemplate({ ...newTemplate, name: e.target.value })}
-                                                className="w-full px-4 py-2 border dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition-all dark:bg-gray-700 dark:text-white"
+                                                value={formData.name}
+                                                onChange={(e) => setFormData(prev => ({ ...prev, name: e.target.value }))}
                                                 placeholder="输入应用名称"
+                                                className="w-full px-4 py-2 border dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition-all disabled:bg-gray-100 dark:bg-gray-700 dark:text-white dark:disabled:bg-gray-600"
+                                                disabled={isLoading}
                                             />
                                         </div>
                                         <div>
@@ -260,28 +272,124 @@ export default function TemplatesPage() {
                                             </label>
                                             <input
                                                 type="text"
-                                                value={newTemplate.description}
-                                                onChange={(e) => setNewTemplate({ ...newTemplate, description: e.target.value })}
-                                                className="w-full px-4 py-2 border dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition-all dark:bg-gray-700 dark:text-white"
+                                                value={formData.description}
+                                                onChange={(e) => setFormData(prev => ({ ...prev, description: e.target.value }))}
                                                 placeholder="输入应用描述"
+                                                className="w-full px-4 py-2 border dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition-all disabled:bg-gray-100 dark:bg-gray-700 dark:text-white dark:disabled:bg-gray-600"
+                                                disabled={isLoading}
                                             />
                                         </div>
-                                        <div className="flex justify-end space-x-2">
+
+                                        {/* 规则列表 */}
+                                        <div className="space-y-4">
+                                            <div className="flex items-center justify-between">
+                                                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">
+                                                    规则列表
+                                                </label>
+                                                <button
+                                                    onClick={addRuleInput}
+                                                    className="text-sm text-blue-500 hover:text-blue-600 dark:text-blue-400 dark:hover:text-blue-300"
+                                                >
+                                                    添加规则
+                                                </button>
+                                            </div>
+                                            {formData.rules.map((rule, index) => (
+                                                <div key={index} className="p-4 border dark:border-gray-700 rounded-lg space-y-3">
+                                                    <div className="flex items-center justify-between">
+                                                        <span className="text-sm font-medium text-gray-700 dark:text-gray-300">
+                                                            规则 {index + 1}
+                                                        </span>
+                                                        {formData.rules.length > 1 && (
+                                                            <button
+                                                                onClick={() => removeRuleInput(index)}
+                                                                className="text-sm text-red-500 hover:text-red-600 dark:text-red-400 dark:hover:text-red-300"
+                                                            >
+                                                                删除
+                                                            </button>
+                                                        )}
+                                                    </div>
+                                                    <div className="grid grid-cols-1 gap-3">
+                                                        <div>
+                                                            <label className="block text-sm text-gray-600 dark:text-gray-400 mb-1">
+                                                                规则模式
+                                                            </label>
+                                                            <select
+                                                                value={rule.mode}
+                                                                onChange={(e) => {
+                                                                    const mode = e.target.value as RuleMode;
+                                                                    updateRule(index, 'mode', mode);
+                                                                    // 根据模式自动设置类型
+                                                                    updateRule(index, 'type',
+                                                                        mode === 'simple_include' ? 'include' :
+                                                                            mode === 'simple_exclude' ? 'exclude' :
+                                                                                rule.type
+                                                                    );
+                                                                }}
+                                                                className="w-full px-3 py-2 border dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition-all dark:bg-gray-700 dark:text-white"
+                                                            >
+                                                                <option value="simple_include">包含文本</option>
+                                                                <option value="simple_exclude">不包含文本</option>
+                                                                <option value="regex">正则表达式</option>
+                                                            </select>
+                                                        </div>
+                                                        {rule.mode === 'regex' && (
+                                                            <div>
+                                                                <label className="block text-sm text-gray-600 dark:text-gray-400 mb-1">
+                                                                    规则类型
+                                                                </label>
+                                                                <select
+                                                                    value={rule.type}
+                                                                    onChange={(e) => updateRule(index, 'type', e.target.value as RuleType)}
+                                                                    className="w-full px-3 py-2 border dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition-all dark:bg-gray-700 dark:text-white"
+                                                                >
+                                                                    <option value="include">包含匹配</option>
+                                                                    <option value="exclude">排除匹配</option>
+                                                                </select>
+                                                            </div>
+                                                        )}
+                                                    </div>
+                                                    <div>
+                                                        <label className="block text-sm text-gray-600 dark:text-gray-400 mb-1">
+                                                            {rule.mode === 'regex' ? '正则表达式' : '匹配文本'}
+                                                        </label>
+                                                        <input
+                                                            type="text"
+                                                            value={rule.pattern}
+                                                            onChange={(e) => updateRule(index, 'pattern', e.target.value)}
+                                                            placeholder={rule.mode === 'regex' ? '输入正则表达式' : '输入要匹配的文本'}
+                                                            className="w-full px-4 py-2 border dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition-all dark:bg-gray-700 dark:text-white"
+                                                        />
+                                                    </div>
+                                                    <div>
+                                                        <label className="block text-sm text-gray-600 dark:text-gray-400 mb-1">
+                                                            规则描述
+                                                        </label>
+                                                        <input
+                                                            type="text"
+                                                            value={rule.description}
+                                                            onChange={(e) => updateRule(index, 'description', e.target.value)}
+                                                            placeholder="输入规则描述"
+                                                            className="w-full px-4 py-2 border dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition-all dark:bg-gray-700 dark:text-white"
+                                                        />
+                                                    </div>
+                                                </div>
+                                            ))}
+                                        </div>
+
+                                        <div className="flex justify-end space-x-3 mt-4">
                                             <button
-                                                onClick={() => {
-                                                    setIsCreating(false);
-                                                    setNewTemplate({ name: '', description: '' });
-                                                }}
+                                                onClick={closeForm}
                                                 className="px-4 py-2 text-sm text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-300"
+                                                disabled={isLoading}
                                             >
                                                 取消
                                             </button>
                                             <button
-                                                onClick={createTemplate}
+                                                onClick={saveTemplate}
                                                 disabled={isLoading}
                                                 className="px-4 py-2 text-sm bg-blue-500 text-white rounded-lg hover:bg-blue-600 dark:bg-blue-600 dark:hover:bg-blue-700 focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 dark:focus:ring-offset-gray-800 disabled:bg-blue-300 dark:disabled:bg-blue-400 transition-all"
                                             >
-                                                {isLoading ? '创建中...' : '创建'}
+                                                {isLoading ? '保存中...' : (editingId ? '更新模板' : '创建模板')}
                                             </button>
                                         </div>
                                     </div>
@@ -289,221 +397,82 @@ export default function TemplatesPage() {
                             )}
 
                             {/* 模板列表 */}
-                            <div className="space-y-4">
-                                {templates.map((template) => (
-                                    <div
-                                        key={template.id}
-                                        className={`border dark:border-gray-700 rounded-lg transition-colors ${selectedTemplate?.id === template.id
-                                            ? 'border-blue-500 dark:border-blue-400'
-                                            : 'hover:border-gray-300 dark:hover:border-gray-600'
-                                            }`}
-                                    >
-                                        {/* 模板头部 */}
-                                        <div
-                                            className="p-4 cursor-pointer"
-                                            onClick={() => setSelectedTemplate(selectedTemplate?.id === template.id ? null : template)}
-                                        >
+                            {!isFormOpen && (
+                                <div className="bg-white dark:bg-gray-800 rounded-lg shadow divide-y dark:divide-gray-700">
+                                    {templates.map((template) => (
+                                        <div key={template.id} className="p-6 space-y-4">
                                             <div className="flex items-start justify-between">
                                                 <div>
-                                                    <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-2">
+                                                    <h3 className="text-lg font-semibold text-gray-900 dark:text-white">
                                                         {template.name}
                                                     </h3>
-                                                    <p className="text-gray-500 dark:text-gray-400 text-sm">
+                                                    <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">
                                                         {template.description}
                                                     </p>
                                                 </div>
                                                 <div className="flex items-center space-x-4">
-                                                    <div className="text-sm text-gray-400 dark:text-gray-500">
-                                                        规则数量: {template.rules.length}
-                                                    </div>
                                                     <button
-                                                        onClick={(e) => {
-                                                            e.stopPropagation();
-                                                            deleteTemplate(template.id);
-                                                        }}
+                                                        onClick={() => startEditing(template)}
+                                                        className="text-sm text-blue-500 hover:text-blue-600 dark:text-blue-400 dark:hover:text-blue-300"
+                                                    >
+                                                        编辑
+                                                    </button>
+                                                    <button
+                                                        onClick={() => deleteTemplate(template.id)}
                                                         className="text-sm text-red-500 hover:text-red-600 dark:text-red-400 dark:hover:text-red-300"
                                                     >
                                                         删除
                                                     </button>
                                                 </div>
                                             </div>
-                                        </div>
 
-                                        {/* 模板详情 */}
-                                        {selectedTemplate?.id === template.id && (
-                                            <div className="border-t dark:border-gray-700 p-4">
-                                                <div className="flex items-center justify-between mb-4">
-                                                    <h4 className="text-md font-medium text-gray-900 dark:text-white">规则列表</h4>
-                                                    <button
-                                                        onClick={() => setIsAddingRule(true)}
-                                                        className="text-sm text-blue-500 hover:text-blue-600 dark:text-blue-400 dark:hover:text-blue-300"
-                                                    >
-                                                        添加规则
-                                                    </button>
-                                                </div>
-
-                                                {/* 添加规则表单 */}
-                                                {isAddingRule && (
-                                                    <div className="mb-4 p-4 border border-blue-100 dark:border-blue-900 rounded-lg bg-blue-50 dark:bg-blue-900/20">
-                                                        <div className="space-y-4">
-                                                            <div>
-                                                                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                                                                    规则类型
-                                                                </label>
-                                                                <select
-                                                                    value={newRule.type}
-                                                                    onChange={(e) => setNewRule({ ...newRule, type: e.target.value as RuleType })}
-                                                                    className="w-full px-4 py-2 border dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition-all dark:bg-gray-700 dark:text-white"
-                                                                >
-                                                                    <option value="include">包含</option>
-                                                                    <option value="exclude">排除</option>
-                                                                </select>
-                                                            </div>
-                                                            <div>
-                                                                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                                                                    规则模式
-                                                                </label>
-                                                                <select
-                                                                    value={newRule.mode}
-                                                                    onChange={(e) => setNewRule({ ...newRule, mode: e.target.value as RuleMode })}
-                                                                    className="w-full px-4 py-2 border dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition-all dark:bg-gray-700 dark:text-white"
-                                                                >
-                                                                    <option value="simple">简单文本</option>
-                                                                    <option value="regex">正则表达式</option>
-                                                                </select>
-                                                            </div>
-                                                            <div>
-                                                                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                                                                    {newRule.mode === 'simple' ? '匹配文本' : '正则表达式'}
-                                                                </label>
-                                                                <input
-                                                                    type="text"
-                                                                    value={newRule.pattern}
-                                                                    onChange={(e) => setNewRule({ ...newRule, pattern: e.target.value })}
-                                                                    className="w-full px-4 py-2 border dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition-all dark:bg-gray-700 dark:text-white"
-                                                                    placeholder={newRule.mode === 'simple' ? '输入要匹配的文本' : '输入正则表达式'}
-                                                                />
-                                                                {newRule.mode === 'simple' && (
-                                                                    <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">
-                                                                        直接输入要匹配的文本，无需考虑特殊字符
-                                                                    </p>
-                                                                )}
-                                                                {newRule.mode === 'regex' && (
-                                                                    <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">
-                                                                        使用正则表达式进行高级匹配，如：^验证码.*$
-                                                                    </p>
-                                                                )}
-                                                            </div>
-                                                            <div>
-                                                                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                                                                    规则描述
-                                                                </label>
-                                                                <input
-                                                                    type="text"
-                                                                    value={newRule.description}
-                                                                    onChange={(e) => setNewRule({ ...newRule, description: e.target.value })}
-                                                                    className="w-full px-4 py-2 border dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition-all dark:bg-gray-700 dark:text-white"
-                                                                    placeholder="输入规则描述"
-                                                                />
-                                                            </div>
-                                                            <div className="flex justify-end space-x-2">
-                                                                <button
-                                                                    onClick={() => {
-                                                                        setIsAddingRule(false);
-                                                                        setNewRule({ type: 'include', mode: 'simple', pattern: '', description: '' });
-                                                                    }}
-                                                                    className="px-4 py-2 text-sm text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-300"
-                                                                >
-                                                                    取消
-                                                                </button>
-                                                                <button
-                                                                    onClick={addRule}
-                                                                    disabled={isLoading}
-                                                                    className="px-4 py-2 text-sm bg-blue-500 text-white rounded-lg hover:bg-blue-600 dark:bg-blue-600 dark:hover:bg-blue-700 focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 dark:focus:ring-offset-gray-800 disabled:bg-blue-300 dark:disabled:bg-blue-400 transition-all"
-                                                                >
-                                                                    {isLoading ? '添加中...' : '添加'}
-                                                                </button>
-                                                            </div>
-                                                        </div>
-                                                    </div>
-                                                )}
-
-                                                {/* 规则列表 */}
+                                            {/* 规则列表 */}
+                                            <div className="space-y-2">
+                                                <h4 className="text-sm font-medium text-gray-900 dark:text-white">规则列表</h4>
                                                 <div className="space-y-2">
                                                     {template.rules.map((rule) => (
                                                         <div
                                                             key={rule.id}
-                                                            className="flex items-center justify-between p-2 border dark:border-gray-700 rounded-lg"
+                                                            className="flex items-center justify-between p-3 bg-gray-50 dark:bg-gray-700/50 rounded-lg"
                                                         >
-                                                            <div>
+                                                            <div className="space-y-1">
                                                                 <div className="flex items-center space-x-2">
-                                                                    <span className={`text-sm font-medium ${rule.type === 'include'
-                                                                        ? 'text-green-500 dark:text-green-400'
-                                                                        : 'text-red-500 dark:text-red-400'
+                                                                    <span className={`text-sm font-medium ${rule.mode === 'simple_include' || (rule.mode === 'regex' && rule.type === 'include')
+                                                                        ? 'text-green-600 dark:text-green-400'
+                                                                        : 'text-red-600 dark:text-red-400'
                                                                         }`}>
-                                                                        {rule.type === 'include' ? '包含' : '排除'}
-                                                                    </span>
-                                                                    <span className="text-gray-400 dark:text-gray-500">|</span>
-                                                                    <span className={`text-sm ${rule.mode === 'simple'
-                                                                        ? 'text-blue-500 dark:text-blue-400'
-                                                                        : 'text-purple-500 dark:text-purple-400'
-                                                                        }`}>
-                                                                        {rule.mode === 'simple' ? '文本' : '正则'}
-                                                                    </span>
-                                                                    <span className="text-gray-400 dark:text-gray-500">|</span>
-                                                                    <span className="text-sm text-gray-900 dark:text-white font-mono">
-                                                                        {rule.pattern}
+                                                                        {rule.mode === 'regex'
+                                                                            ? (rule.type === 'include' ? '正则包含' : '正则排除')
+                                                                            : (rule.mode === 'simple_include' ? '包含文本' : '不包含文本')}
                                                                     </span>
                                                                 </div>
-                                                                <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">
-                                                                    {rule.description}
+                                                                <p className="text-sm font-mono text-gray-900 dark:text-white">
+                                                                    {rule.pattern}
                                                                 </p>
+                                                                {rule.description && (
+                                                                    <p className="text-sm text-gray-500 dark:text-gray-400">
+                                                                        {rule.description}
+                                                                    </p>
+                                                                )}
                                                             </div>
-                                                            <button
-                                                                onClick={() => deleteRule(template.id, rule.id)}
-                                                                className="text-sm text-red-500 hover:text-red-600 dark:text-red-400 dark:hover:text-red-300"
-                                                            >
-                                                                删除
-                                                            </button>
                                                         </div>
                                                     ))}
-
                                                     {template.rules.length === 0 && (
-                                                        <div className="text-center py-4 text-gray-500 dark:text-gray-400">
-                                                            暂无规则，点击"添加规则"按钮创建第一条规则
-                                                        </div>
+                                                        <p className="text-sm text-gray-500 dark:text-gray-400 text-center py-4">
+                                                            暂无规则
+                                                        </p>
                                                     )}
                                                 </div>
                                             </div>
-                                        )}
-                                    </div>
-                                ))}
-
-                                {templates.length === 0 && !isLoading && !isCreating && (
-                                    <div className="text-center py-12">
-                                        <div className="inline-flex items-center justify-center w-16 h-16 rounded-full bg-gray-100 dark:bg-gray-800 mb-4">
-                                            <svg className="w-8 h-8 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
-                                            </svg>
                                         </div>
-                                        <h3 className="text-xl font-semibold text-gray-900 dark:text-white mb-2">暂无应用模板</h3>
-                                        <p className="text-gray-500 dark:text-gray-400">
-                                            点击"新建应用模板"按钮创建第一个应用模板
-                                        </p>
-                                    </div>
-                                )}
-
-                                {isLoading && !isCreating && (
-                                    <div className="text-center py-12">
-                                        <div className="inline-flex items-center justify-center">
-                                            <svg className="animate-spin h-8 w-8 text-gray-400" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                                                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                                                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                                            </svg>
+                                    ))}
+                                    {templates.length === 0 && !isLoading && (
+                                        <div className="p-6 text-center text-gray-500 dark:text-gray-400">
+                                            暂无应用模板
                                         </div>
-                                    </div>
-                                )}
-                            </div>
+                                    )}
+                                </div>
+                            )}
                         </div>
                     </div>
                 </AdminLogin>

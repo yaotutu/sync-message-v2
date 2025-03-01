@@ -1,6 +1,6 @@
-import { AppTemplate, TemplateRule, CreateTemplateDTO, CreateRuleDTO } from '@/types/templates';
+import { AppTemplate, TemplateRule, CreateTemplateDTO, CreateRuleDTO, UpdateTemplateDTO } from '@/types/templates';
 import { randomUUID } from 'crypto';
-import { sql, sqlQuery, sqlGet } from './db';
+import { sql, sqlQuery, sqlGet, getDb } from './db';
 
 // 内存中存储模板数据
 let templates: AppTemplate[] = [];
@@ -25,7 +25,7 @@ export async function getAllTemplates(): Promise<AppTemplate[]> {
     // 获取每个模板的规则
     for (const template of templates) {
         template.rules = await sqlQuery<TemplateRule>`
-            SELECT id, type, mode, pattern, description, order_num as order, is_active as isActive
+            SELECT id, type, mode, pattern, description, order_num, is_active as isActive
             FROM rules
             WHERE template_id = ${template.id}
             ORDER BY order_num
@@ -46,7 +46,7 @@ export async function getTemplateById(id: string): Promise<AppTemplate | null> {
     if (!template) return null;
 
     template.rules = await sqlQuery<TemplateRule>`
-        SELECT id, type, mode, pattern, description, order_num as order, is_active as isActive
+        SELECT id, type, mode, pattern, description, order_num, is_active as isActive
         FROM rules
         WHERE template_id = ${id}
         ORDER BY order_num
@@ -97,8 +97,8 @@ export async function addRule(templateId: string, data: CreateRuleDTO): Promise<
 
     // 如果是简单模式，将文本转换为正则安全的模式
     let pattern = data.pattern;
-    if (data.mode === 'simple') {
-        pattern = data.pattern.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'); // 转义特殊字符
+    if (data.mode === 'simple_include' || data.mode === 'simple_exclude') {
+        pattern = convertSimplePatternToRegex(data.pattern);
     } else {
         // 验证正则表达式是否有效
         try {
@@ -126,7 +126,7 @@ export async function addRule(templateId: string, data: CreateRuleDTO): Promise<
 
     return {
         id,
-        order: orderNum,
+        order_num: orderNum,
         type: data.type,
         mode: data.mode,
         pattern: pattern,
@@ -182,14 +182,96 @@ export function convertSimplePatternToRegex(pattern: string): string {
 // 测试消息是否匹配规则
 export function testMessage(message: string, rule: TemplateRule): boolean {
     try {
-        const pattern = rule.mode === 'simple'
-            ? new RegExp(convertSimplePatternToRegex(rule.pattern))
-            : new RegExp(rule.pattern);
+        const pattern = rule.mode === 'regex'
+            ? new RegExp(rule.pattern)
+            : new RegExp(rule.pattern, 'i'); // 简单模式使用不区分大小写的匹配
 
         const isMatch = pattern.test(message);
+
+        // 根据规则模式确定返回结果
+        if (rule.mode === 'simple_include') return isMatch;
+        if (rule.mode === 'simple_exclude') return !isMatch;
         return rule.type === 'include' ? isMatch : !isMatch;
     } catch (e) {
         console.error('规则匹配错误:', e);
         return false;
+    }
+}
+
+// 更新模板
+export async function updateTemplate(id: string, data: UpdateTemplateDTO): Promise<AppTemplate | null> {
+    try {
+        const template = await getTemplateById(id);
+        if (!template) return null;
+
+        const now = new Date().toISOString();
+        const db = await getDb();
+
+        // 开始事务
+        await db.run('BEGIN TRANSACTION');
+
+        try {
+            // 更新模板基本信息
+            const updateFields = [];
+            const updateValues = [];
+
+            if (data.name !== undefined) {
+                updateFields.push('name');
+                updateValues.push(data.name);
+            }
+
+            if (data.description !== undefined) {
+                updateFields.push('description');
+                updateValues.push(data.description);
+            }
+
+            if (updateFields.length > 0) {
+                updateFields.push('updated_at');
+                updateValues.push(now);
+
+                const setClause = updateFields.map(field => `${field} = ?`).join(', ');
+                updateValues.push(id);
+
+                await db.run(
+                    `UPDATE templates SET ${setClause} WHERE id = ?`,
+                    updateValues
+                );
+            }
+
+            // 如果提供了规则，更新规则
+            if (data.rules) {
+                // 删除所有现有规则
+                await db.run('DELETE FROM rules WHERE template_id = ?', [id]);
+
+                // 插入新规则
+                for (let i = 0; i < data.rules.length; i++) {
+                    const rule = data.rules[i];
+                    const ruleId = generateId();
+                    const pattern = rule.mode === 'regex'
+                        ? rule.pattern
+                        : convertSimplePatternToRegex(rule.pattern);
+
+                    await db.run(
+                        `INSERT INTO rules (id, template_id, type, mode, pattern, description, order_num, is_active)
+                         VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+                        [ruleId, id, rule.type, rule.mode, pattern, rule.description, i + 1, 1]
+                    );
+                }
+            }
+
+            // 提交事务
+            await db.run('COMMIT');
+
+            // 获取更新后的模板
+            const updatedTemplate = await getTemplateById(id);
+            return updatedTemplate;
+        } catch (error) {
+            // 如果出错，回滚事务
+            await db.run('ROLLBACK');
+            throw error;
+        }
+    } catch (error) {
+        console.error('Update template error:', error);
+        return null;
     }
 } 

@@ -1,11 +1,11 @@
 export type RuleType = 'include' | 'exclude';
-export type RuleMode = 'simple' | 'regex';
+export type RuleMode = 'simple_include' | 'simple_exclude' | 'regex';
 
 export interface TemplateRule {
     id: string;           // 规则唯一标识
-    order: number;        // 规则优先级
+    order_num: number;    // 规则优先级
     type: RuleType;       // 规则类型：包含或排除
-    mode: RuleMode;       // 规则模式：简单模式或正则模式
+    mode: RuleMode;       // 规则模式：简单包含、简单排除或正则模式
     pattern: string;      // 匹配模式（简单文本或正则表达式）
     description: string;  // 规则描述
     isActive: boolean;    // 规则是否启用
@@ -28,6 +28,7 @@ export interface CreateTemplateDTO {
 export interface UpdateTemplateDTO {
     name?: string;
     description?: string;
+    rules?: CreateRuleDTO[];
 }
 
 export interface CreateRuleDTO {
