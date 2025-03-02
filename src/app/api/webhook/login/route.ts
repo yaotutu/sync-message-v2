@@ -1,6 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { validateUser } from '@/lib/db/users';
+import { validateUser } from '@/lib/services/users';
 
+/**
+ * Webhook登录API
+ */
 export async function POST(request: NextRequest) {
     try {
         const { username, password } = await request.json();
@@ -15,7 +18,7 @@ export async function POST(request: NextRequest) {
         const result = await validateUser(username, password);
         return NextResponse.json(result);
     } catch (error) {
-        console.error('Webhook login error:', error);
+        console.error('Webhook登录失败:', error);
         return NextResponse.json(
             { success: false, message: '登录失败，请稍后重试' },
             { status: 500 }

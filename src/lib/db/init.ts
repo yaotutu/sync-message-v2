@@ -69,12 +69,31 @@ async function createRulesTable() {
             id TEXT PRIMARY KEY,
             template_id TEXT NOT NULL,
             type TEXT NOT NULL CHECK (type IN ('include', 'exclude')),
-            mode TEXT NOT NULL CHECK (mode IN ('simple', 'regex')),
+            mode TEXT NOT NULL CHECK (mode IN ('simple_include', 'simple_exclude', 'regex')),
             pattern TEXT NOT NULL,
             description TEXT,
             order_num INTEGER NOT NULL,
             is_active BOOLEAN NOT NULL DEFAULT 1,
             FOREIGN KEY (template_id) REFERENCES templates (id) ON DELETE CASCADE
+        )
+    `);
+}
+
+// 创建带链接卡密表
+async function createCardLinksTable() {
+    const db = await getDb();
+    await db.exec(`
+        CREATE TABLE IF NOT EXISTS card_links (
+            id TEXT PRIMARY KEY,
+            key TEXT UNIQUE NOT NULL,
+            username TEXT NOT NULL,
+            app_name TEXT NOT NULL,
+            phones TEXT NOT NULL,
+            created_at INTEGER NOT NULL,
+            url TEXT NOT NULL,
+            template_id TEXT,
+            FOREIGN KEY (username) REFERENCES webhook_users(username),
+            FOREIGN KEY (template_id) REFERENCES templates(id)
         )
     `);
 }
@@ -94,6 +113,7 @@ export async function initDatabase() {
         await createCardKeysTable();
         await createTemplatesTable();
         await createRulesTable();
+        await createCardLinksTable();
 
         console.log('数据库初始化成功');
     } catch (error) {

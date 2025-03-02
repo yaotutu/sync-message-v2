@@ -1,0 +1,254 @@
+'use client';
+
+import { useState, useEffect } from 'react';
+import { useSearchParams } from 'next/navigation';
+import { Message } from '@/types';
+
+// 从短信内容中提取验证码的函数
+const extractVerificationCode = (content: string): string | null => {
+    // 常见的验证码格式匹配
+    const patterns = [
+        /验证码[为是：:]\s*([0-9]{4,6})/i,
+        /验证码[：:]\s*([0-9]{4,6})/i,
+        /验证码\s*[为是:：]?\s*([0-9]{4,6})/i,
+        /code[：:]\s*([0-9]{4,6})/i,
+        /[验证校验]证码[^0-9]*([0-9]{4,6})/i,
+        /[^0-9]([0-9]{4,6})[^0-9]/
+    ];
+
+    for (const pattern of patterns) {
+        const match = content.match(pattern);
+        if (match && match[1]) {
+            return match[1];
+        }
+    }
+
+    // 如果没有匹配到，尝试匹配任何4-6位数字
+    const anyNumberMatch = content.match(/[^0-9]([0-9]{4,6})[^0-9]/);
+    if (anyNumberMatch && anyNumberMatch[1]) {
+        return anyNumberMatch[1];
+    }
+
+    return null;
+};
+
+export default function ViewPage() {
+    const searchParams = useSearchParams();
+    const [isLoading, setIsLoading] = useState(true);
+    const [error, setError] = useState('');
+    const [messages, setMessages] = useState<Message[]>([]);
+    const [appName, setAppName] = useState<string>('');
+    const [phone, setPhone] = useState<string | null>(null);
+    const [verificationCode, setVerificationCode] = useState<string | null>(null);
+    const [copyStatus, setCopyStatus] = useState<{ phone: string, code: string }>({
+        phone: '',
+        code: ''
+    });
+
+    useEffect(() => {
+        const cardKey = searchParams.get('cardKey');
+        const appNameParam = searchParams.get('appName');
+        const phoneParam = searchParams.get('phone');
+
+        if (!cardKey || !appNameParam) {
+            setError('无效的链接参数');
+            setIsLoading(false);
+            return;
+        }
+
+        setAppName(appNameParam);
+        setPhone(phoneParam);
+        loadMessages(cardKey, appNameParam, phoneParam);
+    }, [searchParams]);
+
+    // 当消息加载完成后，尝试提取验证码
+    useEffect(() => {
+        if (messages.length > 0) {
+            // 尝试从最新的消息中提取验证码
+            const latestMessage = messages[0];
+            const code = extractVerificationCode(latestMessage.sms_content);
+            setVerificationCode(code);
+        }
+    }, [messages]);
+
+    const loadMessages = async (cardKey: string, appName: string, phone: string | null) => {
+        setIsLoading(true);
+        setError('');
+        try {
+            console.log('加载消息，参数:', { cardKey, appName, phone });
+
+            let url = '';
+            let params = new URLSearchParams();
+
+            // 对"剪影"应用使用专用API路由
+            if (appName === '剪影') {
+                console.log('使用剪影专用API路由');
+                params.append('cardKey', cardKey);
+                if (phone) {
+                    params.append('phone', phone);
+                }
+                url = `/api/public/messages/jianying?${params.toString()}`;
+            } else {
+                // 其他应用使用通用API路由
+                console.log('使用通用API路由');
+                // 确保appName正确编码
+                const encodedAppName = encodeURIComponent(appName);
+                console.log('编码后的appName:', encodedAppName);
+
+                params.append('cardKey', cardKey);
+                params.append('appName', encodedAppName);
+                if (phone) {
+                    params.append('phone', phone);
+                }
+                url = `/api/public/messages?${params.toString()}`;
+            }
+
+            console.log('请求URL:', url);
+
+            const response = await fetch(url);
+            const data = await response.json();
+
+            if (data.success) {
+                // 按接收时间排序，最新的消息在前面
+                const sortedMessages = (data.data || []).sort((a: Message, b: Message) => {
+                    const timeA = a.received_at || (a.rec_time ? new Date(a.rec_time).getTime() : 0);
+                    const timeB = b.received_at || (b.rec_time ? new Date(b.rec_time).getTime() : 0);
+                    return timeB - timeA;
+                });
+                setMessages(sortedMessages);
+            } else {
+                setError(data.message || '加载消息失败');
+            }
+        } catch (error) {
+            console.error('加载消息错误:', error);
+            setError('加载消息失败，请检查网络连接');
+        } finally {
+            setIsLoading(false);
+        }
+    };
+
+    // 复制文本到剪贴板
+    const copyToClipboard = async (text: string, type: 'phone' | 'code') => {
+        try {
+            await navigator.clipboard.writeText(text);
+            setCopyStatus(prev => ({
+                ...prev,
+                [type]: '复制成功!'
+            }));
+
+            // 2秒后清除复制状态
+            setTimeout(() => {
+                setCopyStatus(prev => ({
+                    ...prev,
+                    [type]: ''
+                }));
+            }, 2000);
+        } catch (err) {
+            console.error('复制失败:', err);
+            setCopyStatus(prev => ({
+                ...prev,
+                [type]: '复制失败'
+            }));
+        }
+    };
+
+    if (isLoading) {
+        return (
+            <div className="min-h-screen bg-gray-100 dark:bg-gray-900 flex items-center justify-center">
+                <div className="text-gray-600 dark:text-gray-400">加载中...</div>
+            </div>
+        );
+    }
+
+    if (error) {
+        return (
+            <div className="min-h-screen bg-gray-100 dark:bg-gray-900 flex items-center justify-center">
+                <div className="text-red-500 dark:text-red-400">{error}</div>
+            </div>
+        );
+    }
+
+    return (
+        <div className="min-h-screen bg-gray-100 dark:bg-gray-900 py-8 px-4">
+            <div className="max-w-4xl mx-auto">
+                {/* 快速复制卡片 */}
+                <div className="bg-white dark:bg-gray-800 rounded-lg shadow mb-6">
+                    <div className="p-6 border-b dark:border-gray-700">
+                        <h2 className="text-xl font-bold text-gray-900 dark:text-white">
+                            {appName} - 快速复制
+                        </h2>
+                    </div>
+                    <div className="p-6 space-y-6">
+                        {/* 手机号部分 */}
+                        <div className="space-y-2">
+                            <div className="flex items-center justify-between">
+                                <h3 className="text-lg font-semibold text-gray-800 dark:text-gray-200">手机号</h3>
+                                <button
+                                    onClick={() => phone && copyToClipboard(phone, 'phone')}
+                                    disabled={!phone}
+                                    className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                                >
+                                    {copyStatus.phone || '复制账号'}
+                                </button>
+                            </div>
+                            <div className="p-3 bg-gray-100 dark:bg-gray-700 rounded-lg font-mono text-lg">
+                                {phone || '无手机号'}
+                            </div>
+                            <p className="text-xs text-gray-500 dark:text-gray-400">
+                                第一步：点击"复制账号"按钮复制手机号
+                            </p>
+                        </div>
+
+                        {/* 验证码部分 */}
+                        <div className="space-y-2">
+                            <div className="flex items-center justify-between">
+                                <h3 className="text-lg font-semibold text-gray-800 dark:text-gray-200">验证码</h3>
+                                <button
+                                    onClick={() => verificationCode && copyToClipboard(verificationCode, 'code')}
+                                    disabled={!verificationCode}
+                                    className="px-4 py-2 bg-green-600 text-white rounded hover:bg-green-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                                >
+                                    {copyStatus.code || '复制验证码'}
+                                </button>
+                            </div>
+                            <div className="p-3 bg-gray-100 dark:bg-gray-700 rounded-lg font-mono text-lg text-center">
+                                {verificationCode || '未找到验证码'}
+                            </div>
+                            <p className="text-xs text-gray-500 dark:text-gray-400">
+                                第二步：点击"复制验证码"按钮复制验证码
+                            </p>
+                        </div>
+                    </div>
+                </div>
+
+                {/* 消息列表 */}
+                <div className="bg-white dark:bg-gray-800 rounded-lg shadow overflow-hidden">
+                    <div className="p-6 border-b dark:border-gray-700">
+                        <h2 className="text-xl font-bold text-gray-900 dark:text-white">
+                            消息列表
+                        </h2>
+                    </div>
+                    <div className="divide-y dark:divide-gray-700">
+                        {messages.map((message) => (
+                            <div key={message.id} className="p-4 hover:bg-gray-50 dark:hover:bg-gray-700/50">
+                                <div className="space-y-2">
+                                    <div className="text-gray-900 dark:text-white break-words">
+                                        {message.sms_content}
+                                    </div>
+                                    <div className="text-sm text-gray-500 dark:text-gray-400">
+                                        接收时间：{message.rec_time || new Date(message.received_at).toLocaleString()}
+                                    </div>
+                                </div>
+                            </div>
+                        ))}
+                        {messages.length === 0 && (
+                            <div className="p-4 text-center text-gray-500 dark:text-gray-400">
+                                暂无消息
+                            </div>
+                        )}
+                    </div>
+                </div>
+            </div>
+        </div>
+    );
+} 

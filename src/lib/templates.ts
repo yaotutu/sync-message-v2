@@ -1,6 +1,8 @@
-import { AppTemplate, TemplateRule, CreateTemplateDTO, CreateRuleDTO, UpdateTemplateDTO } from '@/types/templates';
+import { AppTemplate, TemplateRule, CreateTemplateDTO, CreateRuleDTO, UpdateTemplateDTO } from '@/types';
 import { randomUUID } from 'crypto';
-import { sql, sqlQuery, sqlGet, getDb } from './db';
+import { sql, sqlQuery, sqlGet, getDb, transaction } from './db';
+import { Database } from 'sqlite';
+import { Database as SQLiteDatabase, Statement } from 'sqlite3';
 
 // 内存中存储模板数据
 let templates: AppTemplate[] = [];
@@ -55,24 +57,97 @@ export async function getTemplateById(id: string): Promise<AppTemplate | null> {
     return template;
 }
 
-// 创建新模板
-export async function createTemplate(data: CreateTemplateDTO): Promise<AppTemplate> {
-    const now = new Date().toISOString();
-    const id = generateId();
+// 根据应用名称获取模板
+export async function getTemplateByName(name: string): Promise<AppTemplate | null> {
+    const template = await sqlGet<AppTemplate>`
+        SELECT 
+            t.id,
+            t.name,
+            t.description,
+            t.created_at as createdAt,
+            t.updated_at as updatedAt
+        FROM templates t
+        WHERE t.name = ${name}
+    `;
 
-    await sql`
-        INSERT INTO templates (id, name, description, created_at, updated_at)
-        VALUES (${id}, ${data.name}, ${data.description}, ${now}, ${now})
+    if (!template) {
+        return null;
+    }
+
+    // 获取模板的规则
+    const rules = await sqlQuery<TemplateRule>`
+        SELECT 
+            id,
+            type,
+            mode,
+            pattern,
+            description,
+            order_num as order_num,
+            is_active as isActive
+        FROM rules
+        WHERE template_id = ${template.id}
+        ORDER BY order_num ASC
     `;
 
     return {
-        id,
-        name: data.name,
-        description: data.description,
-        rules: [],
-        createdAt: now,
-        updatedAt: now
+        ...template,
+        rules
     };
+}
+
+// 创建新模板
+export async function createTemplate(data: CreateTemplateDTO & { rules?: CreateRuleDTO[] }): Promise<AppTemplate> {
+    const now = new Date().toISOString();
+    const id = generateId();
+
+    // 使用事务确保模板和规则的创建是原子的
+    return await transaction(async (db) => {
+        // 创建模板
+        await db.run(
+            'INSERT INTO templates (id, name, description, created_at, updated_at) VALUES (?, ?, ?, ?, ?)',
+            [id, data.name, data.description, now, now]
+        );
+
+        const rules: TemplateRule[] = [];
+
+        // 如果提供了规则，创建规则
+        if (data.rules && data.rules.length > 0) {
+            for (let i = 0; i < data.rules.length; i++) {
+                const rule = data.rules[i];
+                const ruleId = generateId();
+                let pattern = rule.pattern;
+
+                // 处理简单模式的规则
+                if (rule.mode === 'simple_include' || rule.mode === 'simple_exclude') {
+                    pattern = convertSimplePatternToRegex(rule.pattern);
+                }
+
+                await db.run(
+                    'INSERT INTO rules (id, template_id, type, mode, pattern, description, order_num, is_active) VALUES (?, ?, ?, ?, ?, ?, ?, ?)',
+                    [ruleId, id, rule.type, rule.mode, pattern, rule.description, i + 1, true]
+                );
+
+                rules.push({
+                    id: ruleId,
+                    type: rule.type,
+                    mode: rule.mode,
+                    pattern: pattern,
+                    description: rule.description,
+                    order_num: i + 1,
+                    isActive: true
+                });
+            }
+        }
+
+        return {
+            id,
+            name: data.name,
+            description: data.description,
+            rules,
+            createdAt: now,
+            updatedAt: now
+        };
+    });
 }
 
 // 删除模板
@@ -174,9 +249,11 @@ export async function deleteRule(templateId: string, ruleId: string): Promise<bo
     }
 }
 
-// 将简单模式的文本转换为正则表达式
+// 将简单文本模式转换为正则表达式
 export function convertSimplePatternToRegex(pattern: string): string {
-    return pattern.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    // 转义正则表达式特殊字符
+    const escaped = pattern.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    return escaped;
 }
 
 // 测试消息是否匹配规则
