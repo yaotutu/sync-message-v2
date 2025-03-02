@@ -33,13 +33,28 @@ export async function GET(request: NextRequest) {
         }
         console.log(`用户验证成功: ${username}`);
 
+        // 获取分页参数
+        const url = new URL(request.url);
+        const page = parseInt(url.searchParams.get('page') || '1');
+        const pageSize = parseInt(url.searchParams.get('pageSize') || '10');
+        // 获取状态过滤参数
+        const status = url.searchParams.get('status');
+
+        console.log(`分页参数: page=${page}, pageSize=${pageSize}, status=${status || '全部'}`);
+
         // 获取用户的卡密链接
-        const cardLinks = await getUserCardLinks(username);
-        console.log(`成功获取用户 ${username} 的 ${cardLinks.length} 个卡密链接`);
+        const { links, total } = await getUserCardLinks(username, page, pageSize, status);
+        console.log(`成功获取用户 ${username} 的 ${links.length} 个卡密链接，总数: ${total}`);
 
         return NextResponse.json({
             success: true,
-            data: cardLinks
+            data: links,
+            pagination: {
+                page,
+                pageSize,
+                total,
+                totalPages: Math.ceil(total / pageSize)
+            }
         });
     } catch (error) {
         console.error('获取用户卡密链接失败:', error);

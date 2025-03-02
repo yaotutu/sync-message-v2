@@ -2,6 +2,34 @@ import { sql, sqlQuery, sqlGet, transaction } from './index';
 import { CardLink, CreateCardLinkDTO } from '@/types';
 import { randomUUID } from 'crypto';
 
+// 生成卡密
+function generateCardKey(): string {
+    const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
+    const length = 16;
+    let key = '';
+
+    for (let i = 0; i < length; i++) {
+        key += chars.charAt(Math.floor(Math.random() * chars.length));
+    }
+
+    return key;
+}
+
+// 生成卡密链接URL
+function generateCardLinkUrl(key: string, appName: string, phone: string | null): string {
+    const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:3000';
+    const params = new URLSearchParams({
+        cardKey: key,
+        appName: appName
+    });
+
+    if (phone) {
+        params.append('phone', phone);
+    }
+
+    return `${baseUrl}/view?${params.toString()}`;
+}
+
 // 生成新的卡密链接
 export async function createCardLink(username: string, data: CreateCardLinkDTO): Promise<CardLink> {
     const id = randomUUID();
@@ -66,24 +94,93 @@ export async function createCardLink(username: string, data: CreateCardLinkDTO):
 }
 
 // 获取用户的卡密链接列表
-export async function getUserCardLinks(username: string): Promise<CardLink[]> {
-    const links = await sqlQuery`
-        SELECT 
-            id,
-            key,
-            username,
-            app_name as appName,
-            phones,
-            created_at as createdAt,
-            first_used_at as firstUsedAt,
-            url
-        FROM card_links
-        WHERE username = ${username}
-        ORDER BY created_at DESC
-    `;
+export async function getUserCardLinks(
+    username: string,
+    page: number = 1,
+    pageSize: number = 10,
+    status?: string | null
+): Promise<{ links: CardLink[], total: number }> {
+    // 根据状态构建查询条件
+    let countQuery;
+    let linksQuery;
+
+    if (status === 'used') {
+        // 已使用的卡密链接
+        countQuery = sqlQuery`
+            SELECT COUNT(*) as total
+            FROM card_links
+            WHERE username = ${username} AND first_used_at IS NOT NULL
+        `;
+
+        linksQuery = sqlQuery`
+            SELECT 
+                id,
+                key,
+                username,
+                app_name as appName,
+                phones,
+                created_at as createdAt,
+                first_used_at as firstUsedAt,
+                url
+            FROM card_links
+            WHERE username = ${username} AND first_used_at IS NOT NULL
+            ORDER BY created_at DESC
+            LIMIT ${pageSize} OFFSET ${(page - 1) * pageSize}
+        `;
+    } else if (status === 'unused') {
+        // 未使用的卡密链接
+        countQuery = sqlQuery`
+            SELECT COUNT(*) as total
+            FROM card_links
+            WHERE username = ${username} AND first_used_at IS NULL
+        `;
+
+        linksQuery = sqlQuery`
+            SELECT 
+                id,
+                key,
+                username,
+                app_name as appName,
+                phones,
+                created_at as createdAt,
+                first_used_at as firstUsedAt,
+                url
+            FROM card_links
+            WHERE username = ${username} AND first_used_at IS NULL
+            ORDER BY created_at DESC
+            LIMIT ${pageSize} OFFSET ${(page - 1) * pageSize}
+        `;
+    } else {
+        // 所有卡密链接
+        countQuery = sqlQuery`
+            SELECT COUNT(*) as total
+            FROM card_links
+            WHERE username = ${username}
+        `;
+
+        linksQuery = sqlQuery`
+            SELECT 
+                id,
+                key,
+                username,
+                app_name as appName,
+                phones,
+                created_at as createdAt,
+                first_used_at as firstUsedAt,
+                url
+            FROM card_links
+            WHERE username = ${username}
+            ORDER BY created_at DESC
+            LIMIT ${pageSize} OFFSET ${(page - 1) * pageSize}
+        `;
+    }
+
+    // 获取总数和链接列表
+    const [countResult, links] = await Promise.all([countQuery, linksQuery]);
+    const total = countResult[0]?.total || 0;
 
     // 处理每个卡密链接的phones字段
-    return links.map(link => {
+    const processedLinks = links.map(link => {
         let phonesArray: string[] = [];
         try {
             if (typeof link.phones === 'string') {
@@ -113,6 +210,8 @@ export async function getUserCardLinks(username: string): Promise<CardLink[]> {
             url: link.url
         };
     });
+
+    return { links: processedLinks, total };
 }
 
 // 获取单个卡密链接
@@ -251,31 +350,3 @@ export async function getAllCardLinks(): Promise<CardLink[]> {
         };
     });
 }
-
-// 生成卡密
-function generateCardKey(): string {
-    const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
-    const length = 16;
-    let key = '';
-
-    for (let i = 0; i < length; i++) {
-        key += chars.charAt(Math.floor(Math.random() * chars.length));
-    }
-
-    return key;
-}
-
-// 生成卡密链接URL
-function generateCardLinkUrl(key: string, appName: string, phone: string | null): string {
-    const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:3000';
-    const params = new URLSearchParams({
-        cardKey: key,
-        appName: appName
-    });
-
-    if (phone) {
-        params.append('phone', phone);
-    }
-
-    return `${baseUrl}/view?${params.toString()}`;
-} 
