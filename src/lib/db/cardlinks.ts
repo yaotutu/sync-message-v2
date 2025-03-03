@@ -16,13 +16,18 @@ function generateCardKey(): string {
 }
 
 // 生成卡密链接URL
-function generateCardLinkUrl(key: string, appName: string, phone: string | null): string {
+function generateCardLinkUrl(key: string, appName?: string, phone?: string | null): string {
     const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:3000';
     const params = new URLSearchParams({
-        cardKey: key,
-        appName: appName
+        cardKey: key
     });
 
+    // 只有在提供了应用名称时才添加到URL参数中
+    if (appName) {
+        params.append('appName', appName);
+    }
+
+    // 只有在提供了手机号时才添加到URL参数中
     if (phone) {
         params.append('phone', phone);
     }
@@ -36,7 +41,7 @@ export async function createCardLink(username: string, data: CreateCardLinkDTO):
     const key = generateCardKey();
     const now = Date.now();
 
-    // 确保phones是一个数组
+    // 处理手机号，现在是可选的
     let phones: string[] = [];
     if (data.phones && Array.isArray(data.phones)) {
         phones = data.phones;
@@ -48,38 +53,92 @@ export async function createCardLink(username: string, data: CreateCardLinkDTO):
         phones = [data.phoneNumbers];
     }
 
-    // 确保至少有一个手机号
-    if (phones.length === 0) {
-        throw new Error('至少需要提供一个手机号');
+    // 不再要求必须有手机号
+    // 生成URL，使用第一个手机号（如果有）
+    const url = generateCardLinkUrl(key, data.appName, phones.length > 0 ? phones[0] : null);
+
+    // 将phones数组转换为JSON字符串存储（如果有）
+    const phonesJson = phones.length > 0 ? JSON.stringify(phones) : null;
+
+    try {
+        // 使用标准的SQL模板字符串
+        if (data.appName !== undefined && phonesJson !== null && data.templateId !== undefined) {
+            // 所有字段都有值
+            await sql`
+                INSERT INTO card_links (
+                    id, key, username, app_name, phones, created_at, url, template_id
+                ) VALUES (
+                    ${id}, ${key}, ${username}, ${data.appName}, ${phonesJson}, ${now}, ${url}, ${data.templateId}
+                )
+            `;
+        } else if (data.appName !== undefined && phonesJson !== null) {
+            // 有应用名称和手机号，但没有模板ID
+            await sql`
+                INSERT INTO card_links (
+                    id, key, username, app_name, phones, created_at, url
+                ) VALUES (
+                    ${id}, ${key}, ${username}, ${data.appName}, ${phonesJson}, ${now}, ${url}
+                )
+            `;
+        } else if (data.appName !== undefined && data.templateId !== undefined) {
+            // 有应用名称和模板ID，但没有手机号
+            await sql`
+                INSERT INTO card_links (
+                    id, key, username, app_name, created_at, url, template_id
+                ) VALUES (
+                    ${id}, ${key}, ${username}, ${data.appName}, ${now}, ${url}, ${data.templateId}
+                )
+            `;
+        } else if (phonesJson !== null && data.templateId !== undefined) {
+            // 有手机号和模板ID，但没有应用名称
+            await sql`
+                INSERT INTO card_links (
+                    id, key, username, phones, created_at, url, template_id
+                ) VALUES (
+                    ${id}, ${key}, ${username}, ${phonesJson}, ${now}, ${url}, ${data.templateId}
+                )
+            `;
+        } else if (data.appName !== undefined) {
+            // 只有应用名称
+            await sql`
+                INSERT INTO card_links (
+                    id, key, username, app_name, created_at, url
+                ) VALUES (
+                    ${id}, ${key}, ${username}, ${data.appName}, ${now}, ${url}
+                )
+            `;
+        } else if (phonesJson !== null) {
+            // 只有手机号
+            await sql`
+                INSERT INTO card_links (
+                    id, key, username, phones, created_at, url
+                ) VALUES (
+                    ${id}, ${key}, ${username}, ${phonesJson}, ${now}, ${url}
+                )
+            `;
+        } else if (data.templateId !== undefined) {
+            // 只有模板ID
+            await sql`
+                INSERT INTO card_links (
+                    id, key, username, created_at, url, template_id
+                ) VALUES (
+                    ${id}, ${key}, ${username}, ${now}, ${url}, ${data.templateId}
+                )
+            `;
+        } else {
+            // 基础字段
+            await sql`
+                INSERT INTO card_links (
+                    id, key, username, created_at, url
+                ) VALUES (
+                    ${id}, ${key}, ${username}, ${now}, ${url}
+                )
+            `;
+        }
+    } catch (error) {
+        console.error('创建卡密链接SQL错误:', error);
+        throw error;
     }
-
-    // 生成URL，使用第一个手机号
-    const url = generateCardLinkUrl(key, data.appName, phones[0]);
-
-    // 将phones数组转换为JSON字符串存储
-    const phonesJson = JSON.stringify(phones);
-
-    await sql`
-        INSERT INTO card_links (
-            id, 
-            key, 
-            username, 
-            app_name, 
-            phones, 
-            created_at, 
-            url,
-            template_id
-        ) VALUES (
-            ${id},
-            ${key},
-            ${username},
-            ${data.appName},
-            ${phonesJson},
-            ${now},
-            ${url},
-            ${data.templateId || null}
-        )
-    `;
 
     return {
         id,

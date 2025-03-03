@@ -50,15 +50,16 @@ export default function ViewPage() {
         const appNameParam = searchParams.get('appName');
         const phoneParam = searchParams.get('phone');
 
-        if (!cardKey || !appNameParam) {
-            setError('无效的链接参数');
+        if (!cardKey) {
+            setError('无效的链接参数：缺少卡密');
             setIsLoading(false);
             return;
         }
 
-        setAppName(appNameParam);
+        // 应用名称和手机号现在是可选的
+        setAppName(appNameParam || '');
         setPhone(phoneParam);
-        loadMessages(cardKey, appNameParam, phoneParam);
+        loadMessages(cardKey, appNameParam || '', phoneParam);
     }, [searchParams]);
 
     // 当消息加载完成后，尝试提取验证码
@@ -91,12 +92,16 @@ export default function ViewPage() {
             } else {
                 // 其他应用使用通用API路由
                 console.log('使用通用API路由');
-                // 确保appName正确编码
-                const encodedAppName = encodeURIComponent(appName);
-                console.log('编码后的appName:', encodedAppName);
 
                 params.append('cardKey', cardKey);
-                params.append('appName', encodedAppName);
+                // 只有在提供了应用名称时才添加到参数中
+                if (appName) {
+                    // 确保appName正确编码
+                    const encodedAppName = encodeURIComponent(appName);
+                    console.log('编码后的appName:', encodedAppName);
+                    params.append('appName', encodedAppName);
+                }
+
                 if (phone) {
                     params.append('phone', phone);
                 }
@@ -175,29 +180,41 @@ export default function ViewPage() {
                 <div className="bg-white dark:bg-gray-800 rounded-lg shadow mb-6">
                     <div className="p-6 border-b dark:border-gray-700">
                         <h2 className="text-xl font-bold text-gray-900 dark:text-white">
-                            {appName} - 快速复制
+                            {appName ? `${appName} - 快速复制` : '快速复制'}
                         </h2>
+                        {/* 显示卡密类型 */}
+                        <div className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+                            类型：
+                            {!appName && !phone
+                                ? "基础卡密（仅用户名）"
+                                : !appName
+                                    ? "手机号卡密（无应用名称）"
+                                    : !phone
+                                        ? "应用卡密（无手机号）"
+                                        : "完整卡密（应用+手机号）"}
+                        </div>
                     </div>
                     <div className="p-6 space-y-6">
-                        {/* 手机号部分 */}
-                        <div className="space-y-2">
-                            <div className="flex items-center justify-between">
-                                <h3 className="text-lg font-semibold text-gray-800 dark:text-gray-200">手机号</h3>
-                                <button
-                                    onClick={() => phone && copyToClipboard(phone, 'phone')}
-                                    disabled={!phone}
-                                    className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-                                >
-                                    {copyStatus.phone || '复制账号'}
-                                </button>
+                        {/* 手机号部分 - 只在有手机号时显示 */}
+                        {phone && (
+                            <div className="space-y-2">
+                                <div className="flex items-center justify-between">
+                                    <h3 className="text-lg font-semibold text-gray-800 dark:text-gray-200">手机号</h3>
+                                    <button
+                                        onClick={() => phone && copyToClipboard(phone, 'phone')}
+                                        className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 transition-colors"
+                                    >
+                                        {copyStatus.phone || '复制账号'}
+                                    </button>
+                                </div>
+                                <div className="p-3 bg-gray-100 dark:bg-gray-700 rounded-lg font-mono text-lg">
+                                    {phone}
+                                </div>
+                                <p className="text-xs text-gray-500 dark:text-gray-400">
+                                    第一步：点击"复制账号"按钮复制手机号
+                                </p>
                             </div>
-                            <div className="p-3 bg-gray-100 dark:bg-gray-700 rounded-lg font-mono text-lg">
-                                {phone || '无手机号'}
-                            </div>
-                            <p className="text-xs text-gray-500 dark:text-gray-400">
-                                第一步：点击"复制账号"按钮复制手机号
-                            </p>
-                        </div>
+                        )}
 
                         {/* 验证码部分 */}
                         <div className="space-y-2">
@@ -215,7 +232,7 @@ export default function ViewPage() {
                                 {verificationCode || '未找到验证码'}
                             </div>
                             <p className="text-xs text-gray-500 dark:text-gray-400">
-                                第二步：点击"复制验证码"按钮复制验证码
+                                {phone ? '第二步：点击"复制验证码"按钮复制验证码' : '点击"复制验证码"按钮复制验证码'}
                             </p>
                         </div>
                     </div>

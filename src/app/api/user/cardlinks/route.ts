@@ -95,16 +95,7 @@ export async function POST(request: NextRequest) {
 
         // 解析请求体
         const data = await request.json();
-        console.log(`请求参数: appName=${data.appName}, phones=${data.phones?.length || 0}个, phoneNumbers=${data.phoneNumbers?.length || 0}个, templateId=${data.templateId || '未提供'}`);
-
-        // 验证必填字段
-        if (!data.appName) {
-            console.log('错误: 应用名称为空');
-            return NextResponse.json(
-                { success: false, message: '应用名称不能为空' },
-                { status: 400 }
-            );
-        }
+        console.log(`请求参数: appName=${data.appName || '未提供'}, phones=${data.phones?.length || 0}个, phoneNumbers=${data.phoneNumbers?.length || 0}个, templateId=${data.templateId || '未提供'}`);
 
         // 处理手机号，支持phones和phoneNumbers两个字段
         let phones: string[] = [];
@@ -114,25 +105,21 @@ export async function POST(request: NextRequest) {
             phones = Array.isArray(data.phoneNumbers) ? data.phoneNumbers : [data.phoneNumbers];
         }
 
-        // 验证手机号
-        if (phones.length === 0) {
-            console.log('错误: 未提供手机号');
-            return NextResponse.json(
-                { success: false, message: '请至少提供一个手机号' },
-                { status: 400 }
-            );
+        // 如果提供了手机号，验证手机号格式
+        let validPhones: string[] = [];
+        if (phones.length > 0) {
+            validPhones = phones.filter((phone: string) => phone.trim() && /^1\d{10}$/.test(phone));
+            if (phones.length > 0 && validPhones.length === 0) {
+                console.log('错误: 无有效手机号');
+                return NextResponse.json(
+                    { success: false, message: '提供的手机号格式不正确（应为11位数字，以1开头）' },
+                    { status: 400 }
+                );
+            }
+            console.log(`有效手机号: ${validPhones.length}个, 手机号列表: ${validPhones.join(', ')}`);
+        } else {
+            console.log('未提供手机号，将创建不包含手机号的卡密链接');
         }
-
-        // 验证手机号格式
-        const validPhones = phones.filter((phone: string) => phone.trim() && /^1\d{10}$/.test(phone));
-        if (validPhones.length === 0) {
-            console.log('错误: 无有效手机号');
-            return NextResponse.json(
-                { success: false, message: '请提供有效的手机号（11位数字，以1开头）' },
-                { status: 400 }
-            );
-        }
-        console.log(`有效手机号: ${validPhones.length}个, 手机号列表: ${validPhones.join(', ')}`);
 
         // 如果提供了模板ID，获取模板信息
         let templateName = '';
@@ -151,9 +138,11 @@ export async function POST(request: NextRequest) {
         }
 
         // 创建卡链接
-        console.log(`尝试创建卡密链接: 用户=${username}, 应用=${templateName || data.appName}, 手机号=${validPhones.join(', ')}`);
+        const appName = templateName || data.appName;
+        console.log(`尝试创建卡密链接: 用户=${username}, 应用=${appName || '未提供'}, 手机号=${validPhones.length > 0 ? validPhones.join(', ') : '未提供'}`);
+
         const cardLink = await createCardLink(username, {
-            appName: templateName || data.appName,
+            appName: appName,
             phoneNumbers: validPhones,
             phones: validPhones,
             templateId: data.templateId

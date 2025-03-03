@@ -42,6 +42,9 @@ export default function CardLinksPage() {
     // 添加搜索相关状态
     const [searchQuery, setSearchQuery] = useState('');
     const [isSearching, setIsSearching] = useState(false);
+    // 添加新的状态，用于控制是否包含手机号和应用名称
+    const [includePhones, setIncludePhones] = useState(true);
+    const [includeAppName, setIncludeAppName] = useState(true);
 
     // 检查登录状态
     useEffect(() => {
@@ -71,6 +74,17 @@ export default function CardLinksPage() {
 
     // 根据手机号数量计算有效的链接数量
     useEffect(() => {
+        if (!includePhones) {
+            // 如果不包含手机号，则链接数量可以是任意值
+            const counts = [];
+            for (let i = 1; i <= 10; i++) {
+                counts.push(i);
+            }
+            setValidLinkCounts(counts);
+            setLinkCount(1);
+            return;
+        }
+
         const validPhones = phones.filter(phone => phone.trim() && isValidPhone(phone));
         const phoneCount = validPhones.length || 1;
 
@@ -86,7 +100,7 @@ export default function CardLinksPage() {
         if (!counts.includes(linkCount)) {
             setLinkCount(counts[0]);
         }
-    }, [phones, linkCount]);
+    }, [phones, linkCount, includePhones]);
 
     // 根据状态和搜索关键词过滤卡密链接
     useEffect(() => {
@@ -117,7 +131,7 @@ export default function CardLinksPage() {
             filtered = filtered.filter(link =>
                 link.url.toLowerCase().includes(query) ||
                 link.key.toLowerCase().includes(query) ||
-                link.appName.toLowerCase().includes(query) ||
+                (link.appName ? link.appName.toLowerCase().includes(query) : false) ||
                 (Array.isArray(link.phones) && link.phones.some(phone =>
                     phone.toLowerCase().includes(query)
                 ))
@@ -293,51 +307,70 @@ export default function CardLinksPage() {
 
     // 生成卡密链接
     const generateCardLink = async () => {
-        if (!selectedTemplate) {
+        // 如果包含应用名称，则需要选择模板或输入应用名称
+        if (includeAppName && !selectedTemplate) {
             setError('请选择应用模板');
             return;
         }
 
-        // 验证手机号
-        const validPhones = phones.filter(phone => phone.trim() && isValidPhone(phone));
-        if (validPhones.length === 0) {
-            setError('请至少输入一个有效的手机号码（11位数字，以1开头）');
-            return;
-        }
+        // 如果包含手机号，则需要验证手机号
+        if (includePhones) {
+            const validPhones = phones.filter(phone => phone.trim() && isValidPhone(phone));
+            if (validPhones.length === 0) {
+                setError('请至少输入一个有效的手机号码（11位数字，以1开头）');
+                return;
+            }
 
-        // 检查链接数量是否是手机号数量的倍数
-        if (linkCount % validPhones.length !== 0 && validPhones.length > 1) {
-            setError(`链接数量必须是手机号数量(${validPhones.length})的倍数`);
-            return;
+            // 检查链接数量是否是手机号数量的倍数
+            if (linkCount % validPhones.length !== 0 && validPhones.length > 1) {
+                setError(`链接数量必须是手机号数量(${validPhones.length})的倍数`);
+                return;
+            }
         }
 
         setIsLoading(true);
         setError('');
         try {
             // 获取选中模板的名称
-            const templateName = templates.find(t => t.id === selectedTemplate)?.name;
-            if (!templateName) {
-                setError('无法获取所选模板的名称');
-                setIsLoading(false);
-                return;
+            let templateName = '';
+            if (includeAppName && selectedTemplate) {
+                const template = templates.find(t => t.id === selectedTemplate);
+                if (!template) {
+                    setError('无法获取所选模板的名称');
+                    setIsLoading(false);
+                    return;
+                }
+                templateName = template.name;
             }
 
             // 创建多个卡链接
             const creationPromises = [];
             for (let i = 0; i < linkCount; i++) {
-                // 计算这个链接应该使用的手机号
-                // 如果只有一个手机号，所有链接都使用这个手机号
-                // 如果有多个手机号，则按顺序分配，确保所有手机号都被使用
-                const phoneToUse = validPhones.length === 1
-                    ? validPhones
-                    : [validPhones[i % validPhones.length]];
+                // 准备手机号
+                let phonesToUse: string[] = [];
+                if (includePhones) {
+                    const validPhones = phones.filter(phone => phone.trim() && isValidPhone(phone));
+                    // 如果只有一个手机号，所有链接都使用这个手机号
+                    // 如果有多个手机号，则按顺序分配，确保所有手机号都被使用
+                    phonesToUse = validPhones.length === 1
+                        ? validPhones
+                        : [validPhones[i % validPhones.length]];
+                }
+
+                // 准备请求数据
+                const requestData: any = {};
+                if (includeAppName && templateName) {
+                    requestData.appName = templateName;
+                    if (selectedTemplate) {
+                        requestData.templateId = selectedTemplate;
+                    }
+                }
+                if (includePhones && phonesToUse.length > 0) {
+                    requestData.phones = phonesToUse;
+                }
 
                 creationPromises.push(
-                    userApi.post('/api/user/cardlinks', {
-                        appName: templateName,
-                        phones: phoneToUse,
-                        templateId: selectedTemplate
-                    }, { username, password })
+                    userApi.post('/api/user/cardlinks', requestData, { username, password })
                 );
             }
 
@@ -458,65 +491,105 @@ export default function CardLinksPage() {
                             带链接卡密管理
                         </h2>
 
-                        {/* 应用模板选择 */}
-                        <div className="space-y-4">
-                            <div>
-                                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                                    选择应用模板 <span className="text-red-500">*</span>
+                        {/* 卡密生成选项 */}
+                        <div className="mb-4 p-4 bg-gray-50 dark:bg-gray-700 rounded-lg">
+                            <h3 className="text-lg font-medium text-gray-900 dark:text-white mb-2">
+                                卡密生成选项
+                            </h3>
+                            <div className="flex flex-wrap gap-4">
+                                <label className="flex items-center space-x-2">
+                                    <input
+                                        type="checkbox"
+                                        checked={includeAppName}
+                                        onChange={(e) => setIncludeAppName(e.target.checked)}
+                                        className="rounded text-blue-500 focus:ring-blue-500"
+                                    />
+                                    <span className="text-gray-700 dark:text-gray-300">包含应用名称</span>
                                 </label>
-                                <select
-                                    value={selectedTemplate}
-                                    onChange={(e) => setSelectedTemplate(e.target.value)}
-                                    className="w-full px-4 py-2 border dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition-all bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
-                                >
-                                    <option value="">请选择应用</option>
-                                    {templates.map(template => (
-                                        <option key={template.id} value={template.id}>
-                                            {template.name} - {template.description}
-                                        </option>
-                                    ))}
-                                </select>
+                                <label className="flex items-center space-x-2">
+                                    <input
+                                        type="checkbox"
+                                        checked={includePhones}
+                                        onChange={(e) => setIncludePhones(e.target.checked)}
+                                        className="rounded text-blue-500 focus:ring-blue-500"
+                                    />
+                                    <span className="text-gray-700 dark:text-gray-300">包含手机号</span>
+                                </label>
                             </div>
+                            <p className="mt-2 text-sm text-gray-500 dark:text-gray-400">
+                                {!includeAppName && !includePhones
+                                    ? "将生成仅包含用户名的基础卡密链接，适用于查看所有消息。"
+                                    : !includeAppName
+                                        ? "将生成不包含应用名称的卡密链接，适用于查看特定手机号的所有消息。"
+                                        : !includePhones
+                                            ? "将生成不包含手机号的卡密链接，适用于查看特定应用的所有消息。"
+                                            : "将生成完整的卡密链接，包含应用名称和手机号，适用于查看特定应用和手机号的消息。"}
+                            </p>
+                        </div>
+
+                        <div className="space-y-4">
+                            {/* 应用模板选择 */}
+                            {includeAppName && (
+                                <div>
+                                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                                        选择应用模板 <span className="text-red-500">*</span>
+                                    </label>
+                                    <select
+                                        value={selectedTemplate}
+                                        onChange={(e) => setSelectedTemplate(e.target.value)}
+                                        className="w-full px-4 py-2 border dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition-all bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+                                    >
+                                        <option value="">请选择应用</option>
+                                        {templates.map(template => (
+                                            <option key={template.id} value={template.id}>
+                                                {template.name} - {template.description}
+                                            </option>
+                                        ))}
+                                    </select>
+                                </div>
+                            )}
 
                             {/* 手机号输入 */}
-                            <div>
-                                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                                    手机号列表 <span className="text-red-500">*</span>
-                                </label>
-                                <div className="space-y-2">
-                                    {phones.map((phone, index) => (
-                                        <div key={index} className="flex gap-2">
-                                            <input
-                                                type="text"
-                                                value={phone}
-                                                onChange={(e) => updatePhone(index, e.target.value)}
-                                                placeholder="请输入手机号（11位数字，以1开头）"
-                                                className={`flex-1 px-4 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition-all bg-white dark:bg-gray-700 text-gray-900 dark:text-white ${phone && !isValidPhone(phone)
-                                                    ? 'border-red-500 dark:border-red-500'
-                                                    : 'border-gray-300 dark:border-gray-600'
-                                                    }`}
-                                            />
-                                            <button
-                                                onClick={() => removePhoneInput(index)}
-                                                className="px-4 py-2 text-red-500 hover:text-red-600 dark:text-red-400 dark:hover:text-red-300 disabled:opacity-50"
-                                                disabled={phones.length <= 1 || isLoading}
-                                            >
-                                                删除
-                                            </button>
-                                        </div>
-                                    ))}
+                            {includePhones && (
+                                <div>
+                                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                                        手机号列表 <span className="text-red-500">*</span>
+                                    </label>
+                                    <div className="space-y-2">
+                                        {phones.map((phone, index) => (
+                                            <div key={index} className="flex gap-2">
+                                                <input
+                                                    type="text"
+                                                    value={phone}
+                                                    onChange={(e) => updatePhone(index, e.target.value)}
+                                                    placeholder="请输入手机号（11位数字，以1开头）"
+                                                    className={`flex-1 px-4 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition-all bg-white dark:bg-gray-700 text-gray-900 dark:text-white ${phone && !isValidPhone(phone)
+                                                        ? 'border-red-500 dark:border-red-500'
+                                                        : 'border-gray-300 dark:border-gray-600'
+                                                        }`}
+                                                />
+                                                <button
+                                                    onClick={() => removePhoneInput(index)}
+                                                    className="px-4 py-2 text-red-500 hover:text-red-600 dark:text-red-400 dark:hover:text-red-300 disabled:opacity-50"
+                                                    disabled={phones.length <= 1 || isLoading}
+                                                >
+                                                    删除
+                                                </button>
+                                            </div>
+                                        ))}
+                                    </div>
+                                    <button
+                                        onClick={addPhoneInput}
+                                        className="mt-2 text-sm text-blue-500 hover:text-blue-600 dark:text-blue-400 dark:hover:text-blue-300"
+                                        disabled={isLoading}
+                                    >
+                                        添加手机号
+                                    </button>
+                                    <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
+                                        有效手机号数量: {phones.filter(p => p.trim() && isValidPhone(p)).length}
+                                    </p>
                                 </div>
-                                <button
-                                    onClick={addPhoneInput}
-                                    className="mt-2 text-sm text-blue-500 hover:text-blue-600 dark:text-blue-400 dark:hover:text-blue-300"
-                                    disabled={isLoading}
-                                >
-                                    添加手机号
-                                </button>
-                                <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
-                                    有效手机号数量: {phones.filter(p => p.trim() && isValidPhone(p)).length}
-                                </p>
-                            </div>
+                            )}
 
                             {/* 链接数量选择 */}
                             <div>
@@ -536,7 +609,7 @@ export default function CardLinksPage() {
                                     ))}
                                 </select>
                                 <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
-                                    {phones.filter(p => p.trim() && isValidPhone(p)).length > 1
+                                    {includePhones && phones.filter(p => p.trim() && isValidPhone(p)).length > 1
                                         ? '链接数量必须是有效手机号数量的倍数'
                                         : '可以生成任意数量的链接'}
                                 </p>
@@ -657,20 +730,24 @@ export default function CardLinksPage() {
                                 <div key={cardLink.key} className="p-4 hover:bg-gray-50 dark:hover:bg-gray-700/50">
                                     <div className="flex justify-between items-start">
                                         <div className="space-y-1">
-                                            <div className="text-sm text-gray-500 dark:text-gray-400">
-                                                应用：{cardLink.appName}
-                                            </div>
+                                            {cardLink.appName && (
+                                                <div className="text-sm text-gray-500 dark:text-gray-400">
+                                                    应用：{cardLink.appName}
+                                                </div>
+                                            )}
                                             <div className="text-sm text-gray-500 dark:text-gray-400">
                                                 卡密：{cardLink.key}
                                             </div>
-                                            <div className="text-sm text-gray-500 dark:text-gray-400">
-                                                手机号：{Array.isArray(cardLink.phones)
-                                                    ? cardLink.phones.join(', ')
-                                                    : typeof cardLink.phones === 'string'
-                                                        ? cardLink.phones
-                                                        : '无手机号'
-                                                }
-                                            </div>
+                                            {cardLink.phones && cardLink.phones.length > 0 && (
+                                                <div className="text-sm text-gray-500 dark:text-gray-400">
+                                                    手机号：{Array.isArray(cardLink.phones)
+                                                        ? cardLink.phones.join(', ')
+                                                        : typeof cardLink.phones === 'string'
+                                                            ? cardLink.phones
+                                                            : '无手机号'
+                                                    }
+                                                </div>
+                                            )}
                                             <div className="text-sm text-gray-500 dark:text-gray-400">
                                                 创建时间：{new Date(cardLink.createdAt).toLocaleString()}
                                             </div>
@@ -689,6 +766,17 @@ export default function CardLinksPage() {
                                                 >
                                                     {cardLink.url}
                                                 </a>
+                                            </div>
+                                            {/* 显示卡密类型 */}
+                                            <div className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+                                                类型：
+                                                {!cardLink.appName && !cardLink.phones?.length
+                                                    ? "基础卡密（仅用户名）"
+                                                    : !cardLink.appName
+                                                        ? "手机号卡密（无应用名称）"
+                                                        : !cardLink.phones?.length
+                                                            ? "应用卡密（无手机号）"
+                                                            : "完整卡密（应用+手机号）"}
                                             </div>
                                         </div>
                                         <button

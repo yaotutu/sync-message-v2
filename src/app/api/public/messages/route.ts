@@ -79,10 +79,11 @@ export async function GET(request: NextRequest) {
             return NextResponse.json({ success: false, error: '缺少必要参数: cardKey' }, { status: 400 });
         }
 
-        if (!appName) {
-            console.error('缺少必要参数: appName');
-            return NextResponse.json({ success: false, error: '缺少必要参数: appName' }, { status: 400 });
-        }
+        // 应用名称现在是可选的
+        // if (!appName) {
+        //     console.error('缺少必要参数: appName');
+        //     return NextResponse.json({ success: false, error: '缺少必要参数: appName' }, { status: 400 });
+        // }
 
         // 获取卡片链接
         try {
@@ -113,67 +114,88 @@ export async function GET(request: NextRequest) {
                 );
             }
 
-            // 获取应用模板
-            try {
-                const template = await getTemplateByName(appName);
-                console.log('获取到的应用模板:', template);
-
-                if (!template) {
-                    console.error(`未找到应用模板: ${appName}`);
-                    return NextResponse.json(
-                        { success: false, error: `未找到应用模板: ${appName}` },
-                        { status: 404 }
-                    );
-                }
-
-                // 获取用户消息
+            // 获取应用模板（如果提供了应用名称）
+            let template = null;
+            if (appName) {
                 try {
-                    const messagesResult = await getUserMessages(cardLink.username);
+                    template = await getTemplateByName(appName);
+                    console.log('获取到的应用模板:', template);
 
-                    if (!messagesResult.success) {
-                        // 使用类型断言处理错误情况
-                        const errorMessage = 'message' in messagesResult
-                            ? (messagesResult as { message: string }).message
-                            : '未知错误';
-
-                        console.error(`获取用户消息失败: ${errorMessage}`);
+                    if (!template) {
+                        console.error(`未找到应用模板: ${appName}`);
                         return NextResponse.json(
-                            { success: false, error: `获取用户消息失败: ${errorMessage}` },
-                            { status: 500 }
+                            { success: false, error: `未找到应用模板: ${appName}` },
+                            { status: 404 }
                         );
                     }
-
-                    // 使用类型断言处理成功情况
-                    const messages = 'data' in messagesResult
-                        ? (messagesResult as { data: any[] }).data
-                        : [];
-
-                    console.log(`获取到用户 ${cardLink.username} 的消息数量:`, messages.length);
-
-                    // 过滤消息
-                    try {
-                        const filteredMessages = await getFilteredCardLinkMessages(cardLink, template, phone);
-                        console.log('过滤后的消息数量:', filteredMessages.length);
-
-                        return NextResponse.json({ success: true, data: filteredMessages });
-                    } catch (filterError: any) {
-                        console.error('过滤消息时出错:', filterError.message);
-                        return NextResponse.json(
-                            { success: false, error: `过滤消息时出错: ${filterError.message}` },
-                            { status: 500 }
-                        );
-                    }
-                } catch (messagesError: any) {
-                    console.error('获取用户消息时出错:', messagesError.message);
+                } catch (templateError: any) {
+                    console.error('获取应用模板时出错:', templateError.message);
                     return NextResponse.json(
-                        { success: false, error: `获取用户消息时出错: ${messagesError.message}` },
+                        { success: false, error: `获取应用模板时出错: ${templateError.message}` },
                         { status: 500 }
                     );
                 }
-            } catch (templateError: any) {
-                console.error('获取应用模板时出错:', templateError.message);
+            } else {
+                console.log('未提供应用名称，将返回未经应用规则过滤的消息');
+            }
+
+            // 获取用户消息
+            try {
+                const messagesResult = await getUserMessages(cardLink.username);
+
+                if (!messagesResult.success) {
+                    // 使用类型断言处理错误情况
+                    const errorMessage = 'message' in messagesResult
+                        ? (messagesResult as { message: string }).message
+                        : '未知错误';
+
+                    console.error(`获取用户消息失败: ${errorMessage}`);
+                    return NextResponse.json(
+                        { success: false, error: `获取用户消息失败: ${errorMessage}` },
+                        { status: 500 }
+                    );
+                }
+
+                // 使用类型断言处理成功情况
+                const messages = 'data' in messagesResult
+                    ? (messagesResult as { data: any[] }).data
+                    : [];
+
+                console.log(`获取到用户 ${cardLink.username} 的消息数量:`, messages.length);
+
+                // 如果没有提供应用名称，则只根据手机号过滤
+                if (!template) {
+                    let filteredMessages = messages;
+
+                    // 如果提供了手机号，则根据手机号过滤
+                    if (phone) {
+                        filteredMessages = messages.filter(msg => {
+                            // 如果消息中包含手机号，则保留
+                            return msg.sms_content.includes(phone);
+                        });
+                    }
+
+                    console.log('未使用应用规则，仅根据手机号过滤后的消息数量:', filteredMessages.length);
+                    return NextResponse.json({ success: true, data: filteredMessages });
+                }
+
+                // 过滤消息（使用应用规则）
+                try {
+                    const filteredMessages = await getFilteredCardLinkMessages(cardLink, template, phone);
+                    console.log('过滤后的消息数量:', filteredMessages.length);
+
+                    return NextResponse.json({ success: true, data: filteredMessages });
+                } catch (filterError: any) {
+                    console.error('过滤消息时出错:', filterError.message);
+                    return NextResponse.json(
+                        { success: false, error: `过滤消息时出错: ${filterError.message}` },
+                        { status: 500 }
+                    );
+                }
+            } catch (messagesError: any) {
+                console.error('获取用户消息时出错:', messagesError.message);
                 return NextResponse.json(
-                    { success: false, error: `获取应用模板时出错: ${templateError.message}` },
+                    { success: false, error: `获取用户消息时出错: ${messagesError.message}` },
                     { status: 500 }
                 );
             }
