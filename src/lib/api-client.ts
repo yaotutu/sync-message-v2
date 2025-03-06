@@ -125,34 +125,22 @@ export const userApi = {
     /**
      * 发送GET请求
      */
-    async get<T = any>(url: string, options: Omit<RequestOptions, 'method'> = {}): Promise<T> {
-        const auth = options.username && options.password
-            ? { username: options.username, password: options.password }
-            : getUserAuth();
-
-        return apiRequest<T>(url, {
-            ...options,
-            method: 'GET',
-            username: auth?.username,
-            password: auth?.password,
-        });
+    async get<T = any>(url: string, options?: Omit<RequestOptions, 'method'>): Promise<T> {
+        return await apiRequest<T>(url, { ...options, method: 'GET' });
     },
 
     /**
      * 发送POST请求
      */
-    async post<T = any>(url: string, body: any, options: Omit<RequestOptions, 'method' | 'body'> = {}): Promise<T> {
-        const auth = options.username && options.password
-            ? { username: options.username, password: options.password }
-            : getUserAuth();
+    async post<T = any>(url: string, body: any, options?: Omit<RequestOptions, 'method' | 'body'>): Promise<T> {
+        return await apiRequest<T>(url, { ...options, method: 'POST', body });
+    },
 
-        return apiRequest<T>(url, {
-            ...options,
-            method: 'POST',
-            body,
-            username: auth?.username,
-            password: auth?.password,
-        });
+    /**
+     * 发送DELETE请求
+     */
+    async delete<T = any>(url: string, options?: Omit<RequestOptions, 'method'>): Promise<T> {
+        return await apiRequest<T>(url, { ...options, method: 'DELETE' });
     }
 };
 

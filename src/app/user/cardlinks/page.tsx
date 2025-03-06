@@ -440,6 +440,30 @@ export default function CardLinksPage() {
         loadCardLinks(1);
     };
 
+    // 删除卡密链接
+    const deleteCardLink = async (key: string) => {
+        if (!confirm('确定要删除这个卡密链接吗？删除后无法恢复。')) {
+            return;
+        }
+
+        try {
+            setIsLoading(true);
+            const response = await userApi.delete(`/api/user/cardlinks/${key}`, { username, password });
+
+            if (response.success) {
+                // 重新加载列表
+                await loadCardLinks(1);
+            } else {
+                setError(response.message || '删除失败');
+            }
+        } catch (error) {
+            console.error('Delete card link error:', error);
+            setError('删除卡密链接失败，请检查网络连接');
+        } finally {
+            setIsLoading(false);
+        }
+    };
+
     return (
         <div className="min-h-screen bg-gray-100 dark:bg-gray-900 py-8 px-4">
             <div className="max-w-4xl mx-auto">
@@ -681,12 +705,23 @@ export default function CardLinksPage() {
                                                 </a>
                                             </div>
                                         </div>
-                                        <button
-                                            onClick={() => navigator.clipboard.writeText(cardLink.url)}
-                                            className="text-sm text-blue-500 hover:text-blue-600 dark:text-blue-400 dark:hover:text-blue-300"
-                                        >
-                                            复制链接
-                                        </button>
+                                        <div className="flex flex-col space-y-2">
+                                            <button
+                                                onClick={() => navigator.clipboard.writeText(cardLink.url)}
+                                                className="text-sm text-blue-500 hover:text-blue-600 dark:text-blue-400 dark:hover:text-blue-300"
+                                            >
+                                                复制链接
+                                            </button>
+                                            {!cardLink.firstUsedAt && (
+                                                <button
+                                                    onClick={() => deleteCardLink(cardLink.key)}
+                                                    className="text-sm text-red-500 hover:text-red-600 dark:text-red-400 dark:hover:text-red-300"
+                                                    disabled={isLoading}
+                                                >
+                                                    删除
+                                                </button>
+                                            )}
+                                        </div>
                                     </div>
                                 </div>
                             ))}

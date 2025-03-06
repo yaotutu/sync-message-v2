@@ -347,3 +347,21 @@ export async function getAllCardLinks(): Promise<CardLink[]> {
         };
     });
 }
+
+// 删除卡密链接
+export async function deleteCardLink(username: string, key: string): Promise<boolean> {
+    try {
+        // 验证卡密链接属于该用户
+        const result = await sql`
+            DELETE FROM card_links 
+            WHERE username = ${username} 
+            AND key = ${key}
+            AND first_used_at IS NULL
+        `;
+
+        return result.count > 0;
+    } catch (error) {
+        console.error('删除卡密链接失败:', error);
+        return false;
+    }
+}
