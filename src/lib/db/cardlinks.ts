@@ -36,7 +36,7 @@ export async function createCardLink(username: string, data: CreateCardLinkDTO):
     const key = generateCardKey();
     const now = Date.now();
 
-    // 确保phones是一个数组
+    // 处理手机号，现在是可选的
     let phones: string[] = [];
     if (data.phones && Array.isArray(data.phones)) {
         phones = data.phones;
@@ -48,16 +48,11 @@ export async function createCardLink(username: string, data: CreateCardLinkDTO):
         phones = [data.phoneNumbers];
     }
 
-    // 确保至少有一个手机号
-    if (phones.length === 0) {
-        throw new Error('至少需要提供一个手机号');
-    }
+    // 生成URL，手机号是可选的
+    const url = generateCardLinkUrl(key, data.appName, phones[0] || null);
 
-    // 生成URL，使用第一个手机号
-    const url = generateCardLinkUrl(key, data.appName, phones[0]);
-
-    // 将phones数组转换为JSON字符串存储
-    const phonesJson = JSON.stringify(phones);
+    // 将phones数组转换为JSON字符串存储，如果没有手机号则存储null
+    const phonesJson = phones.length > 0 ? JSON.stringify(phones) : null;
 
     await sql`
         INSERT INTO card_links (
@@ -68,7 +63,8 @@ export async function createCardLink(username: string, data: CreateCardLinkDTO):
             phones, 
             created_at, 
             url,
-            template_id
+            template_id,
+            first_used_at
         ) VALUES (
             ${id},
             ${key},
@@ -77,7 +73,8 @@ export async function createCardLink(username: string, data: CreateCardLinkDTO):
             ${phonesJson},
             ${now},
             ${url},
-            ${data.templateId || null}
+            ${data.templateId || null},
+            NULL
         )
     `;
 

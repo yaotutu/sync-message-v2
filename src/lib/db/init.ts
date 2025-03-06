@@ -88,11 +88,11 @@ async function createCardLinksTable() {
             key TEXT UNIQUE NOT NULL,
             username TEXT NOT NULL,
             app_name TEXT NOT NULL,
-            phones TEXT NOT NULL,
+            phones TEXT,
             created_at INTEGER NOT NULL,
+            first_used_at INTEGER,
             url TEXT NOT NULL,
             template_id TEXT,
-            first_used_at INTEGER,
             FOREIGN KEY (username) REFERENCES webhook_users(username),
             FOREIGN KEY (template_id) REFERENCES templates(id)
         )

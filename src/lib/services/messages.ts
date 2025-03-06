@@ -50,19 +50,21 @@ export function filterMessagesByTemplate(
         const filteredMessages = messages.filter(message => {
             console.log(`[messages] 处理消息: "${message.sms_content.substring(0, 30)}..."`);
 
-            // 如果提供了手机号，先检查消息是否包含该手机号
-            if (phone && !message.sms_content.includes(phone)) {
-                console.log(`[messages] 消息不包含指定手机号 ${phone}，已排除`);
-                return false;
+            // 如果提供了手机号，才进行手机号过滤
+            if (phone) {
+                if (!message.sms_content.includes(phone)) {
+                    console.log(`[messages] 消息不包含指定手机号 ${phone}，已排除`);
+                    return false;
+                }
+                console.log(`[messages] 消息包含指定手机号 ${phone}`);
             }
 
             // 获取活跃规则
             const activeRules = sortedRules.filter(r => r.isActive);
 
-            // 如果没有活跃规则，只根据用户名和手机号过滤（已经在上面检查过手机号）
-            // 此时直接返回true，表示包含该消息
+            // 如果没有活跃规则，返回true（包含该消息）
             if (activeRules.length === 0) {
-                console.log(`[messages] 没有活跃规则，只根据用户名和手机号过滤，包含消息`);
+                console.log(`[messages] 没有活跃规则，包含消息`);
                 return true;
             }
 

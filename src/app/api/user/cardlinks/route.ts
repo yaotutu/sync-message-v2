@@ -114,25 +114,21 @@ export async function POST(request: NextRequest) {
             phones = Array.isArray(data.phoneNumbers) ? data.phoneNumbers : [data.phoneNumbers];
         }
 
-        // 验证手机号
-        if (phones.length === 0) {
-            console.log('错误: 未提供手机号');
-            return NextResponse.json(
-                { success: false, message: '请至少提供一个手机号' },
-                { status: 400 }
-            );
+        // 如果提供了手机号，验证格式
+        if (phones.length > 0) {
+            const validPhones = phones.filter((phone: string) => phone.trim() && /^1\d{10}$/.test(phone));
+            if (validPhones.length === 0) {
+                console.log('错误: 无有效手机号');
+                return NextResponse.json(
+                    { success: false, message: '请提供有效的手机号（11位数字，以1开头）' },
+                    { status: 400 }
+                );
+            }
+            phones = validPhones;
+            console.log(`有效手机号: ${validPhones.length}个, 手机号列表: ${validPhones.join(', ')}`);
+        } else {
+            console.log('未提供手机号，将创建不带手机号的卡密链接');
         }
-
-        // 验证手机号格式
-        const validPhones = phones.filter((phone: string) => phone.trim() && /^1\d{10}$/.test(phone));
-        if (validPhones.length === 0) {
-            console.log('错误: 无有效手机号');
-            return NextResponse.json(
-                { success: false, message: '请提供有效的手机号（11位数字，以1开头）' },
-                { status: 400 }
-            );
-        }
-        console.log(`有效手机号: ${validPhones.length}个, 手机号列表: ${validPhones.join(', ')}`);
 
         // 如果提供了模板ID，获取模板信息
         let templateName = '';
@@ -151,11 +147,11 @@ export async function POST(request: NextRequest) {
         }
 
         // 创建卡链接
-        console.log(`尝试创建卡密链接: 用户=${username}, 应用=${templateName || data.appName}, 手机号=${validPhones.join(', ')}`);
+        console.log(`尝试创建卡密链接: 用户=${username}, 应用=${templateName || data.appName}, 手机号=${phones.join(', ')}`);
         const cardLink = await createCardLink(username, {
             appName: templateName || data.appName,
-            phoneNumbers: validPhones,
-            phones: validPhones,
+            phoneNumbers: phones,
+            phones: phones,
             templateId: data.templateId
         });
         console.log(`卡密链接创建成功: key=${cardLink.key}, url=${cardLink.url}`);

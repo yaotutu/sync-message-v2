@@ -71,22 +71,18 @@ export default function CardLinksPage() {
 
     // 根据手机号数量计算有效的链接数量
     useEffect(() => {
-        const validPhones = phones.filter(phone => phone.trim() && isValidPhone(phone));
-        const phoneCount = validPhones.length || 1;
-
-        // 生成有效的链接数量选项（手机号数量的倍数）
+        // 生成1到10的链接数量选项
         const counts = [];
         for (let i = 1; i <= 10; i++) {
-            counts.push(i * phoneCount);
+            counts.push(i);
         }
-
         setValidLinkCounts(counts);
 
-        // 如果当前选择的链接数量不是有效的，则重置为第一个有效值
-        if (!counts.includes(linkCount)) {
-            setLinkCount(counts[0]);
+        // 如果当前选择的链接数量超出范围，则重置为1
+        if (linkCount > 10) {
+            setLinkCount(1);
         }
-    }, [phones, linkCount]);
+    }, [linkCount]);
 
     // 根据状态和搜索关键词过滤卡密链接
     useEffect(() => {
@@ -298,16 +294,12 @@ export default function CardLinksPage() {
             return;
         }
 
-        // 验证手机号
+        // 验证手机号（如果有输入的话）
         const validPhones = phones.filter(phone => phone.trim() && isValidPhone(phone));
-        if (validPhones.length === 0) {
-            setError('请至少输入一个有效的手机号码（11位数字，以1开头）');
-            return;
-        }
+        const hasInvalidInput = phones.some(phone => phone.trim() && !isValidPhone(phone));
 
-        // 检查链接数量是否是手机号数量的倍数
-        if (linkCount % validPhones.length !== 0 && validPhones.length > 1) {
-            setError(`链接数量必须是手机号数量(${validPhones.length})的倍数`);
+        if (hasInvalidInput) {
+            setError('请检查输入的手机号格式');
             return;
         }
 
@@ -325,12 +317,12 @@ export default function CardLinksPage() {
             // 创建多个卡链接
             const creationPromises = [];
             for (let i = 0; i < linkCount; i++) {
-                // 计算这个链接应该使用的手机号
-                // 如果只有一个手机号，所有链接都使用这个手机号
-                // 如果有多个手机号，则按顺序分配，确保所有手机号都被使用
-                const phoneToUse = validPhones.length === 1
-                    ? validPhones
-                    : [validPhones[i % validPhones.length]];
+                // 如果有有效的手机号，则使用；否则不包含手机号
+                const phoneToUse = validPhones.length > 0
+                    ? (validPhones.length === 1
+                        ? validPhones
+                        : [validPhones[i % validPhones.length]])
+                    : undefined;
 
                 creationPromises.push(
                     userApi.post('/api/user/cardlinks', {
@@ -481,7 +473,7 @@ export default function CardLinksPage() {
                             {/* 手机号输入 */}
                             <div>
                                 <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                                    手机号列表 <span className="text-red-500">*</span>
+                                    手机号列表
                                 </label>
                                 <div className="space-y-2">
                                     {phones.map((phone, index) => (
@@ -536,9 +528,7 @@ export default function CardLinksPage() {
                                     ))}
                                 </select>
                                 <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
-                                    {phones.filter(p => p.trim() && isValidPhone(p)).length > 1
-                                        ? '链接数量必须是有效手机号数量的倍数'
-                                        : '可以生成任意数量的链接'}
+                                    可以生成1-10个链接
                                 </p>
                             </div>
 
@@ -555,7 +545,7 @@ export default function CardLinksPage() {
 
                             {error && (
                                 <div className="text-red-500 dark:text-red-400 text-sm">
-                                    {error}
+                                    {error.replace('请至少输入一个有效的手机号码', '请检查输入的手机号格式')}
                                 </div>
                             )}
                         </div>

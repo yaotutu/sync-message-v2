@@ -31,7 +31,7 @@ export interface CardLink {
     key: string;
     username: string;
     appName: string;
-    phones: string[];
+    phones?: string[];
     phoneNumbers?: string[]; // 兼容旧代码
     createdAt: number;
     firstUsedAt?: number | null; // 卡密第一次被使用的时间
@@ -41,8 +41,8 @@ export interface CardLink {
 
 export interface CreateCardLinkDTO {
     appName: string;
-    phoneNumbers: string[];
-    phones?: string[]; // 兼容旧代码
+    phoneNumbers?: string[] | undefined;
+    phones?: string[] | undefined;
     templateId?: string;
 }
 
