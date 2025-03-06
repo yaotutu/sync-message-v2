@@ -26,8 +26,7 @@ export default function CardLinksPage() {
     const [cardLinks, setCardLinks] = useState<CardLink[]>([]);
     const [username, setUsername] = useState('');
     const [password, setPassword] = useState('');
-    const [linkCount, setLinkCount] = useState(1);
-    const [validLinkCounts, setValidLinkCounts] = useState<number[]>([1]);
+    const [linkCount, setLinkCount] = useState(100);
     // 添加卡密状态过滤
     const [statusFilter, setStatusFilter] = useState<CardLinkStatus>('unused');
     const [filteredCardLinks, setFilteredCardLinks] = useState<CardLink[]>([]);
@@ -68,21 +67,6 @@ export default function CardLinksPage() {
             loadCardLinks(1);
         }
     }, [username, password]);
-
-    // 根据手机号数量计算有效的链接数量
-    useEffect(() => {
-        // 生成1到10的链接数量选项
-        const counts = [];
-        for (let i = 1; i <= 10; i++) {
-            counts.push(i);
-        }
-        setValidLinkCounts(counts);
-
-        // 如果当前选择的链接数量超出范围，则重置为1
-        if (linkCount > 10) {
-            setLinkCount(1);
-        }
-    }, [linkCount]);
 
     // 根据状态和搜索关键词过滤卡密链接
     useEffect(() => {
@@ -341,10 +325,20 @@ export default function CardLinksPage() {
             if (failedResults.length > 0) {
                 setError(`创建卡链接部分失败: ${failedResults[0].message}`);
             } else {
+                // 提取并复制所有新生成的链接
+                const newLinks = results.map(result => result.data.url).join('\n');
+                try {
+                    await navigator.clipboard.writeText(newLinks);
+                    alert(`已成功生成 ${results.length} 个链接并复制到剪贴板！`);
+                } catch (error) {
+                    console.error('复制链接失败:', error);
+                    alert('链接生成成功，但复制到剪贴板失败，请手动复制。');
+                }
+
                 // 重置表单
                 setSelectedTemplate('');
                 setPhones(['']);
-                setLinkCount(1);
+                setLinkCount(100);
 
                 // 重新加载卡链接列表
                 await loadCardLinks(1);
@@ -464,6 +458,24 @@ export default function CardLinksPage() {
         }
     };
 
+    // 更新链接数量输入处理函数
+    const handleLinkCountChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+        const value = parseInt(e.target.value) || 100;
+        setLinkCount(Math.max(1, value)); // 确保至少生成1个链接
+    };
+
+    // 批量复制链接到剪贴板
+    const copyLinksToClipboard = async (links: CardLink[]) => {
+        try {
+            const linksText = links.map(link => link.url).join('\n');
+            await navigator.clipboard.writeText(linksText);
+            alert('已成功复制所有链接到剪贴板！');
+        } catch (error) {
+            console.error('复制链接失败:', error);
+            alert('复制链接失败，请手动复制。');
+        }
+    };
+
     return (
         <div className="min-h-screen bg-gray-100 dark:bg-gray-900 py-8 px-4">
             <div className="max-w-4xl mx-auto">
@@ -539,20 +551,16 @@ export default function CardLinksPage() {
                                 <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                                     生成链接数量 <span className="text-red-500">*</span>
                                 </label>
-                                <select
+                                <input
+                                    type="number"
                                     value={linkCount}
-                                    onChange={(e) => setLinkCount(parseInt(e.target.value))}
+                                    onChange={handleLinkCountChange}
+                                    min="1"
                                     className="w-full px-4 py-2 border dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition-all bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
                                     disabled={isLoading}
-                                >
-                                    {validLinkCounts.map(count => (
-                                        <option key={count} value={count}>
-                                            {count} 个链接
-                                        </option>
-                                    ))}
-                                </select>
+                                />
                                 <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
-                                    可以生成1-10个链接
+                                    默认生成100个链接，可以自定义数量
                                 </p>
                             </div>
 
@@ -767,6 +775,19 @@ export default function CardLinksPage() {
                         {isLoadingMore && (
                             <div className="p-4 text-center text-gray-500 dark:text-gray-400">
                                 加载中...
+                            </div>
+                        )}
+
+                        {/* 添加批量复制按钮 */}
+                        {filteredCardLinks.length > 0 && (
+                            <div className="p-4 border-t dark:border-gray-700">
+                                <button
+                                    onClick={() => copyLinksToClipboard(filteredCardLinks)}
+                                    className="w-full px-4 py-2 bg-green-500 text-white rounded-lg hover:bg-green-600 dark:bg-green-600 dark:hover:bg-green-700 focus:ring-2 focus:ring-green-500 focus:ring-offset-2 dark:focus:ring-offset-gray-800 disabled:opacity-50 transition-all"
+                                    disabled={isLoading}
+                                >
+                                    复制全部链接到剪贴板
+                                </button>
                             </div>
                         )}
                     </div>
