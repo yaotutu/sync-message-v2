@@ -175,7 +175,7 @@ export default function TemplatesPage() {
             updatedRules[index] = {
                 ...updatedRules[index],
                 type: type as RuleType,
-                mode: `${type}_${mode}` as RuleMode
+                mode: `simple_${type}` as RuleMode
             };
         }
         setRules(updatedRules);
@@ -189,13 +189,22 @@ export default function TemplatesPage() {
             description: template.description
         });
 
-        // 转换规则格式
-        const templateRules = template.rules.map(rule => ({
-            type: rule.type,
-            mode: rule.mode,
-            pattern: rule.pattern,
-            description: rule.description
-        }));
+        // 转换规则格式，确保 mode 值正确
+        const templateRules = template.rules.map(rule => {
+            let mode: RuleMode;
+            if (rule.mode === 'regex') {
+                mode = 'regex';
+            } else {
+                mode = `simple_${rule.type}` as RuleMode;
+            }
+
+            return {
+                type: rule.type,
+                mode: mode,
+                pattern: rule.pattern,
+                description: rule.description
+            };
+        });
 
         setRules(templateRules);
         setIsEditing(true);
@@ -334,12 +343,12 @@ export default function TemplatesPage() {
                                                                         规则类型
                                                                     </label>
                                                                     <select
-                                                                        value={rule.mode === 'regex' ? 'regex' : `${rule.type}_${rule.mode.split('_')[1]}`}
+                                                                        value={rule.mode === 'regex' ? 'regex' : rule.type}
                                                                         onChange={(e) => updateRuleTypeAndMode(index, e.target.value)}
                                                                         className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-800 dark:text-white"
                                                                     >
-                                                                        <option value="include_include">包含文本</option>
-                                                                        <option value="exclude_exclude">排除文本</option>
+                                                                        <option value="include">包含文本</option>
+                                                                        <option value="exclude">排除文本</option>
                                                                         <option value="regex">正则表达式</option>
                                                                     </select>
                                                                 </div>
