@@ -476,6 +476,39 @@ export default function CardLinksPage() {
         }
     };
 
+    // 删除所有未使用的卡密链接
+    const deleteAllUnusedLinks = async () => {
+        // 获取未使用的卡密数量
+        const unusedCount = cardLinks.filter(link => !link.firstUsedAt).length;
+
+        if (unusedCount === 0) {
+            alert('没有可删除的未使用卡密链接');
+            return;
+        }
+
+        if (!confirm(`确定要删除所有未使用的卡密链接吗？\n共 ${unusedCount} 个未使用的链接将被删除。\n此操作不可恢复！`)) {
+            return;
+        }
+
+        try {
+            setIsLoading(true);
+            const response = await userApi.delete('/api/user/cardlinks/delete-unused', { username, password });
+
+            if (response.success) {
+                alert(response.message || `成功删除 ${response.count} 个未使用的卡密链接`);
+                // 重新加载列表
+                await loadCardLinks(1);
+            } else {
+                setError(response.message || '批量删除失败');
+            }
+        } catch (error) {
+            console.error('Batch delete error:', error);
+            setError('批量删除失败，请检查网络连接');
+        } finally {
+            setIsLoading(false);
+        }
+    };
+
     return (
         <div className="min-h-screen bg-gray-100 dark:bg-gray-900 py-8 px-4">
             <div className="max-w-4xl mx-auto">
@@ -663,6 +696,14 @@ export default function CardLinksPage() {
                                         disabled={isLoading}
                                     >
                                         已使用
+                                    </button>
+                                    <button
+                                        onClick={deleteAllUnusedLinks}
+                                        className="px-3 py-1 text-sm rounded-md bg-red-500 text-white hover:bg-red-600 disabled:opacity-50"
+                                        disabled={isLoading}
+                                        title="删除所有未使用的卡密链接"
+                                    >
+                                        批量删除未使用
                                     </button>
                                 </div>
                             </div>
