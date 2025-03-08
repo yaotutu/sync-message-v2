@@ -215,10 +215,9 @@ export async function getUserCardLinks(
 export async function getCardLink(key: string): Promise<CardLink | null> {
     console.log(`[db/cardlinks] 尝试获取卡密链接: ${key}`);
 
-    // 使用事务确保数据一致性
-    return await transaction(async (db) => {
-        // 获取卡密链接
-        const cardLink = await db.get(`
+    try {
+        // 使用 sqlGet 获取单条记录
+        const link = await sqlGet`
             SELECT 
                 id,
                 key,
@@ -229,74 +228,81 @@ export async function getCardLink(key: string): Promise<CardLink | null> {
                 url,
                 first_used_at as firstUsedAt
             FROM card_links
-            WHERE key = ?
-        `, [key]);
+            WHERE key = ${key}
+        `;
 
-        if (!cardLink) {
+        if (!link) {
             console.log(`[db/cardlinks] 未找到卡密链接: ${key}`);
             return null;
         }
 
-        console.log(`[db/cardlinks] 找到卡密链接原始数据: ${JSON.stringify(cardLink)}`);
-        console.log(`[db/cardlinks] phones字段类型: ${typeof cardLink.phones}, 值: ${cardLink.phones}`);
+        console.log(`[db/cardlinks] 找到卡密链接原始数据:`, link);
 
         // 如果是第一次使用（first_used_at为null），则更新first_used_at字段
-        if (!cardLink.firstUsedAt) {
+        if (!link.firstUsedAt) {
             const now = Date.now();
             console.log(`[db/cardlinks] 卡密第一次被使用，更新first_used_at: ${now}`);
 
-            await db.run(`
+            await sql`
                 UPDATE card_links
-                SET first_used_at = ?
-                WHERE key = ?
-            `, [now, key]);
+                SET first_used_at = ${now}
+                WHERE key = ${key}
+            `;
 
             // 更新内存中的对象
-            cardLink.firstUsedAt = now;
+            link.firstUsedAt = now;
         } else {
-            console.log(`[db/cardlinks] 卡密已被使用过，first_used_at: ${cardLink.firstUsedAt}`);
+            console.log(`[db/cardlinks] 卡密已被使用过，first_used_at: ${link.firstUsedAt}`);
         }
 
         // 处理phones字段
         let phonesArray: string[] = [];
-        try {
-            if (typeof cardLink.phones === 'string') {
-                try {
-                    phonesArray = JSON.parse(cardLink.phones);
-                    console.log(`[db/cardlinks] 成功解析phones字符串为数组: ${JSON.stringify(phonesArray)}`);
-                } catch (parseError) {
-                    console.error(`[db/cardlinks] JSON解析phones字段失败:`, parseError);
-                    console.log(`[db/cardlinks] 尝试将phones作为单个字符串处理`);
-                    phonesArray = [cardLink.phones];
+
+        if (link.phones) {
+            console.log(`[db/cardlinks] 处理phones字段，类型: ${typeof link.phones}, 值:`, link.phones);
+            try {
+                if (typeof link.phones === 'string') {
+                    try {
+                        phonesArray = JSON.parse(link.phones);
+                        console.log(`[db/cardlinks] 成功解析phones字符串为数组:`, phonesArray);
+                    } catch (parseError) {
+                        console.error(`[db/cardlinks] JSON解析phones字段失败:`, parseError);
+                        console.log(`[db/cardlinks] 尝试将phones作为单个字符串处理`);
+                        phonesArray = [link.phones];
+                    }
+                } else if (Array.isArray(link.phones)) {
+                    phonesArray = link.phones;
+                    console.log(`[db/cardlinks] phones已经是数组:`, phonesArray);
+                } else {
+                    phonesArray = [String(link.phones)];
+                    console.log(`[db/cardlinks] 将phones转换为单元素数组:`, phonesArray);
                 }
-            } else if (Array.isArray(cardLink.phones)) {
-                phonesArray = cardLink.phones;
-                console.log(`[db/cardlinks] phones已经是数组: ${JSON.stringify(phonesArray)}`);
-            } else if (cardLink.phones) {
-                phonesArray = [String(cardLink.phones)];
-                console.log(`[db/cardlinks] 将phones转换为单元素数组: ${JSON.stringify(phonesArray)}`);
+            } catch (error) {
+                console.error(`[db/cardlinks] 处理phones字段失败:`, error);
+                phonesArray = [];
             }
-        } catch (error) {
-            console.error(`[db/cardlinks] 处理phones字段失败:`, error);
-            // 如果处理失败，使用空数组
-            phonesArray = [];
+        } else {
+            console.log(`[db/cardlinks] phones字段为空，使用空数组`);
         }
 
         // 返回处理后的卡密链接
         const result = {
-            id: cardLink.id,
-            key: cardLink.key,
-            username: cardLink.username,
-            appName: cardLink.appName,
+            id: link.id,
+            key: link.key,
+            username: link.username,
+            appName: link.appName,
             phones: phonesArray,
-            createdAt: cardLink.createdAt,
-            firstUsedAt: cardLink.firstUsedAt,
-            url: cardLink.url
+            createdAt: link.createdAt,
+            firstUsedAt: link.firstUsedAt,
+            url: link.url
         };
 
-        console.log(`[db/cardlinks] 返回处理后的卡密链接: ${JSON.stringify(result)}`);
+        console.log(`[db/cardlinks] 返回处理后的卡密链接:`, result);
         return result;
-    });
+    } catch (error) {
+        console.error(`[db/cardlinks] 获取卡密链接失败:`, error);
+        throw error;
+    }
 }
 
 // 获取所有卡密链接

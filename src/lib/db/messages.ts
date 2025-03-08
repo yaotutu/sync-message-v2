@@ -52,27 +52,24 @@ export async function getMessages(cardKey: string) {
             return { success: false, message: cardKeyResult.message };
         }
 
-        // 使用事务确保数据一致性
-        return await transaction(async (db) => {
-            const messages = await db.all(`
-                SELECT 
-                    id,
-                    username,
-                    sms_content,
-                    rec_time,
-                    received_at
-                FROM messages 
-                WHERE username = ?
-                ORDER BY received_at DESC
-                LIMIT 100
-            `, [cardKeyResult.data.username]);
+        const messages = await sqlQuery`
+            SELECT 
+                id,
+                username,
+                sms_content,
+                rec_time,
+                received_at
+            FROM messages 
+            WHERE username = ${cardKeyResult.data.username}
+            ORDER BY received_at DESC
+            LIMIT 100
+        `;
 
-            return {
-                success: true,
-                data: messages,
-                expiresIn: cardKeyResult.data.expiresIn
-            };
-        });
+        return {
+            success: true,
+            data: messages,
+            expiresIn: cardKeyResult.data.expiresIn
+        };
     } catch (error) {
         console.error('Get messages error:', error);
         return { success: false, message: '获取消息失败，请稍后重试' };
@@ -82,26 +79,23 @@ export async function getMessages(cardKey: string) {
 // 根据用户名获取消息
 export async function getUserMessages(username: string) {
     try {
-        // 使用事务确保数据一致性
-        return await transaction(async (db) => {
-            const messages = await db.all(`
-                SELECT 
-                    id,
-                    username,
-                    sms_content,
-                    rec_time,
-                    received_at
-                FROM messages 
-                WHERE username = ?
-                ORDER BY received_at DESC
-                LIMIT 100
-            `, [username]);
+        const messages = await sqlQuery`
+            SELECT 
+                id,
+                username,
+                sms_content,
+                rec_time,
+                received_at
+            FROM messages 
+            WHERE username = ${username}
+            ORDER BY received_at DESC
+            LIMIT 100
+        `;
 
-            return {
-                success: true,
-                data: messages
-            };
-        });
+        return {
+            success: true,
+            data: messages
+        };
     } catch (error) {
         console.error('Get user messages error:', error);
         return { success: false, message: '获取用户消息失败，请稍后重试' };

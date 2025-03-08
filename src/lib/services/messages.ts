@@ -1,4 +1,4 @@
-import { sqlQuery, transaction } from '@/lib/db';
+import { sqlQuery, sql, transaction } from '@/lib/db';
 import { Message, CardLink, AppTemplate, TemplateRule } from '@/types';
 
 /**
@@ -9,15 +9,15 @@ export async function getUserMessages(username: string): Promise<Message[]> {
 
     try {
         const messages = await sqlQuery<Message>`
-        SELECT 
-          id,
-          sms_content,
-          rec_time,
-          received_at
-        FROM messages 
-        WHERE username = ${username}
-        ORDER BY received_at DESC
-      `;
+            SELECT 
+                id,
+                sms_content,
+                rec_time,
+                received_at
+            FROM messages 
+            WHERE username = ${username}
+            ORDER BY received_at DESC
+        `;
 
         console.log(`[messages] 成功获取用户 ${username} 的 ${messages.length} 条消息`);
         return messages;
@@ -202,39 +202,37 @@ export async function addMessage(
     received_at: number = Date.now()
 ): Promise<{ success: boolean; message?: string }> {
     try {
-        return await transaction(async (db) => {
-            // 插入新消息
-            await db.run(
-                'INSERT INTO messages (username, sms_content, rec_time, received_at) VALUES (?, ?, ?, ?)',
-                [username, sms_content, rec_time, received_at]
-            );
+        // 插入新消息
+        await sql`
+            INSERT INTO messages (username, sms_content, rec_time, received_at) 
+            VALUES (${username}, ${sms_content}, ${rec_time}, ${received_at})
+        `;
 
-            // 获取当前用户的消息数量
-            const countResult = await db.get<{ count: number }>(
-                'SELECT COUNT(*) as count FROM messages WHERE username = ?',
-                [username]
-            );
+        // 获取当前用户的消息数量
+        const countResult = await sqlQuery`
+            SELECT COUNT(*) as count 
+            FROM messages 
+            WHERE username = ${username}
+        `;
 
-            const count = countResult?.count || 0;
+        const count = countResult[0]?.count || 0;
 
-            // 如果消息数量超过限制，删除最旧的消息
-            if (count > 1000) {
-                const toDelete = count - 1000;
-                await db.run(`
-          DELETE FROM messages 
-          WHERE username = ? 
-          AND id IN (
-            SELECT id FROM messages 
-            WHERE username = ? 
-            ORDER BY received_at ASC 
-            LIMIT ?
-          )`,
-                    [username, username, toDelete]
-                );
-            }
+        // 如果消息数量超过限制，删除最旧的消息
+        if (count > 1000) {
+            const toDelete = count - 1000;
+            await sql`
+                DELETE FROM messages 
+                WHERE username = ${username} 
+                AND id IN (
+                    SELECT id FROM messages 
+                    WHERE username = ${username} 
+                    ORDER BY received_at ASC 
+                    LIMIT ${toDelete}
+                )
+            `;
+        }
 
-            return { success: true };
-        });
+        return { success: true };
     } catch (error) {
         console.error('添加消息失败:', error);
         return { success: false, message: '添加消息失败，请稍后重试' };
