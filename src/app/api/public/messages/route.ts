@@ -131,7 +131,6 @@ export async function GET(request: NextRequest) {
                     const messagesResult = await getUserMessages(cardLink.username);
 
                     if (!messagesResult.success) {
-                        // 使用类型断言处理错误情况
                         const errorMessage = 'message' in messagesResult
                             ? (messagesResult as { message: string }).message
                             : '未知错误';
@@ -143,7 +142,6 @@ export async function GET(request: NextRequest) {
                         );
                     }
 
-                    // 使用类型断言处理成功情况
                     const messages = 'data' in messagesResult
                         ? (messagesResult as { data: any[] }).data
                         : [];
@@ -152,10 +150,35 @@ export async function GET(request: NextRequest) {
 
                     // 过滤消息
                     try {
-                        const filteredMessages = await getFilteredCardLinkMessages(cardLink, template, phone);
+                        // 使用处理后的phones数组
+                        const phoneToUse = phones.length > 0 ? phones[0] : null;
+                        const filteredMessages = await getFilteredCardLinkMessages(cardLink, template, phoneToUse);
                         console.log('过滤后的消息数量:', filteredMessages.length);
 
-                        return NextResponse.json({ success: true, data: filteredMessages });
+                        // 根据卡密的首次使用时间筛选消息
+                        let targetMessage = null;
+
+                        if (cardLink.firstUsedAt) {
+                            // 找到首次使用时间之后的第一条消息
+                            targetMessage = filteredMessages.find(msg => {
+                                const msgTime = msg.received_at || (msg.rec_time ? new Date(msg.rec_time).getTime() : 0);
+                                return msgTime >= cardLink.firstUsedAt!;
+                            });
+                        } else {
+                            // 如果是第一次使用，使用最新的一条消息
+                            targetMessage = filteredMessages[0];
+                        }
+
+                        // 返回结果
+                        return NextResponse.json({
+                            success: true,
+                            firstUsedAt: cardLink.firstUsedAt,
+                            message: targetMessage ? {
+                                content: targetMessage.sms_content,
+                                receivedAt: targetMessage.received_at,
+                                recTime: targetMessage.rec_time
+                            } : null
+                        });
                     } catch (filterError: any) {
                         console.error('过滤消息时出错:', filterError.message);
                         return NextResponse.json(
@@ -185,9 +208,9 @@ export async function GET(request: NextRequest) {
             );
         }
     } catch (error: any) {
-        console.error('处理请求时出错:', error.message);
+        console.error('处理请求时出错:', error);
         return NextResponse.json(
-            { success: false, error: `处理请求时出错: ${error.message}` },
+            { success: false, error: '处理请求时出错' },
             { status: 500 }
         );
     }

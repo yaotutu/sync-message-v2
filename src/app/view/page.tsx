@@ -2,7 +2,6 @@
 
 import { useState, useEffect } from 'react';
 import { useSearchParams } from 'next/navigation';
-import { Message } from '@/types';
 
 // 从短信内容中提取验证码的函数
 const extractVerificationCode = (content: string): string | null => {
@@ -32,44 +31,42 @@ const extractVerificationCode = (content: string): string | null => {
     return null;
 };
 
+interface Message {
+    content: string;
+    receivedAt: number;
+    recTime: string | null;
+}
+
+interface ApiResponse {
+    success: boolean;
+    firstUsedAt: number | null;
+    message: Message | null;
+    error?: string;
+}
+
 export default function ViewPage() {
     const searchParams = useSearchParams();
     const [isLoading, setIsLoading] = useState(true);
     const [error, setError] = useState('');
-    const [messages, setMessages] = useState<Message[]>([]);
+    const [message, setMessage] = useState<Message | null>(null);
     const [appName, setAppName] = useState<string>('');
     const [phone, setPhone] = useState<string | null>(null);
     const [verificationCode, setVerificationCode] = useState<string | null>(null);
+    const [firstUsedAt, setFirstUsedAt] = useState<number | null>(null);
     const [copyStatus, setCopyStatus] = useState<{ phone: string, code: string }>({
         phone: '',
         code: ''
     });
 
+    // 更新验证码
     useEffect(() => {
-        const cardKey = searchParams.get('cardKey');
-        const appNameParam = searchParams.get('appName');
-        const phoneParam = searchParams.get('phone');
-
-        if (!cardKey || !appNameParam) {
-            setError('无效的链接参数');
-            setIsLoading(false);
-            return;
-        }
-
-        setAppName(appNameParam);
-        setPhone(phoneParam);
-        loadMessages(cardKey, appNameParam, phoneParam);
-    }, [searchParams]);
-
-    // 当消息加载完成后，尝试提取验证码
-    useEffect(() => {
-        if (messages.length > 0) {
-            // 尝试从最新的消息中提取验证码
-            const latestMessage = messages[0];
-            const code = extractVerificationCode(latestMessage.sms_content);
+        if (message) {
+            const code = extractVerificationCode(message.content);
             setVerificationCode(code);
+        } else {
+            setVerificationCode(null);
         }
-    }, [messages]);
+    }, [message]);
 
     const loadMessages = async (cardKey: string, appName: string, phone: string | null) => {
         setIsLoading(true);
@@ -106,18 +103,13 @@ export default function ViewPage() {
             console.log('请求URL:', url);
 
             const response = await fetch(url);
-            const data = await response.json();
+            const data: ApiResponse = await response.json();
 
             if (data.success) {
-                // 按接收时间排序，最新的消息在前面
-                const sortedMessages = (data.data || []).sort((a: Message, b: Message) => {
-                    const timeA = a.received_at || (a.rec_time ? new Date(a.rec_time).getTime() : 0);
-                    const timeB = b.received_at || (b.rec_time ? new Date(b.rec_time).getTime() : 0);
-                    return timeB - timeA;
-                });
-                setMessages(sortedMessages);
+                setMessage(data.message);
+                setFirstUsedAt(data.firstUsedAt);
             } else {
-                setError(data.message || '加载消息失败');
+                setError(data.error || '加载消息失败');
             }
         } catch (error) {
             console.error('加载消息错误:', error);
@@ -126,6 +118,22 @@ export default function ViewPage() {
             setIsLoading(false);
         }
     };
+
+    useEffect(() => {
+        const cardKey = searchParams.get('cardKey');
+        const appNameParam = searchParams.get('appName');
+        const phoneParam = searchParams.get('phone');
+
+        if (!cardKey || !appNameParam) {
+            setError('无效的链接参数');
+            setIsLoading(false);
+            return;
+        }
+
+        setAppName(appNameParam);
+        setPhone(phoneParam);
+        loadMessages(cardKey, appNameParam, phoneParam);
+    }, [searchParams]);
 
     // 复制文本到剪贴板
     const copyToClipboard = async (text: string, type: 'phone' | 'code') => {
@@ -177,6 +185,11 @@ export default function ViewPage() {
                         <h2 className="text-xl font-bold text-gray-900 dark:text-white">
                             {appName} - 快速复制
                         </h2>
+                        {firstUsedAt && (
+                            <p className="mt-2 text-sm text-gray-500 dark:text-gray-400">
+                                首次使用时间：{new Date(firstUsedAt).toLocaleString()}
+                            </p>
+                        )}
                     </div>
                     <div className="p-6 space-y-6">
                         {/* 手机号部分 */}
@@ -221,33 +234,31 @@ export default function ViewPage() {
                     </div>
                 </div>
 
-                {/* 消息列表 */}
-                <div className="bg-white dark:bg-gray-800 rounded-lg shadow overflow-hidden">
-                    <div className="p-6 border-b dark:border-gray-700">
-                        <h2 className="text-xl font-bold text-gray-900 dark:text-white">
-                            消息列表
-                        </h2>
-                    </div>
-                    <div className="divide-y dark:divide-gray-700">
-                        {messages.map((message) => (
-                            <div key={message.id} className="p-4 hover:bg-gray-50 dark:hover:bg-gray-700/50">
-                                <div className="space-y-2">
-                                    <div className="text-gray-900 dark:text-white break-words">
-                                        {message.sms_content}
-                                    </div>
-                                    <div className="text-sm text-gray-500 dark:text-gray-400">
-                                        接收时间：{message.rec_time || new Date(message.received_at).toLocaleString()}
-                                    </div>
+                {/* 消息内容 */}
+                {message && (
+                    <div className="bg-white dark:bg-gray-800 rounded-lg shadow overflow-hidden">
+                        <div className="p-6 border-b dark:border-gray-700">
+                            <h2 className="text-xl font-bold text-gray-900 dark:text-white">
+                                消息内容
+                            </h2>
+                        </div>
+                        <div className="p-4">
+                            <div className="space-y-2">
+                                <div className="text-gray-900 dark:text-white break-words">
+                                    {message.content}
+                                </div>
+                                <div className="text-sm text-gray-500 dark:text-gray-400">
+                                    接收时间：{message.recTime || new Date(message.receivedAt).toLocaleString()}
                                 </div>
                             </div>
-                        ))}
-                        {messages.length === 0 && (
-                            <div className="p-4 text-center text-gray-500 dark:text-gray-400">
-                                暂无消息
-                            </div>
-                        )}
+                        </div>
                     </div>
-                </div>
+                )}
+                {!message && !isLoading && (
+                    <div className="bg-white dark:bg-gray-800 rounded-lg shadow p-4 text-center text-gray-500 dark:text-gray-400">
+                        {firstUsedAt ? '未找到首次使用时间之后的新消息' : '暂无消息'}
+                    </div>
+                )}
             </div>
         </div>
     );
