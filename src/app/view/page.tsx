@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useSearchParams } from 'next/navigation';
 
 // 从短信内容中提取验证码的函数
@@ -58,6 +58,11 @@ export default function ViewPage() {
         code: ''
     });
 
+    // 自动刷新相关状态
+    const [autoRefresh, setAutoRefresh] = useState(true);
+    const [countdown, setCountdown] = useState(5);
+    const [lastRefreshTime, setLastRefreshTime] = useState<Date>(new Date());
+
     // 更新验证码
     useEffect(() => {
         if (message) {
@@ -68,7 +73,7 @@ export default function ViewPage() {
         }
     }, [message]);
 
-    const loadMessages = async (cardKey: string, appName: string, phone: string | null) => {
+    const loadMessages = useCallback(async (cardKey: string, appName: string, phone: string | null) => {
         setIsLoading(true);
         setError('');
         try {
@@ -90,6 +95,7 @@ export default function ViewPage() {
             if (data.success) {
                 setMessage(data.message);
                 setFirstUsedAt(data.firstUsedAt);
+                setLastRefreshTime(new Date());
             } else {
                 setError(data.error || '加载消息失败');
             }
@@ -99,7 +105,28 @@ export default function ViewPage() {
         } finally {
             setIsLoading(false);
         }
-    };
+    }, []);
+
+    // 自动刷新效果
+    useEffect(() => {
+        const cardKey = searchParams.get('cardKey');
+        const appNameParam = searchParams.get('appName');
+        const phoneParam = searchParams.get('phone');
+
+        if (!cardKey || !appNameParam || !autoRefresh) return;
+
+        const timer = setInterval(() => {
+            setCountdown(prev => {
+                if (prev <= 1) {
+                    loadMessages(cardKey, appNameParam, phoneParam);
+                    return 5;
+                }
+                return prev - 1;
+            });
+        }, 1000);
+
+        return () => clearInterval(timer);
+    }, [searchParams, autoRefresh, loadMessages]);
 
     useEffect(() => {
         const cardKey = searchParams.get('cardKey');
@@ -115,7 +142,7 @@ export default function ViewPage() {
         setAppName(appNameParam);
         setPhone(phoneParam);
         loadMessages(cardKey, appNameParam, phoneParam);
-    }, [searchParams]);
+    }, [searchParams, loadMessages]);
 
     // 复制文本到剪贴板
     const copyToClipboard = async (text: string, type: 'phone' | 'code') => {
@@ -161,6 +188,31 @@ export default function ViewPage() {
     return (
         <div className="min-h-screen bg-gray-100 dark:bg-gray-900 py-8 px-4">
             <div className="max-w-4xl mx-auto">
+                {/* 自动刷新控制 */}
+                <div className="bg-white dark:bg-gray-800 rounded-lg shadow mb-4 p-4">
+                    <div className="flex items-center justify-between">
+                        <div className="flex items-center space-x-2">
+                            <button
+                                onClick={() => setAutoRefresh(!autoRefresh)}
+                                className={`px-4 py-2 rounded transition-colors ${autoRefresh
+                                    ? 'bg-green-600 hover:bg-green-700 text-white'
+                                    : 'bg-gray-200 hover:bg-gray-300 text-gray-800'
+                                    }`}
+                            >
+                                {autoRefresh ? '自动刷新中' : '已暂停刷新'}
+                            </button>
+                            {autoRefresh && (
+                                <span className="text-sm text-gray-600 dark:text-gray-400">
+                                    {countdown}秒后刷新
+                                </span>
+                            )}
+                        </div>
+                        <div className="text-sm text-gray-500 dark:text-gray-400">
+                            上次刷新: {lastRefreshTime.toLocaleTimeString()}
+                        </div>
+                    </div>
+                </div>
+
                 {/* 快速复制卡片 */}
                 <div className="bg-white dark:bg-gray-800 rounded-lg shadow mb-6">
                     <div className="p-6 border-b dark:border-gray-700">
