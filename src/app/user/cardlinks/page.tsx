@@ -41,6 +41,8 @@ export default function CardLinksPage() {
     // 添加搜索相关状态
     const [searchQuery, setSearchQuery] = useState('');
     const [isSearching, setIsSearching] = useState(false);
+    // 添加临时输入状态
+    const [linkCountInput, setLinkCountInput] = useState('100');
 
     // 检查登录状态
     useEffect(() => {
@@ -338,7 +340,6 @@ export default function CardLinksPage() {
                 // 重置表单
                 setSelectedTemplate('');
                 setPhones(['']);
-                setLinkCount(100);
 
                 // 重新加载卡链接列表
                 await loadCardLinks(1);
@@ -460,8 +461,22 @@ export default function CardLinksPage() {
 
     // 更新链接数量输入处理函数
     const handleLinkCountChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-        const value = parseInt(e.target.value) || 100;
-        setLinkCount(Math.max(1, value)); // 确保至少生成1个链接
+        const inputValue = e.target.value;
+        setLinkCountInput(inputValue);
+
+        const value = parseInt(inputValue);
+        if (!isNaN(value)) {
+            setLinkCount(value);
+        }
+    };
+
+    // 处理输入框失去焦点
+    const handleLinkCountBlur = () => {
+        const value = parseInt(linkCountInput);
+        if (isNaN(value) || value < 1) {
+            setLinkCount(1);
+            setLinkCountInput('1');
+        }
     };
 
     // 批量复制链接到剪贴板
@@ -586,14 +601,15 @@ export default function CardLinksPage() {
                                 </label>
                                 <input
                                     type="number"
-                                    value={linkCount}
+                                    value={linkCountInput}
                                     onChange={handleLinkCountChange}
+                                    onBlur={handleLinkCountBlur}
                                     min="1"
                                     className="w-full px-4 py-2 border dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition-all bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
                                     disabled={isLoading}
                                 />
                                 <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
-                                    默认生成100个链接，可以自定义数量
+                                    默认生成100个链接，可以自定义数量（最少1个）
                                 </p>
                             </div>
 
