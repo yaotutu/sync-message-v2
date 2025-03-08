@@ -74,32 +74,14 @@ export default function ViewPage() {
         try {
             console.log('加载消息，参数:', { cardKey, appName, phone });
 
-            let url = '';
-            let params = new URLSearchParams();
-
-            // 对"剪影"应用使用专用API路由
-            if (appName === '剪影') {
-                console.log('使用剪影专用API路由');
-                params.append('cardKey', cardKey);
-                if (phone) {
-                    params.append('phone', phone);
-                }
-                url = `/api/public/messages/jianying?${params.toString()}`;
-            } else {
-                // 其他应用使用通用API路由
-                console.log('使用通用API路由');
-                // 确保appName正确编码
-                const encodedAppName = encodeURIComponent(appName);
-                console.log('编码后的appName:', encodedAppName);
-
-                params.append('cardKey', cardKey);
-                params.append('appName', encodedAppName);
-                if (phone) {
-                    params.append('phone', phone);
-                }
-                url = `/api/public/messages?${params.toString()}`;
+            const params = new URLSearchParams();
+            params.append('cardKey', cardKey);
+            params.append('appName', encodeURIComponent(appName));
+            if (phone) {
+                params.append('phone', phone);
             }
 
+            const url = `/api/public/messages?${params.toString()}`;
             console.log('请求URL:', url);
 
             const response = await fetch(url);

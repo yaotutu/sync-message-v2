@@ -3,6 +3,7 @@ import { getCardLink } from '@/lib/db/cardlinks';
 import { getTemplateByName } from '@/lib/services/templates';
 import { getUserMessages } from '@/lib/db/messages';
 import { getFilteredCardLinkMessages } from '@/lib/services/messages';
+import { sql } from '@/lib/db';
 
 /**
  * 公共消息API - 根据卡密链接获取过滤后的消息
@@ -158,15 +159,41 @@ export async function GET(request: NextRequest) {
                         // 根据卡密的首次使用时间筛选消息
                         let targetMessage = null;
 
-                        if (cardLink.firstUsedAt) {
-                            // 找到首次使用时间之后的第一条消息
-                            targetMessage = filteredMessages.find(msg => {
-                                const msgTime = msg.received_at || (msg.rec_time ? new Date(msg.rec_time).getTime() : 0);
-                                return msgTime >= cardLink.firstUsedAt!;
-                            });
-                        } else {
-                            // 如果是第一次使用，使用最新的一条消息
-                            targetMessage = filteredMessages[0];
+                        if (filteredMessages.length > 0) {
+                            if (!cardLink.firstUsedAt) {
+                                // 第一次使用，只更新使用时间，不返回消息
+                                try {
+                                    const now = Date.now();
+                                    await sql`
+                                        UPDATE card_links 
+                                        SET first_used_at = ${now}
+                                        WHERE key = ${cardKey}
+                                    `;
+                                    console.log('已更新首次使用时间:', now);
+                                } catch (updateError) {
+                                    console.error('更新首次使用时间失败:', updateError);
+                                }
+                            } else {
+                                // 非首次使用，找到首次使用时间之后的第一条消息
+                                // 先按时间正序排序，这样可以找到最早的消息
+                                const sortedMessages = filteredMessages.sort((a, b) => {
+                                    const timeA = a.received_at || (a.rec_time ? new Date(a.rec_time).getTime() : 0);
+                                    const timeB = b.received_at || (b.rec_time ? new Date(b.rec_time).getTime() : 0);
+                                    return timeA - timeB;
+                                });
+
+                                // 找到首次使用时间之后的第一条消息
+                                targetMessage = sortedMessages.find(msg => {
+                                    const msgTime = msg.received_at || (msg.rec_time ? new Date(msg.rec_time).getTime() : 0);
+                                    return msgTime >= cardLink.firstUsedAt!;
+                                });
+
+                                console.log('找到目标消息:', targetMessage ? {
+                                    content: targetMessage.sms_content,
+                                    receivedAt: targetMessage.received_at,
+                                    recTime: targetMessage.rec_time
+                                } : '无匹配消息');
+                            }
                         }
 
                         // 返回结果

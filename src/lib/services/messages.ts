@@ -40,11 +40,11 @@ export function filterMessagesByTemplate(
     try {
         // 按规则优先级排序
         const sortedRules = [...template.rules].sort((a, b) => a.order_num - b.order_num);
-        console.log(`[messages] 模板规则数量: ${sortedRules.length}, 活跃规则: ${sortedRules.filter(r => r.isActive).length}`);
+        console.log(`[messages] 模板规则数量: ${sortedRules.length}`);
 
         // 记录规则详情
         sortedRules.forEach((rule, index) => {
-            console.log(`[messages] 规则 #${index + 1}: 类型=${rule.type}, 模式=${rule.mode}, 模式内容="${rule.pattern}", 活跃=${rule.isActive}`);
+            console.log(`[messages] 规则 #${index + 1}: 类型=${rule.type}, 模式=${rule.mode}, 模式内容="${rule.pattern}"`);
         });
 
         const filteredMessages = messages.filter(message => {
@@ -59,36 +59,31 @@ export function filterMessagesByTemplate(
                 console.log(`[messages] 消息包含指定手机号 ${phone}`);
             }
 
-            // 获取活跃规则
-            const activeRules = sortedRules.filter(r => r.isActive);
-
-            // 如果没有活跃规则，返回true（包含该消息）
-            if (activeRules.length === 0) {
-                console.log(`[messages] 没有活跃规则，包含消息`);
-                return true;
-            }
-
             // 应用模板规则过滤
-            let includeMessage = true;
-
-            for (const rule of activeRules) {
+            for (const rule of sortedRules) {
                 const result = applyRuleToMessage(message, rule);
                 console.log(`[messages] 应用规则 (${rule.type}/${rule.pattern}) 到消息，结果: ${result}`);
 
                 // 如果规则匹配失败,直接返回false
                 if (!result) {
                     console.log(`[messages] 消息被规则排除: ${rule.description || rule.pattern}`);
-                    includeMessage = false;
-                    break;
+                    return false;
                 }
             }
 
-            console.log(`[messages] 消息最终处理结果: ${includeMessage ? '包含' : '排除'}`);
-            return includeMessage;
+            console.log(`[messages] 消息通过所有规则，将被包含`);
+            return true;
         });
 
-        console.log(`[messages] 过滤后消息数量: ${filteredMessages.length}`);
-        return filteredMessages;
+        // 按时间倒序排序，确保最新的消息在前面
+        const sortedMessages = filteredMessages.sort((a, b) => {
+            const timeA = a.received_at || (a.rec_time ? new Date(a.rec_time).getTime() : 0);
+            const timeB = b.received_at || (b.rec_time ? new Date(b.rec_time).getTime() : 0);
+            return timeB - timeA;
+        });
+
+        console.log(`[messages] 过滤后消息数量: ${sortedMessages.length}`);
+        return sortedMessages;
     } catch (error) {
         console.error(`[messages] 过滤消息失败:`, error);
         return [];

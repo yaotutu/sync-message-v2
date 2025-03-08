@@ -161,6 +161,26 @@ export default function TemplatesPage() {
         setRules(updatedRules);
     };
 
+    // 更新规则类型和模式
+    const updateRuleTypeAndMode = (index: number, value: string) => {
+        const updatedRules = [...rules];
+        if (value === 'regex') {
+            updatedRules[index] = {
+                ...updatedRules[index],
+                type: 'include',
+                mode: 'regex'
+            };
+        } else {
+            const [type, mode] = value.split('_');
+            updatedRules[index] = {
+                ...updatedRules[index],
+                type: type as RuleType,
+                mode: `${type}_${mode}` as RuleMode
+            };
+        }
+        setRules(updatedRules);
+    };
+
     // 开始编辑模板
     const startEditing = (template: AppTemplate) => {
         setCurrentTemplate(template);
@@ -308,37 +328,24 @@ export default function TemplatesPage() {
                                                                     删除
                                                                 </button>
                                                             </div>
-                                                            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                                                            <div className="grid grid-cols-1 gap-3">
                                                                 <div>
                                                                     <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">
                                                                         规则类型
                                                                     </label>
                                                                     <select
-                                                                        value={rule.type}
-                                                                        onChange={(e) => updateRule(index, 'type', e.target.value as RuleType)}
+                                                                        value={rule.mode === 'regex' ? 'regex' : `${rule.type}_${rule.mode.split('_')[1]}`}
+                                                                        onChange={(e) => updateRuleTypeAndMode(index, e.target.value)}
                                                                         className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-800 dark:text-white"
                                                                     >
-                                                                        <option value="include">包含</option>
-                                                                        <option value="exclude">排除</option>
+                                                                        <option value="include_include">包含文本</option>
+                                                                        <option value="exclude_exclude">排除文本</option>
+                                                                        <option value="regex">正则表达式</option>
                                                                     </select>
                                                                 </div>
                                                                 <div>
                                                                     <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">
-                                                                        匹配模式
-                                                                    </label>
-                                                                    <select
-                                                                        value={rule.mode}
-                                                                        onChange={(e) => updateRule(index, 'mode', e.target.value as RuleMode)}
-                                                                        className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-800 dark:text-white"
-                                                                    >
-                                                                        <option value="simple_include">简单包含</option>
-                                                                        <option value="simple_exclude">简单排除</option>
-                                                                        <option value="regex">正则表达式</option>
-                                                                    </select>
-                                                                </div>
-                                                                <div className="md:col-span-2">
-                                                                    <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">
-                                                                        匹配模式 <span className="text-red-500">*</span>
+                                                                        匹配内容 <span className="text-red-500">*</span>
                                                                     </label>
                                                                     <input
                                                                         type="text"
@@ -348,7 +355,7 @@ export default function TemplatesPage() {
                                                                         placeholder={rule.mode === 'regex' ? '输入正则表达式' : '输入匹配文本'}
                                                                     />
                                                                 </div>
-                                                                <div className="md:col-span-2">
+                                                                <div>
                                                                     <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">
                                                                         规则描述
                                                                     </label>
