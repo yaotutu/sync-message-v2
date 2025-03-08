@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import { AppTemplate, CreateTemplateDTO, CreateRuleDTO, RuleType, RuleMode } from '@/types';
 import { getStoredAdminPassword } from '@/lib/services/auth';
@@ -21,6 +21,9 @@ export default function TemplatesPage() {
         description: ''
     });
     const [rules, setRules] = useState<CreateRuleDTO[]>([]);
+
+    // 文件导入相关
+    const fileInputRef = useRef<HTMLInputElement>(null);
 
     useEffect(() => {
         loadTemplates();
@@ -74,6 +77,19 @@ export default function TemplatesPage() {
         setError('');
 
         try {
+            // 检查是否存在同名模板（排除当前正在编辑的模板）
+            const existingTemplatesResponse = await adminApi.get('/api/admin/templates');
+            const existingTemplates = existingTemplatesResponse.success ? existingTemplatesResponse.data : [];
+            const existingTemplate = existingTemplates.find(
+                (t: AppTemplate) => t.name === formData.name && (!isEditing || t.id !== currentTemplate?.id)
+            );
+
+            if (existingTemplate) {
+                setError('已存在同名模板，请使用其他名称');
+                setLoading(false);
+                return;
+            }
+
             let url = '/api/admin/templates';
             let method = 'POST';
             let body: any = { ...formData };
