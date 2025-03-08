@@ -17,6 +17,7 @@ function generateCardKey(): string {
 
 // 生成卡密链接URL
 function generateCardLinkUrl(key: string, appName: string, phone: string | null): string {
+    // 如果没有设置 NEXT_PUBLIC_BASE_URL，使用默认值
     const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:3000';
     const params = new URLSearchParams({
         cardKey: key,
