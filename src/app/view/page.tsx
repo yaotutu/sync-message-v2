@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, Suspense } from 'react';
 import { useSearchParams } from 'next/navigation';
 
 // 从短信内容中提取验证码的函数
@@ -44,7 +44,7 @@ interface ApiResponse {
     error?: string;
 }
 
-export default function ViewPage() {
+function ViewPageContent() {
     const searchParams = useSearchParams();
     const [isLoading, setIsLoading] = useState(true);
     const [error, setError] = useState('');
@@ -295,5 +295,17 @@ export default function ViewPage() {
                 )}
             </div>
         </div>
+    );
+}
+
+export default function ViewPage() {
+    return (
+        <Suspense fallback={
+            <div className="min-h-screen bg-gray-100 dark:bg-gray-900 flex items-center justify-center">
+                <div className="text-gray-600 dark:text-gray-400">加载中...</div>
+            </div>
+        }>
+            <ViewPageContent />
+        </Suspense>
     );
 } 
