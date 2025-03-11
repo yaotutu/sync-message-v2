@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 import { User } from '@/types';
 import { getStoredAdminPassword } from '@/lib/services/auth';
 import { adminApi } from '@/lib/api-client';
+import { copyToClipboard } from '@/lib/utils/clipboard';
 
 export default function UsersPage() {
     const router = useRouter();
@@ -116,17 +117,16 @@ export default function UsersPage() {
 
     // 复制Webhook密钥
     const copyWebhookKey = async (webhookKey: string) => {
-        try {
-            await navigator.clipboard.writeText(webhookKey);
-            const prevError = error;
-            setError('Webhook密钥已复制到剪贴板');
-            setTimeout(() => {
-                setError(prevError);
-            }, 2000);
-        } catch (err) {
-            console.error('复制失败:', err);
-            setError('复制失败，请手动复制');
-        }
+        const prevError = error;
+        await copyToClipboard(
+            webhookKey,
+            () => setError('Webhook密钥已复制到剪贴板'),
+            () => setError('复制失败，请手动复制')
+        );
+        // 2秒后恢复原来的错误信息
+        setTimeout(() => {
+            setError(prevError);
+        }, 2000);
     };
 
     return (
