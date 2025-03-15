@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useCallback, Suspense } from 'react';
 import { useSearchParams } from 'next/navigation';
+import { copyToClipboard } from '@/lib/utils/clipboard';
 
 // 从短信内容中提取验证码的函数
 const extractVerificationCode = (content: string): string | null => {
@@ -145,28 +146,29 @@ function ViewPageContent() {
     }, [searchParams, loadMessages]);
 
     // 复制文本到剪贴板
-    const copyToClipboard = async (text: string, type: 'phone' | 'code') => {
-        try {
-            await navigator.clipboard.writeText(text);
-            setCopyStatus(prev => ({
-                ...prev,
-                [type]: '复制成功!'
-            }));
-
-            // 2秒后清除复制状态
-            setTimeout(() => {
+    const handleCopy = async (text: string, type: 'phone' | 'code') => {
+        await copyToClipboard(
+            text,
+            () => {
                 setCopyStatus(prev => ({
                     ...prev,
-                    [type]: ''
+                    [type]: '复制成功!'
                 }));
-            }, 2000);
-        } catch (err) {
-            console.error('复制失败:', err);
-            setCopyStatus(prev => ({
-                ...prev,
-                [type]: '复制失败'
-            }));
-        }
+                // 2秒后清除复制状态
+                setTimeout(() => {
+                    setCopyStatus(prev => ({
+                        ...prev,
+                        [type]: ''
+                    }));
+                }, 2000);
+            },
+            () => {
+                setCopyStatus(prev => ({
+                    ...prev,
+                    [type]: '复制失败'
+                }));
+            }
+        );
     };
 
     if (isLoading) {
@@ -231,7 +233,7 @@ function ViewPageContent() {
                             <div className="flex items-center justify-between">
                                 <h3 className="text-lg font-semibold text-gray-800 dark:text-gray-200">手机号</h3>
                                 <button
-                                    onClick={() => phone && copyToClipboard(phone, 'phone')}
+                                    onClick={() => phone && handleCopy(phone, 'phone')}
                                     disabled={!phone}
                                     className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                                 >
@@ -251,7 +253,7 @@ function ViewPageContent() {
                             <div className="flex items-center justify-between">
                                 <h3 className="text-lg font-semibold text-gray-800 dark:text-gray-200">验证码</h3>
                                 <button
-                                    onClick={() => verificationCode && copyToClipboard(verificationCode, 'code')}
+                                    onClick={() => verificationCode && handleCopy(verificationCode, 'code')}
                                     disabled={!verificationCode}
                                     className="px-4 py-2 bg-green-600 text-white rounded hover:bg-green-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                                 >
@@ -269,7 +271,7 @@ function ViewPageContent() {
                 </div>
 
                 {/* 消息内容 */}
-                {message && (
+                {/* {message && (
                     <div className="bg-white dark:bg-gray-800 rounded-lg shadow overflow-hidden">
                         <div className="p-6 border-b dark:border-gray-700">
                             <h2 className="text-xl font-bold text-gray-900 dark:text-white">
@@ -292,7 +294,7 @@ function ViewPageContent() {
                     <div className="bg-white dark:bg-gray-800 rounded-lg shadow p-4 text-center text-gray-500 dark:text-gray-400">
                         {firstUsedAt ? '未找到首次使用时间之后的新消息' : '暂无消息'}
                     </div>
-                )}
+                )} */}
             </div>
         </div>
     );
