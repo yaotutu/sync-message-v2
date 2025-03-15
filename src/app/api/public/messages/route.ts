@@ -47,7 +47,7 @@ export async function GET(request: NextRequest) {
             );
         }
 
-        // 3. 获取并过滤消息
+        // 3. 获取并过滤消息（消息已按时间升序排序）
         const filteredMessages = await getFilteredCardLinkMessages(
             cardLink,
             template,
@@ -68,6 +68,7 @@ export async function GET(request: NextRequest) {
                 cardLink.firstUsedAt = now;
             } else {
                 // 找到首次使用时间之后的第一条消息
+                // 由于消息是按时间升序排序的，这里会返回最早的符合条件的消息
                 targetMessage = filteredMessages.find(msg => {
                     const msgTime = msg.received_at || (msg.rec_time ? new Date(msg.rec_time).getTime() : 0);
                     return msgTime >= cardLink.firstUsedAt!;

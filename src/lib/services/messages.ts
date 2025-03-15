@@ -14,7 +14,7 @@ export async function getUserMessages(username: string): Promise<Message[]> {
                 received_at
             FROM messages 
             WHERE username = ${username}
-            ORDER BY received_at DESC
+            ORDER BY received_at ASC
         `;
         return messages;
     } catch (error) {
@@ -84,11 +84,11 @@ export async function getFilteredCardLinkMessages(
         // 应用模板过滤
         const filteredMessages = filterMessagesByTemplate(messages, template, phone);
 
-        // 按时间倒序排序
+        // 按时间升序排序
         return filteredMessages.sort((a, b) => {
             const timeA = a.received_at || (a.rec_time ? new Date(a.rec_time).getTime() : 0);
             const timeB = b.received_at || (b.rec_time ? new Date(b.rec_time).getTime() : 0);
-            return timeB - timeA;
+            return timeA - timeB;
         });
     } catch (error) {
         console.error(`[messages] 获取并过滤卡密链接消息失败:`, error);
