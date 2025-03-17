@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { AppTemplate, CardLink } from '@/types';
 import { userApi } from '@/lib/api-client';
+import { copyToClipboard } from '@/lib/utils/clipboard';
 
 // 卡密状态类型
 type CardLinkStatus = 'all' | 'used' | 'unused';
@@ -330,8 +331,13 @@ export default function CardLinksPage() {
                 // 提取并复制所有新生成的链接
                 const newLinks = results.map(result => result.data.url).join('\n');
                 try {
-                    await navigator.clipboard.writeText(newLinks);
-                    alert(`已成功生成 ${results.length} 个链接并复制到剪贴板！`);
+                    const success = await copyToClipboard(newLinks,
+                        () => alert(`已成功生成 ${results.length} 个链接并复制到剪贴板！`),
+                        () => alert('链接生成成功，但复制到剪贴板失败，请手动复制。')
+                    );
+                    if (!success) {
+                        console.error('复制链接失败');
+                    }
                 } catch (error) {
                     console.error('复制链接失败:', error);
                     alert('链接生成成功，但复制到剪贴板失败，请手动复制。');
@@ -481,13 +487,13 @@ export default function CardLinksPage() {
 
     // 批量复制链接到剪贴板
     const copyLinksToClipboard = async (links: CardLink[]) => {
-        try {
-            const linksText = links.map(link => link.url).join('\n');
-            await navigator.clipboard.writeText(linksText);
-            alert('已成功复制所有链接到剪贴板！');
-        } catch (error) {
-            console.error('复制链接失败:', error);
-            alert('复制链接失败，请手动复制。');
+        const linksText = links.map(link => link.url).join('\n');
+        const success = await copyToClipboard(linksText,
+            () => alert('已成功复制所有链接到剪贴板！'),
+            () => alert('复制链接失败，请手动复制。')
+        );
+        if (!success) {
+            console.error('复制链接失败');
         }
     };
 
@@ -772,7 +778,12 @@ export default function CardLinksPage() {
                                         </div>
                                         <div className="flex flex-col space-y-2">
                                             <button
-                                                onClick={() => navigator.clipboard.writeText(cardLink.url)}
+                                                onClick={async () => {
+                                                    await copyToClipboard(cardLink.url,
+                                                        () => alert('链接已复制到剪贴板！'),
+                                                        () => alert('复制失败，请手动复制')
+                                                    );
+                                                }}
                                                 className="text-sm text-blue-500 hover:text-blue-600 dark:text-blue-400 dark:hover:text-blue-300"
                                             >
                                                 复制链接
@@ -834,9 +845,8 @@ export default function CardLinksPage() {
                                 加载中...
                             </div>
                         )}
-
                         {/* 添加批量复制按钮 */}
-                        {filteredCardLinks.length > 0 && (
+                        {/* {filteredCardLinks.length > 0 && (
                             <div className="p-4 border-t dark:border-gray-700">
                                 <button
                                     onClick={() => copyLinksToClipboard(filteredCardLinks)}
@@ -846,7 +856,7 @@ export default function CardLinksPage() {
                                     复制全部链接到剪贴板
                                 </button>
                             </div>
-                        )}
+                        )} */}
                     </div>
 
                     {/* 加载状态指示器 */}
