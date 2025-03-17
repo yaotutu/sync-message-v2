@@ -441,28 +441,67 @@ export default function CardLinksPage() {
         loadCardLinks(1);
     };
 
-    // 删除卡密链接
-    const deleteCardLink = async (key: string) => {
-        if (!confirm('确定要删除这个卡密链接吗？删除后无法恢复。')) {
+    // 通用删除卡密链接方法
+    const deleteCardLinks = async (keys: string[]) => {
+        if (keys.length === 0) {
+            alert('没有可删除的卡密链接');
+            return;
+        }
+
+        const confirmMessage = keys.length === 1
+            ? '确定要删除这个卡密链接吗？删除后无法恢复。'
+            : `确定要删除选中的 ${keys.length} 个卡密链接吗？\n此操作不可恢复！`;
+
+        if (!confirm(confirmMessage)) {
             return;
         }
 
         try {
             setIsLoading(true);
-            const response = await userApi.delete(`/api/user/cardlinks/${key}`, { username, password });
+            const response = await fetch('/api/user/cardlinks/delete', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'x-username': username,
+                    'x-password': password
+                },
+                body: JSON.stringify({ keys })
+            });
 
-            if (response.success) {
+            const data = await response.json();
+
+            if (data.success) {
+                alert(data.message || `成功删除 ${keys.length} 个卡密链接`);
                 // 重新加载列表
                 await loadCardLinks(1);
             } else {
-                setError(response.message || '删除失败');
+                setError(data.message || '删除失败');
             }
         } catch (error) {
-            console.error('Delete card link error:', error);
+            console.error('Delete card links error:', error);
             setError('删除卡密链接失败，请检查网络连接');
         } finally {
             setIsLoading(false);
         }
+    };
+
+    // 删除单个卡密链接
+    const deleteCardLink = async (key: string) => {
+        await deleteCardLinks([key]);
+    };
+
+    // 删除所有未使用的卡密链接
+    const deleteAllUnusedLinks = async () => {
+        // 获取未使用的卡密
+        const unusedLinks = cardLinks.filter(link => !link.firstUsedAt);
+        const unusedKeys = unusedLinks.map(link => link.key);
+
+        if (unusedKeys.length === 0) {
+            alert('没有可删除的未使用卡密链接');
+            return;
+        }
+
+        await deleteCardLinks(unusedKeys);
     };
 
     // 更新链接数量输入处理函数
@@ -494,39 +533,6 @@ export default function CardLinksPage() {
         );
         if (!success) {
             console.error('复制链接失败');
-        }
-    };
-
-    // 删除所有未使用的卡密链接
-    const deleteAllUnusedLinks = async () => {
-        // 获取未使用的卡密数量
-        const unusedCount = cardLinks.filter(link => !link.firstUsedAt).length;
-
-        if (unusedCount === 0) {
-            alert('没有可删除的未使用卡密链接');
-            return;
-        }
-
-        if (!confirm(`确定要删除所有未使用的卡密链接吗？\n共 ${unusedCount} 个未使用的链接将被删除。\n此操作不可恢复！`)) {
-            return;
-        }
-
-        try {
-            setIsLoading(true);
-            const response = await userApi.delete('/api/user/cardlinks/delete-unused', { username, password });
-
-            if (response.success) {
-                alert(response.message || `成功删除 ${response.count} 个未使用的卡密链接`);
-                // 重新加载列表
-                await loadCardLinks(1);
-            } else {
-                setError(response.message || '批量删除失败');
-            }
-        } catch (error) {
-            console.error('Batch delete error:', error);
-            setError('批量删除失败，请检查网络连接');
-        } finally {
-            setIsLoading(false);
         }
     };
 
