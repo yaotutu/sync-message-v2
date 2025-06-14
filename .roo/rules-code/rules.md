@@ -54,24 +54,33 @@
 
 ## 示例代码
 ```typescript
-// 客户端调用
-const data = await userApi.post('/api/user/login', {
-  username: 'test',
-  password: '123456'
-});
+// 客户端调用 - 用户API
+const userData = await userApi.get('/api/user/cardlinks');
 
-// 路由实现
-export async function POST(request: NextRequest) {
-  try {
-    const body = await request.json();
-    // 处理逻辑...
-    return NextResponse.json({success: true, data});
-  } catch (error) {
+// 客户端调用 - 管理员API
+const adminData = await adminApi.get('/api/admin/users');
+
+// 路由实现 - 用户API验证
+export async function GET(request: NextRequest) {
+  const auth = getUserAuthFromRequest(request); // 从请求中获取认证信息
+  
+  if (!auth) {
     return NextResponse.json(
-      {success: false, error: '处理失败'},
-      {status: 500}
+      {success: false, error: '需要认证'},
+      {status: 401}
     );
   }
+
+  // 处理业务逻辑...
+  return NextResponse.json({success: true, data: []});
+}
+
+// 辅助函数 - 从请求中获取用户认证
+function getUserAuthFromRequest(request: NextRequest) {
+  const username = request.headers.get('x-username');
+  const password = request.headers.get('x-password');
+  
+  return username && password ? {username, password} : null;
 }
 ```
 
