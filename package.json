@@ -7,8 +7,7 @@
     "build": "next build",
     "start": "next start -p 4000",
     "lint": "next lint",
-    "db:init": "node src/lib/db/init.js",
-    "db:migrate": "node scripts/migrate.js"
+    "db:init": "node src/lib/db/init.js"
   },
   "dependencies": {
     "next": "^15.3.3",
