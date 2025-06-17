@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { AppTemplate, CardLink } from '@/types';
-import { userApi } from '@/lib/api-client';
+import { userApi } from '@/lib/utils/api-client';
 import { copyToClipboard } from '@/lib/utils/clipboard';
 
 // 卡密状态类型

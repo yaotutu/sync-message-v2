@@ -4,7 +4,7 @@ import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { User } from '@/types';
 import { getStoredAdminPassword } from '@/lib/services/auth';
-import { adminApi } from '@/lib/api-client';
+import { adminApi } from '@/lib/utils/api-client';
 import { copyToClipboard } from '@/lib/utils/clipboard';
 
 export default function UsersPage() {
