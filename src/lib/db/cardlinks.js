@@ -101,13 +101,22 @@ export async function createCardLink(username, data) {
  * @param {string|null} [status]
  * @returns {Promise<{links: Array<Object>, total: number}>}
  */
-export async function getUserCardLinks(username, page = 1, pageSize = 10, status) {
+export async function getUserCardLinks(username, page = 1, pageSize = 10, status, search) {
   const where = { username };
 
   if (status === 'used') {
     where.firstUsedAt = { not: null };
   } else if (status === 'unused') {
     where.firstUsedAt = null;
+  }
+
+  if (search) {
+    where.OR = [
+      { key: { contains: search } },
+      { appName: { contains: search } },
+      { url: { contains: search } },
+      { phones: { contains: search } },
+    ];
   }
 
   const [count, links] = await Promise.all([
@@ -131,6 +140,15 @@ export async function getUserCardLinks(username, page = 1, pageSize = 10, status
   ]);
 
   const processedLinks = links.map((link) => {
+    console.log('原始时间数据:', {
+      createdAt: link.createdAt,
+      firstUsedAt: link.firstUsedAt,
+      type: {
+        createdAt: typeof link.createdAt,
+        firstUsedAt: typeof link.firstUsedAt,
+      },
+    });
+
     let phonesArray = [];
     try {
       if (typeof link.phones === 'string') {
@@ -155,8 +173,18 @@ export async function getUserCardLinks(username, page = 1, pageSize = 10, status
       username: link.username,
       appName: link.appName,
       phones: phonesArray,
-      createdAt: link.createdAt,
-      firstUsedAt: link.firstUsedAt,
+      createdAt:
+        link.createdAt instanceof Date
+          ? link.createdAt.toISOString()
+          : typeof link.createdAt === 'number'
+          ? new Date(link.createdAt).toISOString()
+          : link.createdAt,
+      firstUsedAt:
+        link.firstUsedAt instanceof Date
+          ? link.firstUsedAt.toISOString()
+          : typeof link.firstUsedAt === 'number'
+          ? new Date(link.firstUsedAt).toISOString()
+          : link.firstUsedAt,
       url: link.url,
     };
   });

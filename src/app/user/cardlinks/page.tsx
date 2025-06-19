@@ -102,54 +102,10 @@ export default function CardLinksPage() {
     }
   }, [username, password]);
 
-  // 根据状态和搜索关键词过滤卡密链接
+  // 直接使用后端返回的过滤结果
   useEffect(() => {
-    let filtered = cardLinks;
-
-    // 手动确保数据与当前过滤状态一致
-    if (statusFilter === 'unused') {
-      // 如果是未使用状态，过滤掉所有已使用的卡密
-      const beforeCount = filtered.length;
-      filtered = filtered.filter((link) => !link.firstUsedAt);
-      const afterCount = filtered.length;
-      if (beforeCount !== afterCount) {
-        console.warn(
-          `前端额外过滤: 在"未使用"状态下移除了 ${beforeCount - afterCount} 个已使用的卡密`,
-        );
-      }
-    } else if (statusFilter === 'used') {
-      // 如果是已使用状态，过滤掉所有未使用的卡密
-      const beforeCount = filtered.length;
-      filtered = filtered.filter((link) => link.firstUsedAt);
-      const afterCount = filtered.length;
-      if (beforeCount !== afterCount) {
-        console.warn(
-          `前端额外过滤: 在"已使用"状态下移除了 ${beforeCount - afterCount} 个未使用的卡密`,
-        );
-      }
-    }
-
-    // 应用搜索过滤
-    if (searchQuery.trim()) {
-      const query = searchQuery.toLowerCase().trim();
-      filtered = filtered.filter(
-        (link) =>
-          link.url.toLowerCase().includes(query) ||
-          link.key.toLowerCase().includes(query) ||
-          link.appName.toLowerCase().includes(query) ||
-          (Array.isArray(link.phones) &&
-            link.phones.some((phone) => phone.toLowerCase().includes(query))),
-      );
-    }
-
-    console.log(`过滤后的卡密链接数量: ${filtered.length}, 状态: ${statusFilter}`);
-    // 调试信息：检查数据中是否有firstUsedAt
-    const usedCount = filtered.filter((link) => link.firstUsedAt).length;
-    const unusedCount = filtered.filter((link) => !link.firstUsedAt).length;
-    console.log(`数据统计 - 已使用: ${usedCount}, 未使用: ${unusedCount}`);
-
-    setFilteredCardLinks(filtered);
-  }, [cardLinks, searchQuery, statusFilter]);
+    setFilteredCardLinks(cardLinks);
+  }, [cardLinks]);
 
   // 加载模板列表
   const loadTemplates = async () => {
@@ -171,6 +127,7 @@ export default function CardLinksPage() {
     page: number,
     append: boolean = false,
     overrideStatus?: CardLinkStatus,
+    search?: string,
   ) => {
     try {
       setIsLoading(true);
@@ -190,21 +147,12 @@ export default function CardLinksPage() {
         currentStatus = 'unused';
       }
 
-      // 构建API请求URL，添加状态过滤参数和时间戳防止缓存
+      // 构建API请求URL，添加状态过滤参数、搜索参数和时间戳防止缓存
       const apiUrl = `/api/user/cardlinks?page=${page}&pageSize=${pagination.pageSize}${
         currentStatus !== 'all' ? `&status=${currentStatus}` : ''
-      }&_t=${Date.now()}`;
+      }${searchQuery ? `&search=${encodeURIComponent(searchQuery)}` : ''}&_t=${Date.now()}`;
 
-      // 创建一个调试信息组
-      console.group(`API请求 (ID: ${requestId})`);
-      console.log(`URL: ${apiUrl}`);
-      console.log(`状态过滤: ${currentStatus}`);
-      console.log(
-        `请求头: username=${username ? '已提供' : '未提供'}, password=${
-          password ? '已提供' : '未提供'
-        }`,
-      );
-      console.groupEnd();
+      // 准备API请求
 
       const data = await userApi.get(apiUrl, { username, password });
 
@@ -214,33 +162,10 @@ export default function CardLinksPage() {
         return;
       }
 
-      // 创建一个调试信息组
-      console.group(`API响应 (ID: ${requestId})`);
-      console.log(`URL: ${apiUrl}`);
-      console.log(`状态过滤: ${currentStatus}`);
-      console.log(`数据条数: ${data.data?.length || 0}`);
-
-      // 调试信息：检查返回的数据中是否有firstUsedAt
-      if (data.data && data.data.length > 0) {
-        const usedCount = data.data.filter((link: CardLink) => link.firstUsedAt).length;
-        const unusedCount = data.data.filter((link: CardLink) => !link.firstUsedAt).length;
-        console.log(`数据统计 - 已使用: ${usedCount}, 未使用: ${unusedCount}`);
-
-        // 验证返回的数据是否符合当前的过滤状态
-        if (currentStatus === 'used' && unusedCount > 0) {
-          console.warn(`警告: 在"已使用"过滤状态下收到了未使用的卡密链接`);
-        } else if (currentStatus === 'unused' && usedCount > 0) {
-          console.warn(`警告: 在"未使用"过滤状态下收到了已使用的卡密链接`);
-
-          // 如果是未使用状态但返回了已使用的卡密，手动过滤掉这些卡密
-          if (currentStatus === 'unused') {
-            console.log(`手动过滤掉已使用的卡密链接，原数量: ${data.data.length}`);
-            data.data = data.data.filter((link: CardLink) => !link.firstUsedAt);
-            console.log(`过滤后数量: ${data.data.length}`);
-          }
-        }
+      // 确保数据符合当前过滤状态
+      if (data.data && data.data.length > 0 && currentStatus === 'unused') {
+        data.data = data.data.filter((link: CardLink) => !link.firstUsedAt);
       }
-      console.groupEnd();
 
       if (data.success) {
         if (append) {
@@ -269,10 +194,8 @@ export default function CardLinksPage() {
     e.preventDefault();
     setIsSearching(true);
 
-    // 搜索是在前端进行的，不需要重新请求API
-    // 只需要更新搜索状态即可
-
-    setIsSearching(false);
+    // 调用API进行搜索
+    loadCardLinks(1, false, statusFilter, searchQuery).finally(() => setIsSearching(false));
   };
 
   // 清除搜索
@@ -283,14 +206,14 @@ export default function CardLinksPage() {
   // 加载更多卡密链接
   const loadMoreCardLinks = () => {
     if (pagination.page < pagination.totalPages) {
-      loadCardLinks(pagination.page + 1, true);
+      loadCardLinks(pagination.page + 1, true, statusFilter, searchQuery);
     }
   };
 
   // 切换页码
   const changePage = (newPage: number) => {
     if (newPage >= 1 && newPage <= pagination.totalPages) {
-      loadCardLinks(newPage);
+      loadCardLinks(newPage, false, statusFilter, searchQuery);
     }
   };
 
@@ -474,24 +397,15 @@ export default function CardLinksPage() {
     if (statusFilter !== newStatus) {
       setIsLoading(true); // 设置加载状态
       setError(''); // 清除错误信息
-      console.log(`切换状态过滤: ${statusFilter} -> ${newStatus}`);
-
-      // 先更新状态，然后再加载数据
       setStatusFilter(newStatus);
-
-      // 使用setTimeout确保状态更新后再加载数据
-      setTimeout(() => {
-        // 再次检查当前状态，确保使用最新的状态值
-        console.log(`准备加载数据，当前状态过滤: ${newStatus}`);
-        loadCardLinks(1, false, newStatus);
-      }, 10);
+      loadCardLinks(1, false, newStatus, searchQuery);
     }
   };
 
   // 手动刷新数据
   const refreshData = () => {
     setError('');
-    loadCardLinks(1);
+    loadCardLinks(1, false, statusFilter, searchQuery);
   };
 
   // 通用删除卡密链接方法
@@ -527,12 +441,11 @@ export default function CardLinksPage() {
       if (data.success) {
         alert(data.message || `成功删除 ${keys.length} 个卡密链接`);
         // 重新加载列表
-        await loadCardLinks(1);
+        await loadCardLinks(1, false, statusFilter, searchQuery);
       } else {
         setError(data.message || '删除失败');
       }
     } catch (error) {
-      console.error('Delete card links error:', error);
       setError('删除卡密链接失败，请检查网络连接');
     } finally {
       setIsLoading(false);
@@ -833,12 +746,12 @@ export default function CardLinksPage() {
                           : '无手机号'}
                       </div>
                       <div className="text-sm text-gray-500 dark:text-gray-400">
-                        创建时间：{new Date(cardLink.createdAt).toLocaleString()}
+                        创建时间：{new Date(Number(cardLink.createdAt)).toLocaleString()}
                       </div>
                       {/* 只在非"未使用"状态或确实有使用时间时显示使用时间 */}
                       {statusFilter !== 'unused' && cardLink.firstUsedAt && (
                         <div className="text-sm text-green-600 dark:text-green-400">
-                          首次使用：{new Date(cardLink.firstUsedAt).toLocaleString()}
+                          首次使用：{new Date(Number(cardLink.firstUsedAt)).toLocaleString()}
                         </div>
                       )}
                       <div className="font-mono text-sm break-all">
