@@ -1,4 +1,3 @@
-import crypto from 'crypto';
 import {
   createUserDb,
   getUserByIdDb,
@@ -7,67 +6,68 @@ import {
   validateUserDb,
   getUserByUsernameDb,
 } from '../db/users.js';
+import { randomUUID } from 'crypto';
 
 /**
- * 生成Webhook密钥
- * @returns {string}
- */
-export function generateWebhookKey() {
-  return crypto.randomBytes(32).toString('hex');
-}
-
-/**
- * 添加用户
+ * 创建用户
  * @param {string} username
  * @param {string} password
- * @returns {Promise<{ success: boolean; data?: User; message?: string }>}
+ * @returns {Promise<{success: boolean, data?: {id: number, username: string, webhookKey: string}, message?: string}>}
  */
 export async function createUser(username, password) {
   try {
-    const webhookKey = generateWebhookKey();
+    const webhookKey = randomUUID();
     const now = Date.now();
 
     const result = await createUserDb(username, password, webhookKey, now);
+    if (result.error) {
+      return { success: false, message: result.error };
+    }
     if (!result.lastID) {
-      throw new Error('创建用户失败');
+      return { success: false, message: '创建用户失败' };
     }
 
-    const user = await getUserByIdDb(result.lastID);
-    if (!user) {
-      throw new Error('创建用户成功但获取用户信息失败');
-    }
-
-    return { success: true, data: user };
+    return {
+      success: true,
+      data: {
+        id: result.lastID,
+        username,
+        webhookKey,
+      },
+    };
   } catch (error) {
     console.error('创建用户失败:', error);
-    if (error.code === 'SQLITE_CONSTRAINT') {
-      return { success: false, message: '用户名已存在' };
-    }
     return { success: false, message: '创建用户失败，请稍后重试' };
+  }
+}
+
+/**
+ * 获取用户
+ * @param {number} userId
+ * @returns {Promise<{success: boolean, data?: User, message?: string}>}
+ */
+export async function getUser(userId) {
+  try {
+    const user = await getUserByIdDb(userId);
+    if (!user) {
+      return { success: false, message: '用户不存在' };
+    }
+    return { success: true, data: user };
+  } catch (error) {
+    console.error('获取用户失败:', error);
+    return { success: false, message: '获取用户失败，请稍后重试' };
   }
 }
 
 /**
  * 删除用户
  * @param {string} username
- * @returns {Promise<{ success: boolean; data?: { username: string; deleted: boolean }; message?: string }>}
+ * @returns {Promise<{success: boolean, message?: string}>}
  */
 export async function deleteUser(username) {
   try {
-    // 先检查用户是否存在
-    const user = await getUserByUsernameDb(username);
-    if (!user) {
-      return { success: false, message: '用户不存在' };
-    }
-
     const result = await deleteUserDb(username);
-    return {
-      success: true,
-      data: {
-        username,
-        deleted: result.changes > 0,
-      },
-    };
+    return { success: true };
   } catch (error) {
     console.error('删除用户失败:', error);
     return { success: false, message: '删除用户失败，请稍后重试' };
@@ -75,8 +75,8 @@ export async function deleteUser(username) {
 }
 
 /**
- * 获取用户列表
- * @returns {Promise<{ success: boolean; data?: User[]; message?: string }>}
+ * 获取所有用户
+ * @returns {Promise<{success: boolean, data?: User[], message?: string}>}
  */
 export async function getAllUsers() {
   try {
@@ -92,7 +92,7 @@ export async function getAllUsers() {
  * 验证用户
  * @param {string} username
  * @param {string} password
- * @returns {Promise<{ success: boolean; data?: User; message?: string }>}
+ * @returns {Promise<{success: boolean, data?: {id: number, username: string, webhookKey: string}, message?: string}>}
  */
 export async function validateUser(username, password) {
   try {
@@ -108,9 +108,9 @@ export async function validateUser(username, password) {
 }
 
 /**
- * 获取单个用户
+ * 根据用户名获取用户
  * @param {string} username
- * @returns {Promise<{ success: boolean; data?: User; message?: string }>}
+ * @returns {Promise<{success: boolean, data?: User, message?: string}>}
  */
 export async function getUserByUsername(username) {
   try {
@@ -120,7 +120,7 @@ export async function getUserByUsername(username) {
     }
     return { success: true, data: user };
   } catch (error) {
-    console.error('获取用户信息失败:', error);
-    return { success: false, message: '获取用户信息失败，请稍后重试' };
+    console.error('获取用户失败:', error);
+    return { success: false, message: '获取用户失败，请稍后重试' };
   }
 }

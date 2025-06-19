@@ -1,4 +1,4 @@
-import { sql, sqlQuery, sqlGet, transaction } from './index.js';
+import prisma, { transaction } from './index.js';
 
 /**
  * 创建用户
@@ -6,13 +6,34 @@ import { sql, sqlQuery, sqlGet, transaction } from './index.js';
  * @param {string} password
  * @param {string} webhookKey
  * @param {number} createdAt
- * @returns {Promise<{lastID?: number, changes?: number}>}
+ * @returns {Promise<{lastID?: number, changes?: number, error?: string}>}
  */
 export async function createUserDb(username, password, webhookKey, createdAt) {
-  return await sql`
-    INSERT INTO webhook_users (username, password, webhook_key, created_at) 
-    VALUES (${username}, ${password}, ${webhookKey}, ${createdAt})
-  `;
+  try {
+    // 先检查用户是否已存在
+    const existingUser = await prisma.webhookUser.findUnique({
+      where: { username },
+    });
+
+    if (existingUser) {
+      return { error: '用户名已存在' };
+    }
+
+    const result = await prisma.webhookUser.create({
+      data: {
+        username,
+        password,
+        webhookKey,
+        createdAt,
+      },
+    });
+    return { lastID: result.id, changes: 1 };
+  } catch (error) {
+    if (error.code === 'P2002') {
+      return { error: '用户名已存在' };
+    }
+    throw error;
+  }
 }
 
 /**
@@ -21,15 +42,15 @@ export async function createUserDb(username, password, webhookKey, createdAt) {
  * @returns {Promise<User | undefined>}
  */
 export async function getUserByIdDb(userId) {
-  return await sqlGet`
-    SELECT 
-      id, 
-      username, 
-      webhook_key as webhookKey, 
-      created_at as createdAt 
-    FROM webhook_users 
-    WHERE id = ${userId}
-  `;
+  return await prisma.webhookUser.findUnique({
+    where: { id: userId },
+    select: {
+      id: true,
+      username: true,
+      webhookKey: true,
+      createdAt: true,
+    },
+  });
 }
 
 /**
@@ -38,14 +59,29 @@ export async function getUserByIdDb(userId) {
  * @returns {Promise<{changes: number}>}
  */
 export async function deleteUserDb(username) {
-  // 删除用户的卡密链接
-  await sql`DELETE FROM card_links WHERE username = ${username}`;
+  return await transaction(async (prisma) => {
+    // 删除用户的卡密链接
+    await prisma.cardLink.deleteMany({
+      where: { username },
+    });
 
-  // 删除用户的消息
-  await sql`DELETE FROM messages WHERE username = ${username}`;
+    // 删除用户的消息
+    await prisma.message.deleteMany({
+      where: { username },
+    });
 
-  // 删除用户
-  return await sql`DELETE FROM webhook_users WHERE username = ${username}`;
+    // 删除用户的卡密
+    await prisma.cardKey.deleteMany({
+      where: { username },
+    });
+
+    // 删除用户
+    const result = await prisma.webhookUser.deleteMany({
+      where: { username },
+    });
+
+    return { changes: result.count };
+  });
 }
 
 /**
@@ -53,15 +89,15 @@ export async function deleteUserDb(username) {
  * @returns {Promise<User[]>}
  */
 export async function getAllUsersDb() {
-  return await sqlQuery`
-    SELECT 
-      id, 
-      username, 
-      webhook_key as webhookKey, 
-      created_at as createdAt 
-    FROM webhook_users 
-    ORDER BY created_at DESC
-  `;
+  return await prisma.webhookUser.findMany({
+    orderBy: { createdAt: 'desc' },
+    select: {
+      id: true,
+      username: true,
+      webhookKey: true,
+      createdAt: true,
+    },
+  });
 }
 
 /**
@@ -71,14 +107,17 @@ export async function getAllUsersDb() {
  * @returns {Promise<User | undefined>}
  */
 export async function validateUserDb(username, password) {
-  return await sqlGet`
-    SELECT 
-      id, 
-      username, 
-      webhook_key as webhookKey 
-    FROM webhook_users 
-    WHERE username = ${username} AND password = ${password}
-  `;
+  return await prisma.webhookUser.findFirst({
+    where: {
+      username,
+      password,
+    },
+    select: {
+      id: true,
+      username: true,
+      webhookKey: true,
+    },
+  });
 }
 
 /**
@@ -87,13 +126,13 @@ export async function validateUserDb(username, password) {
  * @returns {Promise<User | undefined>}
  */
 export async function getUserByUsernameDb(username) {
-  return await sqlGet`
-    SELECT 
-      id, 
-      username, 
-      webhook_key as webhookKey, 
-      created_at as createdAt 
-    FROM webhook_users 
-    WHERE username = ${username}
-  `;
+  return await prisma.webhookUser.findUnique({
+    where: { username },
+    select: {
+      id: true,
+      username: true,
+      webhookKey: true,
+      createdAt: true,
+    },
+  });
 }

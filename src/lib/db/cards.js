@@ -1,10 +1,10 @@
-import { sql, sqlQuery, sqlGet } from './index';
+import prisma from './index.js';
 import crypto from 'crypto';
 
 // 生成卡密
 function generateCardKey() {
   const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
-  const length = 16; // 总长度16位
+  const length = 16;
   let key = '';
 
   for (let i = 0; i < length; i++) {
@@ -20,10 +20,14 @@ export async function addCardKey(username) {
     const key = generateCardKey();
     const now = Date.now();
 
-    await sql`
-            INSERT INTO card_keys (key, username, created_at)
-            VALUES (${key}, ${username}, ${now})
-        `;
+    await prisma.cardKey.create({
+      data: {
+        key,
+        username,
+        status: 'unused',
+        createdAt: now,
+      },
+    });
 
     return {
       success: true,
@@ -42,16 +46,16 @@ export async function addCardKey(username) {
 // 获取用户的卡密列表
 export async function getUserCardKeys(username) {
   try {
-    const keys = await sqlQuery`
-            SELECT 
-                key,
-                status,
-                created_at as createdAt,
-                used_at as usedAt
-            FROM card_keys 
-            WHERE username = ${username}
-            ORDER BY created_at DESC
-        `;
+    const keys = await prisma.cardKey.findMany({
+      where: { username },
+      orderBy: { createdAt: 'desc' },
+      select: {
+        key: true,
+        status: true,
+        createdAt: true,
+        usedAt: true,
+      },
+    });
 
     return { success: true, data: keys };
   } catch (error) {
@@ -63,16 +67,16 @@ export async function getUserCardKeys(username) {
 // 验证卡密
 export async function validateCardKey(key) {
   try {
-    const cardKey = await sqlGet`
-            SELECT 
-                key,
-                username,
-                status,
-                created_at as createdAt,
-                used_at as usedAt
-            FROM card_keys 
-            WHERE key = ${key}
-        `;
+    let cardKey = await prisma.cardKey.findUnique({
+      where: { key },
+      select: {
+        key: true,
+        username: true,
+        status: true,
+        createdAt: true,
+        usedAt: true,
+      },
+    });
 
     if (!cardKey) {
       return { success: false, message: '卡密不存在' };
@@ -81,13 +85,20 @@ export async function validateCardKey(key) {
     // 如果卡密未使用，标记为已使用
     if (cardKey.status === 'unused') {
       const now = Date.now();
-      await sql`
-                UPDATE card_keys 
-                SET status = 'used', used_at = ${now}
-                WHERE key = ${key}
-            `;
-      cardKey.status = 'used';
-      cardKey.usedAt = now;
+      cardKey = await prisma.cardKey.update({
+        where: { key },
+        data: {
+          status: 'used',
+          usedAt: now,
+        },
+        select: {
+          key: true,
+          username: true,
+          status: true,
+          createdAt: true,
+          usedAt: true,
+        },
+      });
     }
 
     // 计算过期时间（24小时）

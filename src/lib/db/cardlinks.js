@@ -1,4 +1,4 @@
-import { sql, sqlQuery, sqlGet } from './index.js';
+import prisma, { transaction } from './index.js';
 import { randomUUID } from 'crypto';
 
 /**
@@ -67,29 +67,19 @@ export async function createCardLink(username, data) {
   const url = generateCardLinkUrl(key, data.appName, phones[0] || null);
   const phonesJson = phones.length > 0 ? JSON.stringify(phones) : null;
 
-  await sql`
-        INSERT INTO card_links (
-            id, 
-            key, 
-            username, 
-            app_name, 
-            phones, 
-            created_at, 
-            url,
-            template_id,
-            first_used_at
-        ) VALUES (
-            ${id},
-            ${key},
-            ${username},
-            ${data.appName},
-            ${phonesJson},
-            ${now},
-            ${url},
-            ${data.templateId || null},
-            NULL
-        )
-    `;
+  await prisma.cardLink.create({
+    data: {
+      id,
+      key,
+      username,
+      appName: data.appName,
+      phones: phonesJson,
+      createdAt: now,
+      url,
+      templateId: data.templateId || null,
+      firstUsedAt: null,
+    },
+  });
 
   return {
     id,
@@ -112,79 +102,33 @@ export async function createCardLink(username, data) {
  * @returns {Promise<{links: Array<Object>, total: number}>}
  */
 export async function getUserCardLinks(username, page = 1, pageSize = 10, status) {
-  let countQuery;
-  let linksQuery;
+  const where = { username };
 
   if (status === 'used') {
-    countQuery = sqlQuery`
-            SELECT COUNT(*) as total
-            FROM card_links
-            WHERE username = ${username} AND first_used_at IS NOT NULL
-        `;
-
-    linksQuery = sqlQuery`
-            SELECT 
-                id,
-                key,
-                username,
-                app_name as appName,
-                phones,
-                created_at as createdAt,
-                first_used_at as firstUsedAt,
-                url
-            FROM card_links
-            WHERE username = ${username} AND first_used_at IS NOT NULL
-            ORDER BY created_at DESC
-            LIMIT ${pageSize} OFFSET ${(page - 1) * pageSize}
-        `;
+    where.firstUsedAt = { not: null };
   } else if (status === 'unused') {
-    countQuery = sqlQuery`
-            SELECT COUNT(*) as total
-            FROM card_links
-            WHERE username = ${username} AND first_used_at IS NULL
-        `;
-
-    linksQuery = sqlQuery`
-            SELECT 
-                id,
-                key,
-                username,
-                app_name as appName,
-                phones,
-                created_at as createdAt,
-                first_used_at as firstUsedAt,
-                url
-            FROM card_links
-            WHERE username = ${username} AND first_used_at IS NULL
-            ORDER BY created_at DESC
-            LIMIT ${pageSize} OFFSET ${(page - 1) * pageSize}
-        `;
-  } else {
-    countQuery = sqlQuery`
-            SELECT COUNT(*) as total
-            FROM card_links
-            WHERE username = ${username}
-        `;
-
-    linksQuery = sqlQuery`
-            SELECT 
-                id,
-                key,
-                username,
-                app_name as appName,
-                phones,
-                created_at as createdAt,
-                first_used_at as firstUsedAt,
-                url
-            FROM card_links
-            WHERE username = ${username}
-            ORDER BY created_at DESC
-            LIMIT ${pageSize} OFFSET ${(page - 1) * pageSize}
-        `;
+    where.firstUsedAt = null;
   }
 
-  const [countResult, links] = await Promise.all([countQuery, linksQuery]);
-  const total = countResult[0]?.total || 0;
+  const [count, links] = await Promise.all([
+    prisma.cardLink.count({ where }),
+    prisma.cardLink.findMany({
+      where,
+      skip: (page - 1) * pageSize,
+      take: pageSize,
+      orderBy: { createdAt: 'desc' },
+      select: {
+        id: true,
+        key: true,
+        username: true,
+        appName: true,
+        phones: true,
+        createdAt: true,
+        firstUsedAt: true,
+        url: true,
+      },
+    }),
+  ]);
 
   const processedLinks = links.map((link) => {
     let phonesArray = [];
@@ -217,7 +161,7 @@ export async function getUserCardLinks(username, page = 1, pageSize = 10, status
     };
   });
 
-  return { links: processedLinks, total };
+  return { links: processedLinks, total: count };
 }
 
 /**
@@ -229,19 +173,19 @@ export async function getCardLink(key) {
   console.log(`[db/cardlinks] 尝试获取卡密链接: ${key}`);
 
   try {
-    const link = await sqlGet`
-            SELECT 
-                id,
-                key,
-                username,
-                app_name as appName,
-                phones,
-                created_at as createdAt,
-                url,
-                first_used_at as firstUsedAt
-            FROM card_links
-            WHERE key = ${key}
-        `;
+    let link = await prisma.cardLink.findUnique({
+      where: { key },
+      select: {
+        id: true,
+        key: true,
+        username: true,
+        appName: true,
+        phones: true,
+        createdAt: true,
+        url: true,
+        firstUsedAt: true,
+      },
+    });
 
     if (!link) {
       console.log(`[db/cardlinks] 未找到卡密链接: ${key}`);
@@ -254,13 +198,20 @@ export async function getCardLink(key) {
       const now = Date.now();
       console.log(`[db/cardlinks] 卡密第一次被使用，更新first_used_at: ${now}`);
 
-      await sql`
-                UPDATE card_links
-                SET first_used_at = ${now}
-                WHERE key = ${key}
-            `;
-
-      link.firstUsedAt = now;
+      link = await prisma.cardLink.update({
+        where: { key },
+        data: { firstUsedAt: now },
+        select: {
+          id: true,
+          key: true,
+          username: true,
+          appName: true,
+          phones: true,
+          createdAt: true,
+          firstUsedAt: true,
+          url: true,
+        },
+      });
     } else {
       console.log(`[db/cardlinks] 卡密已被使用过，first_used_at: ${link.firstUsedAt}`);
     }
@@ -318,19 +269,19 @@ export async function getCardLink(key) {
  * @returns {Promise<Array<Object>>}
  */
 export async function getAllCardLinks() {
-  const links = await sqlQuery`
-        SELECT 
-            id,
-            key,
-            username,
-            app_name as appName,
-            phones,
-            created_at as createdAt,
-            first_used_at as firstUsedAt,
-            url
-        FROM card_links
-        ORDER BY created_at DESC
-    `;
+  const links = await prisma.cardLink.findMany({
+    orderBy: { createdAt: 'desc' },
+    select: {
+      id: true,
+      key: true,
+      username: true,
+      appName: true,
+      phones: true,
+      createdAt: true,
+      firstUsedAt: true,
+      url: true,
+    },
+  });
 
   return links.map((link) => {
     let phonesArray = [];
@@ -372,12 +323,13 @@ export async function getAllCardLinks() {
  */
 export async function deleteCardLink(username, key) {
   try {
-    const result = await sql`
-            DELETE FROM card_links 
-            WHERE username = ${username} 
-            AND key = ${key}
-            AND first_used_at IS NULL
-        `;
+    const result = await prisma.cardLink.deleteMany({
+      where: {
+        username,
+        key,
+        firstUsedAt: null,
+      },
+    });
 
     return result.count > 0;
   } catch (error) {
