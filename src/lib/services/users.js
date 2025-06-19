@@ -81,7 +81,12 @@ export async function deleteUser(username) {
 export async function getAllUsers() {
   try {
     const users = await getAllUsersDb();
-    return { success: true, data: users };
+    // 将时间戳转换为ISO格式字符串
+    const formattedUsers = users.map((user) => ({
+      ...user,
+      createdAt: new Date(Number(user.createdAt)).toISOString(),
+    }));
+    return { success: true, data: formattedUsers };
   } catch (error) {
     console.error('获取用户列表失败:', error);
     return { success: false, message: '获取用户列表失败，请稍后重试' };
