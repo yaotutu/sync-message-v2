@@ -1,4 +1,10 @@
-import prisma from '../db';
+import {
+  createMessage,
+  findUserMessages,
+  countUserMessages,
+  findOldestMessageIds,
+  deleteMessages,
+} from '../db/messages';
 
 /**
  * 添加消息
@@ -9,13 +15,11 @@ import prisma from '../db';
  */
 export async function addMessage(username, smsContent, recTime) {
   try {
-    await prisma.message.create({
-      data: {
-        username,
-        smsContent,
-        recTime,
-        receivedAt: Date.now(),
-      },
+    await createMessage({
+      username,
+      smsContent,
+      recTime,
+      receivedAt: Date.now(),
     });
     return { success: true };
   } catch (error) {
@@ -32,11 +36,7 @@ export async function addMessage(username, smsContent, recTime) {
  */
 export async function getUserMessages(username, limit = 100) {
   try {
-    const messages = await prisma.message.findMany({
-      where: { username },
-      orderBy: { receivedAt: 'desc' },
-      take: limit,
-    });
+    const messages = await findUserMessages(username, limit);
     return { success: true, data: messages };
   } catch (error) {
     console.error('获取用户消息失败:', error);
