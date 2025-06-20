@@ -187,6 +187,17 @@ export default function UserPage() {
                     创建和管理带有链接的卡密，用于短信验证码过滤
                   </p>
                 </Link>
+                <Link
+                  href="/user/messages"
+                  className="block p-4 bg-green-50 dark:bg-green-900/20 rounded-lg hover:bg-green-100 dark:hover:bg-green-900/30 transition-all"
+                >
+                  <h4 className="text-lg font-medium text-green-700 dark:text-green-300 mb-2">
+                    我的消息
+                  </h4>
+                  <p className="text-sm text-gray-600 dark:text-gray-400">
+                    查看和管理所有收到的短信消息
+                  </p>
+                </Link>
               </div>
             </div>
           </div>
