@@ -31,14 +31,16 @@ export async function addMessage(username, smsContent, recTime, receivedAt = Dat
 
 /**
  * 获取用户消息
- * @param {string} username
- * @param {number} [limit=100]
- * @returns {Promise<{success: boolean, data?: Array<Message>, message?: string}>}
+ * @param {string} username - 用户名
+ * @param {number} [page=1] - 页码
+ * @param {number} [pageSize=10] - 每页数量
+ * @param {string} [search] - 搜索内容
+ * @returns {Promise<{success: boolean, data?: Array<Message>, total?: number, message?: string}>}
  */
-export async function getUserMessages(username, limit = 100) {
+export async function getUserMessages(username, page = 1, pageSize = 10, search) {
   try {
-    const messages = await findUserMessages(username, limit);
-    return { success: true, data: messages };
+    const { messages, total } = await findUserMessages(username, page, pageSize, search);
+    return { success: true, data: messages, total };
   } catch (error) {
     console.error('获取用户消息失败:', error);
     return { success: false, message: '获取用户消息失败' };

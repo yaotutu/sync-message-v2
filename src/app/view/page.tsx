@@ -5,7 +5,10 @@ import { useSearchParams } from 'next/navigation';
 import { copyToClipboard } from '@/lib/utils/clipboard';
 
 // 从短信内容中提取验证码的函数
-const extractVerificationCode = (content: string): string | null => {
+const extractVerificationCode = (content: string | null | undefined): string | null => {
+    // 处理空值情况
+    if (!content) return null;
+
     // 常见的验证码格式匹配
     const patterns = [
         /验证码[为是：:]\s*([0-9]{4,6})/i,
@@ -68,7 +71,7 @@ function ViewPageContent() {
     useEffect(() => {
         if (message) {
             const code = extractVerificationCode(message.content);
-            setVerificationCode(code);
+            setVerificationCode(code ?? message.content);
         } else {
             setVerificationCode(null);
         }

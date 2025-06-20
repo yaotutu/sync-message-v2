@@ -51,8 +51,8 @@ export interface Message {
     id: number;
     username?: string;
     sms_content: string;
-    rec_time: string | null;
-    received_at: number;
+    recTime: string | null;
+    receivedAt: number;
 }
 
 export interface MessageResponse {

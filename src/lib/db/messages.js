@@ -12,15 +12,28 @@ export async function createMessage(data) {
 /**
  * 获取用户消息
  * @param {string} username - 用户名
- * @param {number} limit - 数量限制
- * @returns {Promise<Array<Message>>}
+ * @param {number} page - 页码
+ * @param {number} pageSize - 每页数量
+ * @param {string} [search] - 搜索内容
+ * @returns {Promise<{messages: Array<Message>, total: number}>}
  */
-export async function findUserMessages(username, limit) {
-  return prisma.message.findMany({
-    where: { username },
-    orderBy: { receivedAt: 'desc' },
-    take: limit,
-  });
+export async function findUserMessages(username, page, pageSize, search) {
+  const where = { username };
+  if (search) {
+    where.smsContent = { contains: search };
+  }
+
+  const [messages, total] = await Promise.all([
+    prisma.message.findMany({
+      where,
+      orderBy: { receivedAt: 'desc' },
+      skip: (page - 1) * pageSize,
+      take: pageSize,
+    }),
+    prisma.message.count({ where }),
+  ]);
+
+  return { messages, total };
 }
 
 /**
