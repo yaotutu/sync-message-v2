@@ -13,13 +13,14 @@ import {
  * @param {string} [recTime]
  * @returns {Promise<{success: boolean, message?: string}>}
  */
-export async function addMessage(username, smsContent, recTime) {
+export async function addMessage(username, smsContent, recTime, receivedAt = Date.now(), type) {
   try {
     await createMessage({
       username,
       smsContent,
       recTime,
-      receivedAt: Date.now(),
+      receivedAt,
+      type,
     });
     return { success: true };
   } catch (error) {

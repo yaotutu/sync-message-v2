@@ -11,12 +11,13 @@ export async function POST(request: NextRequest) {
 
         const username = request.headers.get('x-username');
         const webhookKey = request.headers.get('x-webhook-key');
-        console.log(`请求头: username=${username}, webhookKey=${webhookKey ? '已提供' : '未提供'}`);
+        const webhookType = request.headers.get('x-webhook-type');
+        console.log(`请求头: username=${username}, webhookKey=${webhookKey ? '已提供' : '未提供'}, type=${webhookType}`);
 
-        if (!username || !webhookKey) {
+        if (!username || !webhookKey || !webhookType) {
             console.log('错误: 缺少必要的请求头');
             return NextResponse.json(
-                { success: false, message: '缺少必要的请求头' },
+                { success: false, message: '缺少必要的请求头 (需要 x-username, x-webhook-key 和 x-webhook-type)' },
                 { status: 400 }
             );
         }
@@ -37,7 +38,13 @@ export async function POST(request: NextRequest) {
         console.log(`消息内容: ${body.sms_content ? body.sms_content.substring(0, 50) + '...' : '无内容'}`);
         console.log(`接收时间: ${new Date(received_at).toISOString()}, 原始时间: ${body.rec_time || '未提供'}`);
 
-        const result = await addMessage(username, body.sms_content, body.rec_time, received_at);
+        const result = await addMessage(
+            username,
+            body.sms_content,
+            body.rec_time,
+            Number(received_at),
+            webhookType
+        );
         console.log(`消息添加结果: ${result.success ? '成功' : '失败'}, ${result.message || ''}`);
 
         return NextResponse.json(result);

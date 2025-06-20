@@ -59,3 +59,6 @@ ehthumbs.db
 Thumbs.db
 
 /src/generated/prisma
+
+prisma/data/*
+prisma/migrations/*

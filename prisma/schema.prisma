@@ -10,6 +10,11 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
+enum MessageType {
+  SMS
+  EMAIL
+}
+
 model WebhookUser {
   id         Int      @id @default(autoincrement())
   username   String   @unique
@@ -29,6 +34,7 @@ model Message {
   smsContent  String   @map("sms_content")
   recTime     String?  @map("rec_time")
   receivedAt  BigInt   @map("received_at")
+  type        MessageType
   user        WebhookUser @relation(fields: [username], references: [username])
 
   @@map("messages")
