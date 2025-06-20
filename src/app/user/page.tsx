@@ -1,9 +1,15 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { User } from '@/types';
 import { userApi } from '@/lib/utils/api-client';
 import Link from 'next/link';
+
+interface User {
+  username: string;
+  webhookKey?: string;
+  createdAt?: string;
+  updatedAt?: string;
+}
 
 export default function UserPage() {
   const [isLoggedIn, setIsLoggedIn] = useState(false);
@@ -12,6 +18,9 @@ export default function UserPage() {
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+
+  const [showSkeleton, setShowSkeleton] = useState(true);
+  const [authChecked, setAuthChecked] = useState(false);
 
   useEffect(() => {
     // 检查是否已登录
@@ -23,13 +32,22 @@ export default function UserPage() {
           setUsername(auth.username);
           setPassword(auth.password);
           setIsLoggedIn(true);
-          loadUserData(auth.username, auth.password);
+          loadUserData(auth.username, auth.password)
+            .finally(() => {
+              setAuthChecked(true);
+              setShowSkeleton(false);
+            });
+          return;
         }
       } catch (err) {
         console.error('解析存储的用户信息失败:', err);
         localStorage.removeItem('user_auth');
       }
     }
+
+    // 无认证信息或认证失败时
+    setAuthChecked(true);
+    setShowSkeleton(false);
   }, []);
 
   // 加载用户数据
@@ -106,7 +124,20 @@ export default function UserPage() {
   return (
     <div className="min-h-screen bg-gray-100 dark:bg-gray-900 py-8 px-4">
       <div className="max-w-4xl mx-auto">
-        {!isLoggedIn ? (
+        {showSkeleton ? (
+          // 初始加载骨架屏
+          <div className="bg-white dark:bg-gray-800 rounded-lg shadow p-6">
+            <div className="animate-pulse">
+              <div className="h-8 bg-gray-200 dark:bg-gray-700 rounded w-1/3 mb-6"></div>
+              <div className="space-y-4">
+                <div className="h-4 bg-gray-200 dark:bg-gray-700 rounded w-full"></div>
+                <div className="h-4 bg-gray-200 dark:bg-gray-700 rounded w-5/6"></div>
+                <div className="h-10 bg-gray-200 dark:bg-gray-700 rounded"></div>
+                <div className="h-4 bg-gray-200 dark:bg-gray-700 rounded w-3/4"></div>
+              </div>
+            </div>
+          </div>
+        ) : !isLoggedIn ? (
           // 登录表单
           <div className="bg-white dark:bg-gray-800 rounded-lg shadow p-6">
             <h2 className="text-2xl font-bold text-gray-900 dark:text-white mb-6">用户登录</h2>
