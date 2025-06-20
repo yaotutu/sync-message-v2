@@ -152,9 +152,17 @@ export default function MessagesPage() {
                 <div className="space-y-6">
                     {/* 标题 */}
                     <div className="bg-white dark:bg-gray-800 rounded-lg shadow p-6">
-                        <h2 className="text-2xl font-bold text-gray-900 dark:text-white mb-4">
-                            我的消息
-                        </h2>
+                        <div className="flex justify-between items-center mb-4">
+                            <h2 className="text-2xl font-bold text-gray-900 dark:text-white">
+                                我的消息
+                            </h2>
+                            <a
+                                href="/user"
+                                className="px-4 py-2 bg-gray-200 dark:bg-gray-600 text-gray-700 dark:text-gray-300 rounded-lg hover:bg-gray-300 dark:hover:bg-gray-500 transition-colors"
+                            >
+                                返回用户中心
+                            </a>
+                        </div>
                     </div>
 
                     {/* 消息列表 */}
