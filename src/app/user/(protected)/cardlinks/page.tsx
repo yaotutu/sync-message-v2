@@ -25,8 +25,7 @@ export default function CardLinksPage() {
   const [selectedTemplate, setSelectedTemplate] = useState<string>('');
   const [phones, setPhones] = useState<string[]>([]);
   const [cardLinks, setCardLinks] = useState<CardLink[]>([]);
-  const [username, setUsername] = useState('');
-  const [password, setPassword] = useState('');
+
   const [linkCount, setLinkCount] = useState(100);
   // 添加卡密状态过滤
   const [statusFilter, setStatusFilter] = useState<CardLinkStatus>('unused');
@@ -78,29 +77,9 @@ export default function CardLinksPage() {
   useEffect(() => {
     // 初始化时加载缓存的手机号
     setPhones(loadCachedPhones());
-    const storedAuth = localStorage.getItem('user_auth');
-    if (storedAuth) {
-      try {
-        const auth = JSON.parse(storedAuth);
-        setUsername(auth.username);
-        setPassword(auth.password);
-        loadTemplates();
-        // 不在这里调用loadCardLinks，避免重复加载
-      } catch (e) {
-        console.error('Failed to parse auth:', e);
-        router.push('/user/login');
-      }
-    } else {
-      router.push('/user/login');
-    }
+    loadTemplates();
+    loadCardLinks(1);
   }, []);
-
-  // 当用户名和密码设置后，加载卡密链接
-  useEffect(() => {
-    if (username && password) {
-      loadCardLinks(1);
-    }
-  }, [username, password]);
 
   // 直接使用后端返回的过滤结果
   useEffect(() => {
@@ -153,7 +132,7 @@ export default function CardLinksPage() {
 
       // 准备API请求
 
-      const data = await userApi.get(apiUrl, { username, password });
+      const data = await userApi.get(apiUrl);
 
       // 如果这不是最新的请求，则忽略结果
       if ((window as any).lastCardLinksRequestId !== requestId) {
@@ -202,12 +181,6 @@ export default function CardLinksPage() {
     setSearchQuery('');
   };
 
-  // 加载更多卡密链接
-  const loadMoreCardLinks = () => {
-    if (pagination.page < pagination.totalPages) {
-      loadCardLinks(pagination.page + 1, true, statusFilter, searchQuery);
-    }
-  };
 
   // 切换页码
   const changePage = (newPage: number) => {
@@ -288,8 +261,7 @@ export default function CardLinksPage() {
               appName: templateName,
               phones: phoneToUse,
               templateId: selectedTemplate,
-            },
-            { username, password },
+            }
           ),
         );
       }
@@ -424,17 +396,7 @@ export default function CardLinksPage() {
 
     try {
       setIsLoading(true);
-      const response = await fetch('/api/user/cardlinks/delete', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'x-username': username,
-          'x-password': password,
-        },
-        body: JSON.stringify({ keys }),
-      });
-
-      const data = await response.json();
+      const data = await userApi.post('/api/user/cardlinks/delete', { keys });
 
       if (data.success) {
         alert(data.message || `成功删除 ${keys.length} 个卡密链接`);
@@ -461,8 +423,7 @@ export default function CardLinksPage() {
       setIsLoading(true);
       const response = await userApi.post(
         '/api/user/cardlinks/delete-unused',
-        {},
-        { username, password }
+        {}
       );
 
       if (response.success) {

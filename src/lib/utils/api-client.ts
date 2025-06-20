@@ -125,22 +125,65 @@ export const userApi = {
     /**
      * 发送GET请求
      */
-    async get<T = any>(url: string, options?: Omit<RequestOptions, 'method'>): Promise<T> {
-        return await apiRequest<T>(url, { ...options, method: 'GET' });
+    async get<T = any>(url: string, options: Omit<RequestOptions, 'method'> = {}): Promise<T> {
+        const auth = getUserAuth();
+        const headers = {
+            ...options.headers,
+        };
+
+        if (auth?.username && auth?.password) {
+            headers['x-username'] = auth.username;
+            headers['x-password'] = auth.password;
+        }
+
+        return apiRequest<T>(url, {
+            ...options,
+            method: 'GET',
+            headers,
+        });
     },
 
     /**
      * 发送POST请求
      */
-    async post<T = any>(url: string, body: any, options?: Omit<RequestOptions, 'method' | 'body'>): Promise<T> {
-        return await apiRequest<T>(url, { ...options, method: 'POST', body });
+    async post<T = any>(url: string, body: any, options: Omit<RequestOptions, 'method' | 'body'> = {}): Promise<T> {
+        const auth = getUserAuth();
+        const headers = {
+            ...options.headers,
+        };
+
+        if (auth?.username && auth?.password) {
+            headers['x-username'] = auth.username;
+            headers['x-password'] = auth.password;
+        }
+
+        return apiRequest<T>(url, {
+            ...options,
+            method: 'POST',
+            body,
+            headers,
+        });
     },
 
     /**
      * 发送DELETE请求
      */
-    async delete<T = any>(url: string, options?: Omit<RequestOptions, 'method'>): Promise<T> {
-        return await apiRequest<T>(url, { ...options, method: 'DELETE' });
+    async delete<T = any>(url: string, options: Omit<RequestOptions, 'method'> = {}): Promise<T> {
+        const auth = getUserAuth();
+        const headers = {
+            ...options.headers,
+        };
+
+        if (auth?.username && auth?.password) {
+            headers['x-username'] = auth.username;
+            headers['x-password'] = auth.password;
+        }
+
+        return apiRequest<T>(url, {
+            ...options,
+            method: 'DELETE',
+            headers,
+        });
     }
 };
 

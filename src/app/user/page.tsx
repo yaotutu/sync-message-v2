@@ -57,7 +57,7 @@ export default function UserPage() {
 
     try {
       // 获取用户信息
-      const userData = await userApi.post('/api/user/login', { username, password });
+      const userData = await userApi.post('/api/user/login', { username, password }); // 登录接口仍需传递用户名密码
 
       if (!userData.success) {
         setError(userData.message || '登录失败');
@@ -87,7 +87,7 @@ export default function UserPage() {
     setError('');
 
     try {
-      const data = await userApi.post('/api/user/login', { username, password });
+      const data = await userApi.post('/api/user/login', { username, password }); // 登录接口仍需传递用户名密码
 
       if (data.success) {
         setIsLoggedIn(true);

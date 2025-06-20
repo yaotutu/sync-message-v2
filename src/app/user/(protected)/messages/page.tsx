@@ -15,12 +15,9 @@ interface Pagination {
 }
 
 export default function MessagesPage() {
-    const router = useRouter();
     const [isLoading, setIsLoading] = useState(false);
     const [error, setError] = useState('');
     const [messages, setMessages] = useState<Message[]>([]);
-    const [username, setUsername] = useState('');
-    const [password, setPassword] = useState('');
     const [pagination, setPagination] = useState<Pagination>({
         page: 1,
         pageSize: 2,
@@ -31,29 +28,12 @@ export default function MessagesPage() {
     const [searchQuery, setSearchQuery] = useState('');
     const [isSearching, setIsSearching] = useState(false);
 
-    // 检查登录状态
-    useEffect(() => {
-        const storedAuth = localStorage.getItem('user_auth');
-        if (storedAuth) {
-            try {
-                const auth = JSON.parse(storedAuth);
-                setUsername(auth.username);
-                setPassword(auth.password);
-            } catch (e) {
-                console.error('Failed to parse auth:', e);
-                router.push('/user/login');
-            }
-        } else {
-            router.push('/user/login');
-        }
-    }, []);
+
 
     // 当用户名和密码设置后，加载消息
     useEffect(() => {
-        if (username && password) {
-            loadMessages(1);
-        }
-    }, [username, password]);
+        loadMessages(1);
+    }, []);
 
     // 加载消息
     const loadMessages = async (
@@ -69,7 +49,7 @@ export default function MessagesPage() {
             const apiUrl = `/api/user/messages?page=${page}&pageSize=${pagination.pageSize}${search ? `&search=${encodeURIComponent(search)}` : ''
                 }&_t=${Date.now()}`;
 
-            const response = await userApi.get(apiUrl, { username, password });
+            const response = await userApi.get(apiUrl);
 
             if (response.success) {
                 // 调试日志
@@ -110,12 +90,7 @@ export default function MessagesPage() {
         setSearchQuery('');
     };
 
-    // 加载更多消息
-    const loadMoreMessages = () => {
-        if (pagination.page < pagination.totalPages) {
-            loadMessages(pagination.page + 1, true, searchQuery);
-        }
-    };
+
 
     // 切换页码
     const changePage = (newPage: number) => {
