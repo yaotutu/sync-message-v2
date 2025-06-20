@@ -20,24 +20,24 @@ model WebhookUser {
   username   String   @unique
   password   String
   webhookKey String   @unique @map("webhook_key")
-  createdAt  BigInt   @map("created_at")
+  createdAt  BigInt
   messages   Message[]
   cardKeys   CardKey[]
   cardLinks  CardLink[]
 
-  @@map("webhook_users")
+  @@map("webhookUsers")
 }
 
 model Message {
   id          Int      @id @default(autoincrement())
   username    String
-  smsContent  String   @map("sms_content")
-  recTime     String?  @map("rec_time")
-  receivedAt  BigInt   @map("received_at")
+  smsContent  String
+  recTime     String?
+  receivedAt  BigInt
   type        MessageType
   user        WebhookUser @relation(fields: [username], references: [username])
 
-  @@map("messages")
+  
 }
 
 model CardKey {
@@ -45,23 +45,23 @@ model CardKey {
   key       String  @unique
   username  String
   status    String  @default("unused")
-  createdAt BigInt  @map("created_at")
-  usedAt    BigInt? @map("used_at")
+  createdAt BigInt
+  usedAt    BigInt?
   user      WebhookUser @relation(fields: [username], references: [username])
 
-  @@map("card_keys")
+  @@map("cardKeys")
 }
 
 model Template {
   id          String   @id
   name        String
   description String?
-  createdAt   String   @map("created_at")
-  updatedAt   String   @map("updated_at")
+  createdAt   String
+  updatedAt   String
   rules       Rule[]
   cardLinks   CardLink[]
 
-  @@map("templates")
+  
 }
 
 model Rule {
@@ -75,7 +75,7 @@ model Rule {
   isActive    Boolean  @default(true) @map("is_active")
   template    Template @relation(fields: [templateId], references: [id], onDelete: Cascade)
 
-  @@map("rules")
+  
 }
 
 model CardLink {
@@ -91,5 +91,5 @@ model CardLink {
   user        WebhookUser @relation(fields: [username], references: [username])
   template    Template?   @relation(fields: [templateId], references: [id])
 
-  @@map("card_links")
+  @@map("cardLinks")
 }
