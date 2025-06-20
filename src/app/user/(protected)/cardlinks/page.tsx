@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import { AppTemplate, CardLink } from '@/types';
+import { CardLink, Template as AppTemplate } from '@prisma/client';
 import { userApi } from '@/lib/utils/api-client';
 import { copyToClipboard } from '@/lib/utils/clipboard';
 
@@ -148,9 +148,8 @@ export default function CardLinksPage() {
       }
 
       // 构建API请求URL，添加状态过滤参数、搜索参数和时间戳防止缓存
-      const apiUrl = `/api/user/cardlinks?page=${page}&pageSize=${pagination.pageSize}${
-        currentStatus !== 'all' ? `&status=${currentStatus}` : ''
-      }${searchQuery ? `&search=${encodeURIComponent(searchQuery)}` : ''}&_t=${Date.now()}`;
+      const apiUrl = `/api/user/cardlinks?page=${page}&pageSize=${pagination.pageSize}${currentStatus !== 'all' ? `&status=${currentStatus}` : ''
+        }${searchQuery ? `&search=${encodeURIComponent(searchQuery)}` : ''}&_t=${Date.now()}`;
 
       // 准备API请求
 
@@ -365,11 +364,10 @@ export default function CardLinksPage() {
         <button
           key={i}
           onClick={() => changePage(i)}
-          className={`px-3 py-1 mx-1 rounded-md ${
-            pagination.page === i
-              ? 'bg-blue-500 text-white'
-              : 'bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-300 dark:hover:bg-gray-600'
-          }`}
+          className={`px-3 py-1 mx-1 rounded-md ${pagination.page === i
+            ? 'bg-blue-500 text-white'
+            : 'bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-300 dark:hover:bg-gray-600'
+            }`}
         >
           {i}
         </button>,
@@ -459,16 +457,25 @@ export default function CardLinksPage() {
 
   // 删除所有未使用的卡密链接
   const deleteAllUnusedLinks = async () => {
-    // 获取未使用的卡密
-    const unusedLinks = cardLinks.filter((link) => !link.firstUsedAt);
-    const unusedKeys = unusedLinks.map((link) => link.key);
+    try {
+      setIsLoading(true);
+      const response = await userApi.post(
+        '/api/user/cardlinks/delete-unused',
+        {},
+        { username, password }
+      );
 
-    if (unusedKeys.length === 0) {
-      alert('没有可删除的未使用卡密链接');
-      return;
+      if (response.success) {
+        alert(`成功删除 ${response.data?.deletedCount || 0} 个未使用卡密链接`);
+        await loadCardLinks(1, false, statusFilter, searchQuery);
+      } else {
+        setError(response.message || '删除未使用卡密链接失败');
+      }
+    } catch (error) {
+      setError('删除未使用卡密链接失败，请检查网络连接');
+    } finally {
+      setIsLoading(false);
     }
-
-    await deleteCardLinks(unusedKeys);
   };
 
   // 更新链接数量输入处理函数
@@ -547,11 +554,10 @@ export default function CardLinksPage() {
                         value={phone}
                         onChange={(e) => updatePhone(index, e.target.value)}
                         placeholder="请输入手机号（11位数字，以1开头）"
-                        className={`flex-1 px-4 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition-all bg-white dark:bg-gray-700 text-gray-900 dark:text-white ${
-                          phone && !isValidPhone(phone)
-                            ? 'border-red-500 dark:border-red-500'
-                            : 'border-gray-300 dark:border-gray-600'
-                        }`}
+                        className={`flex-1 px-4 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition-all bg-white dark:bg-gray-700 text-gray-900 dark:text-white ${phone && !isValidPhone(phone)
+                          ? 'border-red-500 dark:border-red-500'
+                          : 'border-gray-300 dark:border-gray-600'
+                          }`}
                       />
                       <button
                         onClick={() => removePhoneInput(index)}
@@ -677,33 +683,30 @@ export default function CardLinksPage() {
                 <div className="flex space-x-2">
                   <button
                     onClick={() => handleStatusFilterChange('all')}
-                    className={`px-3 py-1 text-sm rounded-md ${
-                      statusFilter === 'all'
-                        ? 'bg-blue-500 text-white'
-                        : 'bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300'
-                    }`}
+                    className={`px-3 py-1 text-sm rounded-md ${statusFilter === 'all'
+                      ? 'bg-blue-500 text-white'
+                      : 'bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300'
+                      }`}
                     disabled={isLoading}
                   >
                     全部
                   </button>
                   <button
                     onClick={() => handleStatusFilterChange('unused')}
-                    className={`px-3 py-1 text-sm rounded-md ${
-                      statusFilter === 'unused'
-                        ? 'bg-blue-500 text-white'
-                        : 'bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300'
-                    }`}
+                    className={`px-3 py-1 text-sm rounded-md ${statusFilter === 'unused'
+                      ? 'bg-blue-500 text-white'
+                      : 'bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300'
+                      }`}
                     disabled={isLoading}
                   >
                     未使用
                   </button>
                   <button
                     onClick={() => handleStatusFilterChange('used')}
-                    className={`px-3 py-1 text-sm rounded-md ${
-                      statusFilter === 'used'
-                        ? 'bg-blue-500 text-white'
-                        : 'bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300'
-                    }`}
+                    className={`px-3 py-1 text-sm rounded-md ${statusFilter === 'used'
+                      ? 'bg-blue-500 text-white'
+                      : 'bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300'
+                      }`}
                     disabled={isLoading}
                   >
                     已使用
@@ -742,8 +745,8 @@ export default function CardLinksPage() {
                         {Array.isArray(cardLink.phones)
                           ? cardLink.phones.join(', ')
                           : typeof cardLink.phones === 'string'
-                          ? cardLink.phones
-                          : '无手机号'}
+                            ? cardLink.phones
+                            : '无手机号'}
                       </div>
                       <div className="text-sm text-gray-500 dark:text-gray-400">
                         创建时间：{new Date(Number(cardLink.createdAt)).toLocaleString()}
@@ -796,10 +799,10 @@ export default function CardLinksPage() {
                   {isLoading
                     ? '加载中...'
                     : cardLinks.length === 0
-                    ? '暂无卡密链接'
-                    : searchQuery
-                    ? `没有找到包含 "${searchQuery}" 的卡密链接`
-                    : '没有符合条件的卡密链接'}
+                      ? '暂无卡密链接'
+                      : searchQuery
+                        ? `没有找到包含 "${searchQuery}" 的卡密链接`
+                        : '没有符合条件的卡密链接'}
                 </div>
               )}
             </div>
