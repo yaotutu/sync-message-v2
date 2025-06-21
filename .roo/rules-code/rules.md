@@ -1,17 +1,32 @@
 # API请求编码规则
 
+## 语言选择
+1. 优先使用JavaScript(JS)和JSX语法
+2. 仅在必要时使用TypeScript
 
 ## 客户端请求
 1. 使用统一封装的`apiRequest`函数
 2. 优先使用`userApi`和`adminApi`封装方法
+   - 用户相关请求统一使用`userApi`，自动处理用户认证
+   - 管理员相关请求统一使用`adminApi`，自动处理管理员认证
 3. 方法：
    - `get(url, options)`
    - `post(url, body, options)`
    - `patch(url, body, options)`
    - `delete(url, options)`
 4. 认证头自动处理：
-   - 用户API：`x-username`和`x-password`
-   - 管理员API：`x-admin-password`
+   - 用户API：自动添加`x-username`和`x-password`请求头
+   - 管理员API：自动添加`x-admin-password`请求头
+5. 调用示例：
+   ```javascript
+   // 用户API调用示例
+   const userMessages = await userApi.get('/api/user/messages', {
+     params: { page: 1, pageSize: 10 }
+   });
+   
+   // 管理员API调用示例
+   const allUsers = await adminApi.get('/api/admin/users');
+   ```
 
 ## 路由处理
 1. 每个API端点单独文件
@@ -21,7 +36,7 @@
    - GET参数：`URL.searchParams`
    - POST参数：`request.json()`
 5. 响应格式：
-   ```typescript
+   ```javascript
    // 成功
    NextResponse.json({success: true, ...data})
    
@@ -34,8 +49,32 @@
 2. 验证失败返回400/401
 3. 资源不存在返回404
 
+## 数据库操作
+1. 所有数据库操作逻辑必须放在`src/lib/db/`目录下
+2. 使用Prisma作为ORM实现数据库操作
+3. 每个数据表对应一个独立的操作文件
+4. 示例文件结构：
+   ```
+   src/lib/db/
+   ├── index.js       # 数据库连接初始化
+   ├── users.js       # 用户表操作
+   ├── messages.js    # 消息表操作
+   └── ...            # 其他表操作
+   ```
+5. Prisma使用示例：
+   ```javascript
+   // 查询用户示例
+   import prisma from './index'
+   
+   async function getUser(username) {
+     return await prisma.user.findUnique({
+       where: { username }
+     })
+   }
+   ```
+
 ## 示例代码
-```typescript
+```javascript
 // 客户端调用 - 用户API
 const userData = await userApi.get('/api/user/cardlinks');
 
@@ -43,7 +82,7 @@ const userData = await userApi.get('/api/user/cardlinks');
 const adminData = await adminApi.get('/api/admin/users');
 
 // 路由实现 - 用户API验证
-export async function GET(request: NextRequest) {
+export async function GET(request) {
   const auth = getUserAuthFromRequest(request); // 从请求中获取认证信息
   
   if (!auth) {
@@ -58,7 +97,7 @@ export async function GET(request: NextRequest) {
 }
 
 // 辅助函数 - 从请求中获取用户认证
-function getUserAuthFromRequest(request: NextRequest) {
+function getUserAuthFromRequest(request) {
   const username = request.headers.get('x-username');
   const password = request.headers.get('x-password');
   
