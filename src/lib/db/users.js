@@ -1,4 +1,5 @@
 import prisma, { transaction } from './index.js';
+import { getPermanentExpiryDate } from '../utils/account.js';
 
 /**
  * 创建用户
@@ -8,7 +9,13 @@ import prisma, { transaction } from './index.js';
  * @param {number} createdAt
  * @returns {Promise<{lastID?: number, changes?: number, error?: string}>}
  */
-export async function createUserDb(username, password, webhookKey, createdAt) {
+export async function createUserDb(
+  username,
+  password,
+  webhookKey,
+  createdAt,
+  canManageTemplates = false,
+) {
   try {
     // 先检查用户是否已存在
     const existingUser = await prisma.webhookUser.findUnique({
@@ -25,6 +32,8 @@ export async function createUserDb(username, password, webhookKey, createdAt) {
         password,
         webhookKey,
         createdAt,
+        canManageTemplates,
+        expiryDate: getPermanentExpiryDate(), // 使用统一永久有效日期
       },
     });
     return { lastID: result.id, changes: 1 };
@@ -49,6 +58,8 @@ export async function getUserByIdDb(userId) {
       username: true,
       webhookKey: true,
       createdAt: true,
+      canManageTemplates: true,
+      expiryDate: true,
     },
   });
 }
@@ -96,6 +107,8 @@ export async function getAllUsersDb() {
       username: true,
       webhookKey: true,
       createdAt: true,
+      canManageTemplates: true,
+      expiryDate: true,
     },
   });
 }
@@ -121,6 +134,19 @@ export async function validateUserDb(username, password) {
 }
 
 /**
+ * 更新用户信息
+ * @param {string} username
+ * @param {object} updates 更新字段对象
+ * @returns {Promise<void>}
+ */
+export async function updateUserDb(username, updates) {
+  await prisma.webhookUser.update({
+    where: { username },
+    data: updates,
+  });
+}
+
+/**
  * 根据用户名获取用户
  * @param {string} username
  * @returns {Promise<User | undefined>}
@@ -133,6 +159,8 @@ export async function getUserByUsernameDb(username) {
       username: true,
       webhookKey: true,
       createdAt: true,
+      canManageTemplates: true,
+      expiryDate: true,
     },
   });
 }

@@ -34,13 +34,13 @@ export async function POST(request: Request) {
       return NextResponse.json({ success: false, error: '需要管理员认证' }, { status: 401 });
     }
 
-    const { username, password } = await request.json();
+    const { username, password, canManageTemplates } = await request.json();
     if (!username || !password) {
       return NextResponse.json({ success: false, error: '用户名和密码不能为空' }, { status: 400 });
     }
 
     console.log(`尝试创建用户: ${username}`);
-    const result = await createUser(username, password);
+    const result = await createUser(username, password, canManageTemplates);
 
     if (!result.success) {
       return NextResponse.json({ success: false, error: result.message }, { status: 400 });

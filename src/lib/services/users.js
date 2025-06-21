@@ -1,3 +1,5 @@
+'use strict';
+
 import {
   createUserDb,
   getUserByIdDb,
@@ -5,21 +7,16 @@ import {
   getAllUsersDb,
   validateUserDb,
   getUserByUsernameDb,
+  updateUserDb,
 } from '../db/users.js';
 import { randomUUID } from 'crypto';
 
-/**
- * 创建用户
- * @param {string} username
- * @param {string} password
- * @returns {Promise<{success: boolean, data?: {id: number, username: string, webhookKey: string}, message?: string}>}
- */
-export async function createUser(username, password) {
+async function createUser(username, password, canManageTemplates = false) {
   try {
     const webhookKey = randomUUID();
     const now = Date.now();
 
-    const result = await createUserDb(username, password, webhookKey, now);
+    const result = await createUserDb(username, password, webhookKey, now, canManageTemplates);
     if (result.error) {
       return { success: false, message: result.error };
     }
@@ -41,12 +38,7 @@ export async function createUser(username, password) {
   }
 }
 
-/**
- * 获取用户
- * @param {number} userId
- * @returns {Promise<{success: boolean, data?: User, message?: string}>}
- */
-export async function getUser(userId) {
+async function getUser(userId) {
   try {
     const user = await getUserByIdDb(userId);
     if (!user) {
@@ -59,12 +51,7 @@ export async function getUser(userId) {
   }
 }
 
-/**
- * 删除用户
- * @param {string} username
- * @returns {Promise<{success: boolean, message?: string}>}
- */
-export async function deleteUser(username) {
+async function deleteUser(username) {
   try {
     const result = await deleteUserDb(username);
     return { success: true };
@@ -74,14 +61,9 @@ export async function deleteUser(username) {
   }
 }
 
-/**
- * 获取所有用户
- * @returns {Promise<{success: boolean, data?: User[], message?: string}>}
- */
-export async function getAllUsers() {
+async function getAllUsers() {
   try {
     const users = await getAllUsersDb();
-    // 将时间戳转换为ISO格式字符串
     const formattedUsers = users.map((user) => ({
       ...user,
       createdAt: new Date(Number(user.createdAt)).toISOString(),
@@ -93,13 +75,7 @@ export async function getAllUsers() {
   }
 }
 
-/**
- * 验证用户
- * @param {string} username
- * @param {string} password
- * @returns {Promise<{success: boolean, data?: {id: number, username: string, webhookKey: string}, message?: string}>}
- */
-export async function validateUser(username, password) {
+async function validateUser(username, password) {
   try {
     const user = await validateUserDb(username, password);
     if (!user) {
@@ -112,12 +88,7 @@ export async function validateUser(username, password) {
   }
 }
 
-/**
- * 根据用户名获取用户
- * @param {string} username
- * @returns {Promise<{success: boolean, data?: User, message?: string}>}
- */
-export async function getUserByUsername(username) {
+async function getUserByUsername(username) {
   try {
     const user = await getUserByUsernameDb(username);
     if (!user) {
@@ -129,3 +100,41 @@ export async function getUserByUsername(username) {
     return { success: false, message: '获取用户失败，请稍后重试' };
   }
 }
+
+async function updateUser(username, updates) {
+  try {
+    const validUpdates = {};
+    if ('canManageTemplates' in updates) {
+      validUpdates.canManageTemplates = updates.canManageTemplates;
+    }
+    if ('accountStatus' in updates) {
+      validUpdates.accountStatus = updates.accountStatus;
+    }
+    if ('expiryDate' in updates) {
+      if (updates.expiryDate && !/^\d{8}$/.test(updates.expiryDate)) {
+        return { success: false, message: '有效期格式应为YYYYMMDD' };
+      }
+      validUpdates.expiryDate = updates.expiryDate || null;
+    }
+
+    if (Object.keys(validUpdates).length === 0) {
+      return { success: false, message: '没有有效的更新字段' };
+    }
+
+    await updateUserDb(username, validUpdates);
+    return { success: true };
+  } catch (error) {
+    console.error('更新用户失败:', error);
+    return { success: false, message: '更新用户失败，请稍后重试' };
+  }
+}
+
+export {
+  createUser,
+  getUser,
+  deleteUser,
+  getAllUsers,
+  validateUser,
+  getUserByUsername,
+  updateUser,
+};

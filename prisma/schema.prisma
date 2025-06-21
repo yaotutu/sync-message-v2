@@ -16,14 +16,16 @@ enum MessageType {
 }
 
 model WebhookUser {
-  id         Int      @id @default(autoincrement())
-  username   String   @unique
-  password   String
-  webhookKey String   @unique @map("webhook_key")
-  createdAt  BigInt
-  messages   Message[]
-  cardKeys   CardKey[]
-  cardLinks  CardLink[]
+  id               Int           @id @default(autoincrement())
+  username         String        @unique
+  password         String
+  webhookKey       String        @unique @map("webhook_key")
+  createdAt        BigInt
+  canManageTemplates Boolean     @default(false)
+  expiryDate       String?       @map("expiry_date") @default("20991231")
+  messages         Message[]
+  cardKeys         CardKey[]
+  cardLinks        CardLink[]
 
   @@map("webhookUsers")
 }
