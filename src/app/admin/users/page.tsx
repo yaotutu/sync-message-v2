@@ -23,6 +23,7 @@ export default function UsersPage() {
   const [error, setError] = useState('');
   const [editingExpiry, setEditingExpiry] = useState('');
   const [expiryInput, setExpiryInput] = useState('');
+  const [editingTemplate, setEditingTemplate] = useState('');
   const [newUsername, setNewUsername] = useState('');
   const [newPassword, setNewPassword] = useState('');
 
@@ -121,6 +122,32 @@ export default function UsersPage() {
     } catch (err) {
       console.error('删除用户错误:', err);
       setError('删除用户失败，请检查网络连接');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const toggleTemplatePermission = async (username: string, currentValue: boolean) => {
+    const password = getAdminPassword();
+    if (!password) return;
+
+    setLoading(true);
+    setError('');
+
+    try {
+      const data = await adminApi.patch(`/api/admin/users/${username}`, {
+        canManageTemplates: !currentValue,
+      });
+
+      if (data.success) {
+        setEditingTemplate('');
+        loadUsers();
+      } else {
+        setError(data.message || '更新模板权限失败');
+      }
+    } catch (err) {
+      console.error('更新模板权限错误:', err);
+      setError('更新模板权限失败，请检查网络连接');
     } finally {
       setLoading(false);
     }
@@ -331,7 +358,38 @@ export default function UsersPage() {
                             </div>
                           </td>
                           <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">
-                            {user.canManageTemplates ? '是' : '否'}
+                            {editingTemplate === user.username ? (
+                              <div className="flex items-center gap-2">
+                                <button
+                                  onClick={() =>
+                                    toggleTemplatePermission(user.username, user.canManageTemplates)
+                                  }
+                                  className={`px-2 py-1 text-xs rounded ${
+                                    user.canManageTemplates
+                                      ? 'bg-red-600 hover:bg-red-700 text-white'
+                                      : 'bg-green-600 hover:bg-green-700 text-white'
+                                  }`}
+                                >
+                                  {user.canManageTemplates ? '禁用' : '启用'}
+                                </button>
+                                <button
+                                  onClick={() => setEditingTemplate('')}
+                                  className="px-2 py-1 bg-gray-200 dark:bg-gray-700 text-gray-800 dark:text-gray-200 text-xs rounded hover:bg-gray-300 dark:hover:bg-gray-600"
+                                >
+                                  取消
+                                </button>
+                              </div>
+                            ) : (
+                              <div className="flex items-center gap-2">
+                                <span>{user.canManageTemplates ? '是' : '否'}</span>
+                                <button
+                                  onClick={() => setEditingTemplate(user.username)}
+                                  className="text-blue-600 hover:text-blue-800 dark:text-blue-400 dark:hover:text-blue-300 text-xs"
+                                >
+                                  编辑
+                                </button>
+                              </div>
+                            )}
                           </td>
                           <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">
                             {isAccountActive(user.expiryDate) ? (
