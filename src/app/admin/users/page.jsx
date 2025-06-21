@@ -1,5 +1,7 @@
 'use client';
 
+import ConfirmDialog from '@/components/ConfirmDialog';
+
 import { useState, useEffect, useCallback } from 'react';
 import { isAccountActive, formatExpiryDate } from '@/lib/utils/account';
 import { useRouter } from 'next/navigation';
@@ -54,9 +56,10 @@ export default function UsersPage() {
   const [error, setError] = useState('');
   const [editingExpiry, setEditingExpiry] = useState('');
   const [expiryInput, setExpiryInput] = useState('');
-  const [editingTemplate, setEditingTemplate] = useState('');
   const [newUsername, setNewUsername] = useState('');
   const [newPassword, setNewPassword] = useState('');
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+  const [userToDelete, setUserToDelete] = useState(null);
 
   useEffect(() => {
     loadUsers();
@@ -131,19 +134,27 @@ export default function UsersPage() {
   };
 
   // 删除用户
-  const deleteUser = async (username) => {
-    const password = getAdminPassword();
-    if (!password) return;
+  const handleDeleteClick = (username) => {
+    setUserToDelete(username);
+    setDeleteDialogOpen(true);
+  };
 
-    if (!confirm(`确定要删除用户 ${username} 吗？`)) {
+  const deleteUser = async () => {
+    const password = getAdminPassword();
+    if (!password || !userToDelete) {
+      setDeleteDialogOpen(false);
       return;
     }
+    
+    // 确保关闭对话框后再执行删除操作
+    setDeleteDialogOpen(false);
+    await new Promise(resolve => setTimeout(resolve, 0)); // 确保状态更新完成
 
     setLoading(true);
     setError('');
 
     try {
-      const data = await adminApi.delete(`/api/admin/users/${username}`);
+      const data = await adminApi.delete(`/api/admin/users/${userToDelete}`);
 
       if (data.success) {
         loadUsers();
@@ -155,6 +166,7 @@ export default function UsersPage() {
       setError('删除用户失败，请检查网络连接');
     } finally {
       setLoading(false);
+      setUserToDelete(null);
     }
   };
 
@@ -171,7 +183,6 @@ export default function UsersPage() {
       });
 
       if (data.success) {
-        setEditingTemplate('');
         loadUsers();
       } else {
         setError(data.message || '更新模板权限失败');
@@ -344,42 +355,21 @@ export default function UsersPage() {
                         </Box>
                       </TableCell>
                       <TableCell>
-                        {editingTemplate === user.username ? (
-                          <Box display="flex" alignItems="center" gap={1}>
-                            <FormControlLabel
-                              control={
-                                <Switch
-                                  checked={user.canManageTemplates}
-                                  onChange={() =>
-                                    toggleTemplatePermission(
-                                      user.username,
-                                      user.canManageTemplates
-                                    )
-                                  }
-                                />
+                        <FormControlLabel
+                          control={
+                            <Switch
+                              checked={user.canManageTemplates}
+                              onChange={() =>
+                                toggleTemplatePermission(
+                                  user.username,
+                                  user.canManageTemplates
+                                )
                               }
-                              label={user.canManageTemplates ? '已启用' : '已禁用'}
+                              disabled={loading}
                             />
-                            <IconButton
-                              size="small"
-                              onClick={() => setEditingTemplate('')}
-                            >
-                              <CloseIcon fontSize="small" />
-                            </IconButton>
-                          </Box>
-                        ) : (
-                          <Box display="flex" alignItems="center" gap={1}>
-                            <Typography>
-                              {user.canManageTemplates ? '是' : '否'}
-                            </Typography>
-                            <IconButton
-                              size="small"
-                              onClick={() => setEditingTemplate(user.username)}
-                            >
-                              <EditIcon fontSize="small" />
-                            </IconButton>
-                          </Box>
-                        )}
+                          }
+                          label={user.canManageTemplates ? '已启用' : '已禁用'}
+                        />
                       </TableCell>
                       <TableCell>
                         <Typography
@@ -437,7 +427,7 @@ export default function UsersPage() {
                         <Tooltip title="删除">
                           <IconButton
                             color="error"
-                            onClick={() => deleteUser(user.username)}
+                            onClick={() => handleDeleteClick(user.username)}
                           >
                             <DeleteIcon fontSize="small" />
                           </IconButton>
@@ -451,6 +441,15 @@ export default function UsersPage() {
           </Box>
         )}
       </Paper>
+
+      {/* 删除确认对话框 */}
+      <ConfirmDialog
+        open={deleteDialogOpen}
+        title="确认删除"
+        content={`确定要删除用户 ${userToDelete} 吗？`}
+        onConfirm={deleteUser}
+        onCancel={() => setDeleteDialogOpen(false)}
+      />
     </Container>
   );
 }
