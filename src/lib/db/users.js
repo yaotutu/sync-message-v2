@@ -18,7 +18,7 @@ export async function createUserDb(
 ) {
   try {
     // 先检查用户是否已存在
-    const existingUser = await prisma.webhookUser.findUnique({
+    const existingUser = await prisma.user.findUnique({
       where: { username },
     });
 
@@ -26,7 +26,7 @@ export async function createUserDb(
       return { error: '用户名已存在' };
     }
 
-    const result = await prisma.webhookUser.create({
+    const result = await prisma.user.create({
       data: {
         username,
         password,
@@ -51,7 +51,7 @@ export async function createUserDb(
  * @returns {Promise<User | undefined>}
  */
 export async function getUserByIdDb(userId) {
-  return await prisma.webhookUser.findUnique({
+  return await prisma.user.findUnique({
     where: { id: userId },
     select: {
       id: true,
@@ -87,7 +87,7 @@ export async function deleteUserDb(username) {
     });
 
     // 删除用户
-    const result = await prisma.webhookUser.deleteMany({
+    const result = await prisma.user.deleteMany({
       where: { username },
     });
 
@@ -100,7 +100,7 @@ export async function deleteUserDb(username) {
  * @returns {Promise<User[]>}
  */
 export async function getAllUsersDb() {
-  return await prisma.webhookUser.findMany({
+  return await prisma.user.findMany({
     orderBy: { createdAt: 'desc' },
     select: {
       id: true,
@@ -120,7 +120,7 @@ export async function getAllUsersDb() {
  * @returns {Promise<User | undefined>}
  */
 export async function validateUserDb(username, password) {
-  return await prisma.webhookUser.findFirst({
+  return await prisma.user.findFirst({
     where: {
       username,
       password,
@@ -140,7 +140,7 @@ export async function validateUserDb(username, password) {
  * @returns {Promise<void>}
  */
 export async function updateUserDb(username, updates) {
-  await prisma.webhookUser.update({
+  await prisma.user.update({
     where: { username },
     data: updates,
   });
@@ -152,7 +152,7 @@ export async function updateUserDb(username, updates) {
  * @returns {Promise<User | undefined>}
  */
 export async function getUserByUsernameDb(username) {
-  return await prisma.webhookUser.findUnique({
+  return await prisma.user.findUnique({
     where: { username },
     select: {
       id: true,
