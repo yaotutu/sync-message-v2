@@ -13,8 +13,6 @@ export default function ProtectedLayout({ children }: { children: React.ReactNod
       router.push('/');
     } else if (isAdmin) {
       router.push('/admin');
-    } else {
-      router.push('/user');
     }
   }, [router]);
 
