@@ -66,12 +66,14 @@ export default function LoginPage() {
 
       if (data.success) {
         const isAdmin = data.data.isAdmin || false;
+        const canManageTemplates = data.data.canManageTemplates || false;
         localStorage.setItem(
           'user_auth',
           JSON.stringify({
             username,
             password,
             isAdmin,
+            canManageTemplates,
           }),
         );
         if (isAdmin) {

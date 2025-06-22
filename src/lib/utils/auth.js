@@ -4,6 +4,7 @@
  *   isAuthenticated: boolean,
  *   isAdmin: boolean,
  *   username: string | null
+ *   canManageTemplates: boolean
  * }} 认证状态对象
  */
 export function getAuthStatus() {
@@ -15,6 +16,7 @@ export function getAuthStatus() {
         isAuthenticated: false,
         isAdmin: false,
         username: null,
+        canManageTemplates: false,
       };
     }
 
@@ -23,6 +25,7 @@ export function getAuthStatus() {
       isAuthenticated: !!auth.username && !!auth.password,
       isAdmin: !!auth.isAdmin,
       username: auth.username || null,
+      canManageTemplates: auth.canManageTemplates || false,
     };
   } catch (err) {
     console.error('解析存储的用户信息失败:', err);
@@ -31,6 +34,7 @@ export function getAuthStatus() {
       isAuthenticated: false,
       isAdmin: false,
       username: null,
+      canManageTemplates: false,
     };
   }
 }
