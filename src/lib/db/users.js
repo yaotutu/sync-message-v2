@@ -130,6 +130,9 @@ export async function validateUserDb(username, password) {
       username: true,
       webhookKey: true,
       isAdmin: true,
+      canManageTemplates: true,
+      expiryDate: true,
+      createdAt: true,
     },
   });
 }

@@ -61,10 +61,13 @@ model Template {
   description String?
   createdAt   String
   updatedAt   String
+  isPublic    Boolean  @default(false)
+  username    String?
   rules       Rule[]
   cardLinks   CardLink[]
+  user        User?    @relation(fields: [username], references: [username])
 
-  
+  @@index([username])
 }
 
 model Rule {

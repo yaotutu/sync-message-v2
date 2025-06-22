@@ -35,9 +35,9 @@ export function escapeRegExp(string) {
 /**
  * 获取所有模板
  */
-export async function getAllTemplates() {
+export async function getAllTemplates(username) {
   // 获取所有模板
-  const templates = await getAllTemplatesFromDb();
+  const templates = await getAllTemplatesFromDb(username);
 
   // 获取每个模板的规则
   for (const template of templates) {
@@ -118,7 +118,15 @@ export async function createTemplate(data) {
       return { ...rule, pattern };
     }) || [];
 
-  return await createTemplateInDb(data, processedRules);
+  // 添加创建时间
+  const now = new Date().toISOString();
+  const templateData = {
+    ...data,
+    createdAt: now,
+    updatedAt: now,
+  };
+
+  return await createTemplateInDb(templateData, processedRules);
 }
 
 /**
@@ -141,8 +149,8 @@ export async function updateTemplate(id, data) {
 /**
  * 删除模板
  */
-export async function deleteTemplate(id) {
-  return await deleteTemplateFromDb(id);
+export async function deleteTemplate(id, username) {
+  return await deleteTemplateFromDb(id, username);
 }
 
 /**

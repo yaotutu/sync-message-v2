@@ -4,8 +4,11 @@ import { randomUUID } from 'crypto';
 /**
  * 获取所有模板
  */
-export async function getAllTemplatesFromDb() {
+export async function getAllTemplatesFromDb(username) {
   return await prisma.template.findMany({
+    where: {
+      OR: [{ isPublic: true }, { username }],
+    },
     orderBy: { name: 'asc' },
     select: {
       id: true,
@@ -13,6 +16,8 @@ export async function getAllTemplatesFromDb() {
       description: true,
       createdAt: true,
       updatedAt: true,
+      isPublic: true,
+      username: true,
     },
   });
 }
@@ -83,6 +88,8 @@ export async function createTemplateInDb(templateData, rules = []) {
         id: templateId,
         name: templateData.name,
         description: templateData.description || '',
+        isPublic: templateData.isPublic || false,
+        username: templateData.username || null,
         createdAt: now,
         updatedAt: now,
       },
@@ -139,6 +146,14 @@ export async function updateTemplateInDb(id, templateData, rules) {
       updates.description = templateData.description;
     }
 
+    if (templateData.isPublic !== undefined) {
+      updates.isPublic = templateData.isPublic;
+    }
+
+    if (templateData.username !== undefined) {
+      updates.username = templateData.username;
+    }
+
     updates.updatedAt = now;
 
     // 更新模板
@@ -177,8 +192,23 @@ export async function updateTemplateInDb(id, templateData, rules) {
 /**
  * 删除模板
  */
-export async function deleteTemplateFromDb(id) {
+export async function deleteTemplateFromDb(id, username) {
   return await transaction(async (prisma) => {
+    // 先获取模板信息
+    const template = await prisma.template.findUnique({
+      where: { id },
+      select: { username: true },
+    });
+
+    if (!template) {
+      return false;
+    }
+
+    // 验证权限：模板所有者或管理员可以删除
+    if (template.username && template.username !== username) {
+      throw new Error('无权删除此模板');
+    }
+
     const result = await prisma.template.delete({
       where: { id },
     });
