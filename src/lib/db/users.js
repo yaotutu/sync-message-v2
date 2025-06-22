@@ -129,6 +129,7 @@ export async function validateUserDb(username, password) {
       id: true,
       username: true,
       webhookKey: true,
+      isAdmin: true,
     },
   });
 }
