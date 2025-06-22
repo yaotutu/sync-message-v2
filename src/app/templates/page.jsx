@@ -229,15 +229,23 @@ export default function TemplatesPage() {
         <Card sx={{ p: 3 }}>
           <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 3 }}>
             <Typography variant="h4" component="h1">模板管理</Typography>
-            <Button
-              onClick={startCreating}
-              variant="contained"
-              color="primary"
-              disabled={loading}
-              startIcon={<AddIcon />}
-            >
-              创建模板
-            </Button>
+            <Box sx={{ display: 'flex', gap: 2 }}>
+              <Button
+                onClick={() => router.push('/')}
+                variant="outlined"
+              >
+                返回
+              </Button>
+              <Button
+                onClick={startCreating}
+                variant="contained"
+                color="primary"
+                disabled={loading}
+                startIcon={<AddIcon />}
+              >
+                创建模板
+              </Button>
+            </Box>
           </Box>
 
           {error && (

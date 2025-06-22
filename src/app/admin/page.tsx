@@ -24,7 +24,7 @@ export default function AdminPage() {
                 </p>
               </Link>
               <Link
-                href="/admin/templates"
+                href="/templates"
                 className="block p-6 bg-green-50 dark:bg-green-900/20 rounded-lg hover:bg-green-100 dark:hover:bg-green-900/30 transition-colors"
               >
                 <h3 className="text-xl font-semibold text-green-700 dark:text-green-400 mb-2">
