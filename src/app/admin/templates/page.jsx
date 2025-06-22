@@ -2,8 +2,7 @@
 
 import { useState, useEffect, useRef } from 'react';
 import { useRouter } from 'next/navigation';
-import { getStoredAdminPassword } from '@/lib/services/auth';
-import { adminApi } from '@/lib/utils/api-client';
+import { userApi } from '@/lib/utils/api-client';
 import {
   Button,
   TextField,
@@ -55,26 +54,13 @@ export default function TemplatesPage() {
     loadTemplates();
   }, []);
 
-  // 获取管理员密码
-  function getAdminPassword() {
-    const password = getStoredAdminPassword();
-    if (!password) {
-      router.push('/admin');
-      return null;
-    }
-    return password;
-  }
-
   // 加载模板列表
   const loadTemplates = async () => {
     setLoading(true);
     setError('');
 
-    const password = getAdminPassword();
-    if (!password) return;
-
     try {
-      const data = await adminApi.get('/api/admin/templates');
+      const data = await userApi.get('/api/admin/templates');
 
       if (data.success) {
         setTemplates(data.data || []);
@@ -91,9 +77,6 @@ export default function TemplatesPage() {
 
   // 保存模板
   const saveTemplate = async () => {
-    const password = getAdminPassword();
-    if (!password) return;
-
     if (!formData.name.trim()) {
       setError('应用名称不能为空');
       return;
@@ -104,7 +87,7 @@ export default function TemplatesPage() {
 
     try {
       // 检查是否存在同名模板（排除当前正在编辑的模板）
-      const existingTemplatesResponse = await adminApi.get('/api/admin/templates');
+      const existingTemplatesResponse = await userApi.get('/api/admin/templates');
       const existingTemplates = existingTemplatesResponse.success
         ? existingTemplatesResponse.data
         : [];
@@ -130,14 +113,14 @@ export default function TemplatesPage() {
       }
 
       const data =
-        method === 'POST' ? await adminApi.post(url, body) : await adminApi.patch(url, body);
+        method === 'POST' ? await userApi.post(url, body) : await userApi.patch(url, body);
 
       if (data.success) {
         // 如果是创建新模板，并且有规则需要添加
         if (!isEditing && rules.length > 0 && data.data?.id) {
           // 逐个添加规则
           for (const rule of rules) {
-            await adminApi.post(`/api/admin/templates/${data.data.id}/rules`, rule);
+            await userApi.post(`/api/admin/templates/${data.data.id}/rules`, rule);
           }
         }
 
@@ -160,14 +143,11 @@ export default function TemplatesPage() {
       return;
     }
 
-    const password = getAdminPassword();
-    if (!password) return;
-
     setLoading(true);
     setError('');
 
     try {
-      const data = await adminApi.delete(`/api/admin/templates/${templateId}`);
+      const data = await userApi.delete(`/api/admin/templates/${templateId}`);
 
       if (data.success) {
         loadTemplates();
