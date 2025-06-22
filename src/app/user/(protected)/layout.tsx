@@ -1,24 +1,22 @@
 'use client';
 
-import { useRouter } from 'next/navigation';
 import { useEffect } from 'react';
+import { useRouter } from 'next/navigation';
+import { getAuthStatus } from '@/lib/utils/auth';
 
-export default function ProtectedLayout({
-    children,
-}: {
-    children: React.ReactNode;
-}) {
-    const router = useRouter();
+export default function ProtectedLayout({ children }: { children: React.ReactNode }) {
+  const router = useRouter();
 
-    useEffect(() => {
-        // 检查登录状态
-        const storedAuth = localStorage.getItem('user_auth');
-        if (!storedAuth) {
-            router.push('/user');
-        }
-    }, []);
+  useEffect(() => {
+    const { isAuthenticated, isAdmin } = getAuthStatus();
+    if (!isAuthenticated) {
+      router.push('/');
+    } else if (isAdmin) {
+      router.push('/admin');
+    } else {
+      router.push('/user');
+    }
+  }, [router]);
 
-    return <div className="min-h-screen bg-gray-100 dark:bg-gray-900">
-        {children}
-    </div>;
+  return <div className="min-h-screen bg-gray-100 dark:bg-gray-900">{children}</div>;
 }
