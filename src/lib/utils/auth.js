@@ -38,3 +38,10 @@ export function getAuthStatus() {
     };
   }
 }
+
+/**
+ * 退出登录
+ */
+export function logout() {
+  localStorage.removeItem('user_auth');
+}

@@ -1,6 +1,8 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import { useRouter } from 'next/navigation';
+import { logout } from '@/lib/utils/auth';
 import { userApi } from '@/lib/utils/api-client';
 import Link from 'next/link';
 
@@ -12,6 +14,7 @@ interface User {
 }
 
 export default function UserPage() {
+  const router = useRouter();
   const [isLoggedIn, setIsLoggedIn] = useState(false);
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
@@ -32,11 +35,10 @@ export default function UserPage() {
           setUsername(auth.username);
           setPassword(auth.password);
           setIsLoggedIn(true);
-          loadUserData(auth.username, auth.password)
-            .finally(() => {
-              setAuthChecked(true);
-              setShowSkeleton(false);
-            });
+          loadUserData(auth.username, auth.password).finally(() => {
+            setAuthChecked(true);
+            setShowSkeleton(false);
+          });
           return;
         }
       } catch (err) {
@@ -185,7 +187,10 @@ export default function UserPage() {
               <div className="flex justify-between items-center mb-4">
                 <h2 className="text-2xl font-bold text-gray-900 dark:text-white">用户中心</h2>
                 <button
-                  onClick={handleLogout}
+                  onClick={() => {
+                    logout();
+                    router.push('/');
+                  }}
                   className="px-4 py-2 bg-red-500 text-white rounded-lg hover:bg-red-600 dark:bg-red-600 dark:hover:bg-red-700 focus:ring-2 focus:ring-red-500 focus:ring-offset-2 dark:focus:ring-offset-gray-800 transition-all"
                 >
                   退出登录
