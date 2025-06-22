@@ -5,8 +5,11 @@ import { deleteUser, updateUser } from '@/lib/services/users';
 export async function DELETE(request: NextRequest) {
   try {
     const auth = await verifyAdminAuth(request);
-    if (!auth) {
-      return NextResponse.json({ success: false, error: '需要管理员认证' }, { status: 401 });
+    if (!auth?.success) {
+      return NextResponse.json(
+        { success: false, error: auth?.message || '需要管理员权限' },
+        { status: 401 },
+      );
     }
 
     const username = request.nextUrl.pathname.split('/').pop();
@@ -34,8 +37,11 @@ export async function DELETE(request: NextRequest) {
 export async function PATCH(request: NextRequest) {
   try {
     const auth = await verifyAdminAuth(request);
-    if (!auth) {
-      return NextResponse.json({ success: false, error: '需要管理员认证' }, { status: 401 });
+    if (!auth?.success) {
+      return NextResponse.json(
+        { success: false, error: auth?.message || '需要管理员权限' },
+        { status: 401 },
+      );
     }
 
     const username = request.nextUrl.pathname.split('/').pop();

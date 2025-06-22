@@ -28,9 +28,8 @@
 
 ## 客户端请求
 1. 使用统一封装的`apiRequest`函数
-2. 优先使用`userApi`和`adminApi`封装方法
+2. 优先使用`userApi`封装方法
    - 用户相关请求统一使用`userApi`，自动处理用户认证
-   - 管理员相关请求统一使用`adminApi`，自动处理管理员认证
 3. 方法：
    - `get(url, options)`
    - `post(url, body, options)`

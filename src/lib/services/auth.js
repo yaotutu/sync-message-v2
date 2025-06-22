@@ -1,89 +1,39 @@
-const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD || 'admin123';
+import { validateUser } from '@/lib/services/users';
 
 /**
- * 验证管理员密码
- * @param password 管理员密码
- * @returns 验证结果
+ * @typedef {Object} AuthResult
+ * @property {boolean} success - 验证是否成功
+ * @property {string} [message] - 错误消息
  */
-export function validateAdminPassword(password) {
-  return password === ADMIN_PASSWORD;
-}
-
-/**
- * 从请求头中获取管理员密码
- * @param req 请求对象
- * @returns 管理员密码
- */
-export function getAdminPasswordFromHeader(req) {
-  return req.headers.get('x-admin-password');
-}
 
 /**
  * 验证管理员权限
- * @param req 请求对象
- * @returns 验证结果
+ * @param {Request} req - 请求对象
+ * @returns {Promise<AuthResult>} 验证结果
  */
-export function verifyAdminAuth(req) {
-  const adminPassword = getAdminPasswordFromHeader(req);
+export async function verifyAdminAuth(req) {
+  const username = req.headers.get('x-username');
+  const password = req.headers.get('x-password');
 
-  if (!adminPassword) {
-    return { success: false, message: '缺少管理员密码' };
-  }
-
-  if (!validateAdminPassword(adminPassword)) {
-    return { success: false, message: '管理员密码验证失败' };
-  }
-
-  return { success: true };
-}
-
-/**
- * 获取本地存储的管理员密码
- * @returns 管理员密码
- */
-export function getStoredAdminPassword() {
-  if (typeof window === 'undefined') {
-    return null;
+  if (!username || !password) {
+    return { success: false, message: '需要用户认证' };
   }
 
   try {
-    const stored = localStorage.getItem('admin_auth');
-    if (!stored) return null;
-    const data = JSON.parse(stored);
-    return data.password || null;
-  } catch (e) {
-    console.error('获取存储的管理员密码失败:', e);
-    return null;
-  }
-}
+    // 验证用户名密码
+    const validation = await validateUser(username, password);
+    if (!validation.success) {
+      return { success: false, message: validation.message };
+    }
 
-/**
- * 设置本地存储的管理员密码
- * @param password 管理员密码
- */
-export function setStoredAdminPassword(password) {
-  if (typeof window === 'undefined') {
-    return;
-  }
+    // 检查isAdmin
+    if (!validation.data.isAdmin) {
+      return { success: false, message: '需要管理员权限' };
+    }
 
-  try {
-    localStorage.setItem('admin_auth', JSON.stringify({ password }));
-  } catch (e) {
-    console.error('存储管理员密码失败:', e);
-  }
-}
-
-/**
- * 清除本地存储的管理员密码
- */
-export function clearStoredAdminPassword() {
-  if (typeof window === 'undefined') {
-    return;
-  }
-
-  try {
-    localStorage.removeItem('admin_auth');
-  } catch (e) {
-    console.error('清除存储的管理员密码失败:', e);
+    return { success: true, message: '' };
+  } catch (error) {
+    console.error('验证管理员权限失败:', error);
+    return { success: false, message: '验证管理员权限失败，请稍后重试' };
   }
 }

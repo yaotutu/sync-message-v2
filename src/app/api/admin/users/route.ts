@@ -5,8 +5,11 @@ import { NextResponse } from 'next/server';
 export async function GET(request: Request) {
   try {
     const auth = await verifyAdminAuth(request);
-    if (!auth) {
-      return NextResponse.json({ success: false, error: '需要管理员认证' }, { status: 401 });
+    if (!auth?.success) {
+      return NextResponse.json(
+        { success: false, error: auth?.message || '需要管理员权限' },
+        { status: 401 },
+      );
     }
 
     const result = await getAllUsers();
@@ -30,8 +33,11 @@ export async function GET(request: Request) {
 export async function POST(request: Request) {
   try {
     const auth = await verifyAdminAuth(request);
-    if (!auth) {
-      return NextResponse.json({ success: false, error: '需要管理员认证' }, { status: 401 });
+    if (!auth?.success) {
+      return NextResponse.json(
+        { success: false, error: auth?.message || '需要管理员权限' },
+        { status: 401 },
+      );
     }
 
     const { username, password, canManageTemplates } = await request.json();

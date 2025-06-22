@@ -5,8 +5,7 @@ import ConfirmDialog from '@/components/ConfirmDialog';
 import { useState, useEffect, useCallback } from 'react';
 import { isAccountActive, formatExpiryDate } from '@/lib/utils/account';
 import { useRouter } from 'next/navigation';
-import { getStoredAdminPassword } from '@/lib/services/auth';
-import { adminApi } from '@/lib/utils/api-client';
+import { userApi } from '@/lib/utils/api-client';
 import { copyToClipboard } from '@/lib/utils/clipboard';
 
 // Material UI imports
@@ -47,6 +46,7 @@ import {
  * @property {string} createdAt
  * @property {boolean} canManageTemplates
  * @property {string|null} expiryDate
+ * @property {boolean} isAdmin
  */
 
 export default function UsersPage() {
@@ -65,26 +65,13 @@ export default function UsersPage() {
     loadUsers();
   }, []);
 
-  // 获取管理员密码
-  function getAdminPassword() {
-    const password = getStoredAdminPassword();
-    if (!password) {
-      router.push('/admin');
-      return null;
-    }
-    return password;
-  }
-
   // 加载用户列表
   const loadUsers = async () => {
     setLoading(true);
     setError('');
 
-    const password = getAdminPassword();
-    if (!password) return;
-
     try {
-      const data = await adminApi.get('/api/admin/users');
+      const data = await userApi.get('/api/admin/users');
 
       if (data.success) {
         setUsers(data.data || []);
@@ -101,9 +88,6 @@ export default function UsersPage() {
 
   // 添加用户
   const addUser = async () => {
-    const password = getAdminPassword();
-    if (!password) return;
-
     if (!newUsername.trim() || !newPassword.trim()) {
       setError('用户名和密码不能为空');
       return;
@@ -113,9 +97,10 @@ export default function UsersPage() {
     setError('');
 
     try {
-      const data = await adminApi.post('/api/admin/users', {
+      const data = await userApi.post('/api/admin/users', {
         username: newUsername.trim(),
         password: newPassword.trim(),
+        isAdmin: false, // 新用户默认不是管理员
       });
 
       if (data.success) {
@@ -140,8 +125,7 @@ export default function UsersPage() {
   };
 
   const deleteUser = async () => {
-    const password = getAdminPassword();
-    if (!password || !userToDelete) {
+    if (!userToDelete) {
       setDeleteDialogOpen(false);
       return;
     }
@@ -154,7 +138,7 @@ export default function UsersPage() {
     setError('');
 
     try {
-      const data = await adminApi.delete(`/api/admin/users/${userToDelete}`);
+      const data = await userApi.delete(`/api/admin/users/${userToDelete}`);
 
       if (data.success) {
         loadUsers();
@@ -171,14 +155,11 @@ export default function UsersPage() {
   };
 
   const toggleTemplatePermission = async (username, currentValue) => {
-    const password = getAdminPassword();
-    if (!password) return;
-
     setLoading(true);
     setError('');
 
     try {
-      const data = await adminApi.patch(`/api/admin/users/${username}`, {
+      const data = await userApi.patch(`/api/admin/users/${username}`, {
         canManageTemplates: !currentValue,
       });
 
@@ -202,14 +183,11 @@ export default function UsersPage() {
         return;
       }
 
-      const password = getAdminPassword();
-      if (!password) return;
-
       setLoading(true);
       setError('');
 
       try {
-        const data = await adminApi.patch(`/api/admin/users/${username}`, {
+        const data = await userApi.patch(`/api/admin/users/${username}`, {
           expiryDate: expiryInput || null,
         });
 

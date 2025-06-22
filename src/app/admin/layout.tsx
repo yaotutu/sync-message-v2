@@ -11,9 +11,7 @@ export default function ProtectedLayout({ children }: { children: React.ReactNod
     const { isAuthenticated, isAdmin } = getAuthStatus();
     if (!isAuthenticated) {
       router.push('/');
-    } else if (isAdmin) {
-      router.push('/admin');
-    } else {
+    } else if (!isAdmin) {
       router.push('/user');
     }
   }, [router]);
