@@ -3,6 +3,8 @@
 ## 语言选择
 1. 优先使用JavaScript(JS)和JSX语法
 2. 仅在必要时使用TypeScript
+3. UI开发优先使用Material UI组件库
+4. 新页面开发和重构优先使用JSX语法
 
 ## 公共组件
 1. 所有可复用公共组件存放在`src/components`目录
