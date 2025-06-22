@@ -129,6 +129,44 @@ async function updateUser(username, updates) {
   }
 }
 
+async function isAdmin(username, password) {
+  try {
+    const validation = await validateUser(username, password);
+    if (!validation.success) {
+      return validation; // 返回验证失败结果
+    }
+
+    // 假设管理员用户名为'admin'，可根据实际需求修改
+    const isAdmin = validation.data.username === 'admin';
+    return {
+      success: true,
+      data: { isAdmin },
+    };
+  } catch (error) {
+    console.error('验证管理员权限失败:', error);
+    return { success: false, message: '验证管理员权限失败，请稍后重试' };
+  }
+}
+
+async function canManageTemplates(username, password) {
+  try {
+    const validation = await validateUser(username, password);
+    if (!validation.success) {
+      return validation; // 返回验证失败结果
+    }
+
+    // 使用用户记录中的canManageTemplates字段
+    const canManage = Boolean(validation.data.canManageTemplates);
+    return {
+      success: true,
+      data: { canManage },
+    };
+  } catch (error) {
+    console.error('验证模板管理权限失败:', error);
+    return { success: false, message: '验证模板管理权限失败，请稍后重试' };
+  }
+}
+
 export {
   createUser,
   getUser,
@@ -137,4 +175,6 @@ export {
   validateUser,
   getUserByUsername,
   updateUser,
+  isAdmin,
+  canManageTemplates,
 };

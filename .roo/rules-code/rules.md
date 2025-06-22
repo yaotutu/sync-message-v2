@@ -82,15 +82,30 @@
    ├── messages.js    # 消息表操作
    └── ...            # 其他表操作
    ```
-5. Prisma使用示例：
+5. 数据库模块功能 (src/lib/db/):
+   - `cardlinks.js`: 卡密链接CRUD操作
+   - `cards.js`: 卡密管理功能
+   - `messages.js`: 消息存储与查询
+   - `templates.js`: 模板管理
+   - `users.js`: 用户数据操作
+
+6. Prisma类型使用规范：
+   - 类型定义优先从Prisma Client生成
+   - 禁止手动定义已在Prisma中定义的模型类型
+   - 使用`import { Prisma } from '@prisma/client'`导入类型
+
+7. Prisma使用示例：
    ```javascript
-   // 查询用户示例
+   // 查询用户示例（使用Prisma生成类型）
    import prisma from './index'
+   import { Prisma } from '@prisma/client'
    
-   async function getUser(username) {
-     return await prisma.user.findUnique({
-       where: { username }
-     })
+   /**
+    * @param {Prisma.UserWhereUniqueInput} where
+    * @returns {Promise<Prisma.UserGetPayload<{}>>}
+    */
+   async function getUser(where) {
+     return await prisma.user.findUnique({ where })
    }
    ```
 
@@ -124,6 +139,130 @@ function getUserAuthFromRequest(request) {
   
   return username && password ? {username, password} : null;
 }
+```
+
+## 功能函数清单
+### 数据库操作 (src/lib/db/)
+#### cardlinks.js
+- `generateCardKey()`: 生成16位随机卡密
+- `generateCardLinkUrl(key, appName, phone)`: 生成卡密链接URL
+- `createCardLink(username, data)`: 创建新的卡密链接
+- `getUserCardLinks(username, page, pageSize, status, search)`: 获取用户卡密链接列表
+- `getCardLink(key)`: 获取单个卡密链接
+- `getAllCardLinks()`: 获取所有卡密链接
+- `deleteCardLink(username, key)`: 删除卡密链接
+
+#### cards.js
+- `addCardKey(username)`: 为用户添加卡密
+- `getUserCardKeys(username)`: 获取用户卡密列表
+- `validateCardKey(key)`: 验证卡密有效性
+
+#### messages.js
+- `createMessage(data)`: 创建消息记录
+- `findUserMessages(username, page, pageSize, search)`: 查询用户消息
+- `countUserMessages(username)`: 统计用户消息数量
+- `findOldestMessageIds(username, take)`: 获取最早的消息ID
+- `deleteMessages(ids)`: 批量删除消息
+
+#### templates.js
+- `getAllTemplatesFromDb()`: 获取所有模板
+- `getTemplateRulesFromDb(templateId)`: 获取模板规则
+- `getTemplateByIdFromDb(id)`: 根据ID获取模板
+- `getTemplateByNameFromDb(name)`: 根据名称获取模板
+- `createTemplateInDb(templateData, rules)`: 创建新模板
+- `updateTemplateInDb(id, templateData, rules)`: 更新模板
+- `deleteTemplateFromDb(id)`: 删除模板
+- `addRuleToTemplateInDb(templateId, ruleData)`: 添加规则到模板
+- `deleteRuleFromDb(templateId, ruleId)`: 删除规则
+
+#### users.js
+- `createUserDb(username, password, webhookKey, createdAt, canManageTemplates)`: 创建用户
+- `getUserByIdDb(userId)`: 根据ID获取用户
+- `deleteUserDb(username)`: 删除用户
+- `getAllUsersDb()`: 获取所有用户
+- `validateUserDb(username, password)`: 验证用户
+- `getUserByUsernameDb(username)`: 根据用户名获取用户
+- `updateUserDb(username, updates)`: 更新用户信息
+
+### 服务层 (src/lib/services/)
+#### auth.js
+- `verifyAdminAuth(req)`: 验证管理员权限
+
+#### cardlinks.js
+- `generateCardKey()`: 生成卡密(调用db模块)
+- `generateCardLinkUrl(key, appName, phone)`: 生成卡密链接URL(调用db模块)
+- `createCardLink(username, data)`: 创建卡密链接(调用db模块)
+- `getUserCardLinks(username)`: 获取用户卡密链接(调用db模块)
+- `getCardLink(key)`: 获取卡密链接(调用db模块)
+
+#### messages.js
+- `addMessage(username, smsContent, recTime, receivedAt, type)`: 添加消息
+- `getUserMessages(username, page, pageSize, search)`: 获取用户消息
+- `cleanupOldMessages(username)`: 清理旧消息(保留最近1000条)
+- `getAllMessages()`: 获取所有消息
+
+#### templates.js
+- `generateTemplateId()`: 生成模板ID
+- `generateRuleId()`: 生成规则ID
+- `escapeRegExp(string)`: 转义正则表达式特殊字符
+- `getAllTemplates()`: 获取所有模板(包含规则)
+- `getTemplateRules(templateId)`: 获取模板规则
+- `getTemplateById(id)`: 根据ID获取模板
+- `getTemplateByName(name)`: 根据名称获取模板
+- `createTemplate(data)`: 创建模板
+- `updateTemplate(id, data)`: 更新模板
+- `deleteTemplate(id)`: 删除模板
+- `addRule(templateId, data)`: 添加规则到模板
+- `deleteRule(templateId, ruleId)`: 删除规则
+
+#### users.js
+- `createUser(username, password, canManageTemplates)`: 创建用户
+- `getUser(userId)`: 获取用户
+- `deleteUser(username)`: 删除用户
+- `getAllUsers()`: 获取所有用户
+- `validateUser(username, password)`: 验证用户
+- `getUserByUsername(username)`: 根据用户名获取用户
+- `updateUser(username, updates)`: 更新用户信息
+- `isAdmin(username, password)`: 检查是否为管理员
+- `canManageTemplates(username, password)`: 检查是否有模板管理权限
+
+### 工具函数 (src/lib/utils/)
+#### account.js
+- `isAccountActive(expiryDate)`: 检查账号是否有效
+- `getPermanentExpiryDate()`: 获取永久有效日期
+- `formatExpiryDate(expiryDate)`: 格式化有效期显示
+
+#### api-client.ts
+- `apiRequest(url, options)`: 通用API请求函数
+- `getUserAuth()`: 获取用户认证信息
+- `getAdminAuth()`: 获取管理员认证信息
+- `userApi`: 用户API封装(get/post/patch/delete)
+- `adminApi`: 管理员API封装(get/post/patch/delete)
+
+#### auth.js
+- `getAuthStatus()`: 获取用户认证状态
+
+#### clipboard.ts
+- `copyToClipboard(text, onSuccess, onError)`: 复制文本到剪贴板
+
+## 使用规范
+1. 开发时应优先使用上述已有函数
+2. 如需新增功能，应先检查是否已有类似函数
+3. 修改现有函数时，必须同步更新此文档
+4. 函数变更流程：
+   - 修改函数实现
+   - 更新测试用例
+   - 更新此文档中的函数描述
+   - 提交代码审查
+```
+
+## 工具函数
+1. 通用工具封装在`src/lib/utils/`
+2. 主要功能：
+   - `api-client.ts`: 统一API请求封装
+   - `auth.js`: 认证相关工具
+   - `clipboard.ts`: 剪贴板操作
+   - `account.js`: 账号相关工具
 ```
 
 ## API测试规范
