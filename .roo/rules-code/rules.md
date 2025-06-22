@@ -1,10 +1,19 @@
 # API请求编码规则
 
 ## 语言选择
-1. 优先使用JavaScript(JS)和JSX语法
-2. 仅在必要时使用TypeScript
-3. UI开发优先使用Material UI组件库
-4. 新页面开发和重构优先使用JSX语法
+1. UI开发必须使用Material UI组件库（强制要求）
+   - 优先使用Material UI组件替代原生HTML元素
+   - 必须从@mui/material导入组件
+   - 示例：
+     ```jsx
+     // 正确
+     import { Button, TextField } from '@mui/material';
+     // 错误
+     import Button from '@mui/material/Button';
+     ```
+2. 优先使用JavaScript(JS)和JSX语法
+3. 仅在必要时使用TypeScript
+4. 新页面开发和重构必须使用JSX语法
 
 ## 公共组件
 1. 所有可复用公共组件存放在`src/components`目录
