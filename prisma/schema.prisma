@@ -27,7 +27,7 @@ model User {
   messages         Message[]
   cardKeys         CardKey[]
   cardLinks        CardLink[]
-
+  templates        Template[]
   @@map("users")
 }
 
