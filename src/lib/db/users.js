@@ -81,11 +81,6 @@ export async function deleteUserDb(username) {
       where: { username },
     });
 
-    // 删除用户的卡密
-    await prisma.cardKey.deleteMany({
-      where: { username },
-    });
-
     // 删除用户
     const result = await prisma.user.deleteMany({
       where: { username },

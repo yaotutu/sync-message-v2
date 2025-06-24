@@ -25,7 +25,6 @@ model User {
   canManageTemplates Boolean    @default(false)
   expiryDate         String?    @default("20991231") @map("expiry_date")
   messages           Message[]
-  cardKeys           CardKey[]
   cardLinks          CardLink[]
   templates          Template[]
 
@@ -40,18 +39,6 @@ model Message {
   receivedAt BigInt
   type       MessageType
   user       User        @relation(fields: [username], references: [username])
-}
-
-model CardKey {
-  id        Int     @id @default(autoincrement())
-  key       String  @unique
-  username  String
-  status    String  @default("unused")
-  createdAt BigInt
-  usedAt    BigInt?
-  user      User    @relation(fields: [username], references: [username])
-
-  @@map("cardKeys")
 }
 
 model Template {

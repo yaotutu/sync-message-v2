@@ -1,5 +1,5 @@
 import {
-  generateCardKey as dbGenerateCardKey,
+  generateCardLinkKey as dbGenerateCardLinkKey,
   generateCardLinkUrl as dbGenerateCardLinkUrl,
   createCardLink as dbCreateCardLink,
   getUserCardLinks as dbGetUserCardLinks,
@@ -8,11 +8,11 @@ import {
 import { randomUUID } from 'crypto';
 
 /**
- * 生成卡密
+ * 生成卡密链接的key
  * @returns {string}
  */
-export function generateCardKey() {
-  return dbGenerateCardKey();
+export function generateCardLinkKey() {
+  return dbGenerateCardLinkKey();
 }
 
 /**

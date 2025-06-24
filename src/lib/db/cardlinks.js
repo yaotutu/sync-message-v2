@@ -2,10 +2,10 @@ import prisma, { transaction } from './index.js';
 import { randomUUID } from 'crypto';
 
 /**
- * 生成卡密
+ * 生成卡密链接的key
  * @returns {string}
  */
-export function generateCardKey() {
+export function generateCardLinkKey() {
   const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
   const length = 16;
   let key = '';
@@ -50,7 +50,7 @@ export function generateCardLinkUrl(key, appName, phone) {
  */
 export async function createCardLink(username, data) {
   const id = randomUUID();
-  const key = generateCardKey();
+  const key = generateCardLinkKey();
   const now = Date.now();
 
   let phones = [];
@@ -177,14 +177,14 @@ export async function getUserCardLinks(username, page = 1, pageSize = 10, status
         link.createdAt instanceof Date
           ? link.createdAt.toISOString()
           : typeof link.createdAt === 'number'
-          ? new Date(link.createdAt).toISOString()
-          : link.createdAt,
+            ? new Date(link.createdAt).toISOString()
+            : link.createdAt,
       firstUsedAt:
         link.firstUsedAt instanceof Date
           ? link.firstUsedAt.toISOString()
           : typeof link.firstUsedAt === 'number'
-          ? new Date(link.firstUsedAt).toISOString()
-          : link.firstUsedAt,
+            ? new Date(link.firstUsedAt).toISOString()
+            : link.firstUsedAt,
       url: link.url,
     };
   });
