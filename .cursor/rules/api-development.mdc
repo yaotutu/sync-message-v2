@@ -1,0 +1,468 @@
+---
+description: 
+globs: 
+alwaysApply: false
+---
+# API开发规范
+
+## API路由结构
+
+### 路由组织
+```
+src/app/api/
+├── admin/          # 管理员API (需要管理员认证)
+├── user/           # 用户API (需要用户认证)
+├── public/         # 公共API (无需认证)
+└── webhook/        # Webhook接口
+```
+
+### 文件命名规范
+- 使用 `route.ts` 或 `route.js` 命名
+- 动态路由使用方括号：`[id]`, `[username]`
+- 每个端点单独文件
+
+## 认证机制
+
+### 用户认证
+```javascript
+// 用户API认证 - 通过请求头
+const username = request.headers.get('x-username');
+const password = request.headers.get('x-password');
+
+// 使用工具函数验证
+import { validateUser } from '@/lib/services/users';
+
+const user = await validateUser(username, password);
+if (!user) {
+  return NextResponse.json(
+    { success: false, error: '认证失败' },
+    { status: 401 }
+  );
+}
+```
+
+### 管理员认证
+```javascript
+// 管理员API认证
+import { verifyAdminAuth } from '@/lib/services/auth';
+
+const authResult = await verifyAdminAuth(request);
+if (!authResult.success) {
+  return NextResponse.json(
+    { success: false, error: authResult.error },
+    { status: 401 }
+  );
+}
+```
+
+### 认证工具函数
+```javascript
+// 从请求中获取用户认证信息
+function getUserAuthFromRequest(request) {
+  const username = request.headers.get('x-username');
+  const password = request.headers.get('x-password');
+  
+  return username && password ? { username, password } : null;
+}
+
+// 从请求中获取管理员认证信息
+function getAdminAuthFromRequest(request) {
+  const adminPassword = request.headers.get('x-admin-password');
+  return adminPassword || null;
+}
+```
+
+## 路由实现规范
+
+### 基本结构
+```javascript
+import { NextResponse } from 'next/server';
+import { validateUser } from '@/lib/services/users';
+
+export async function GET(request) {
+  try {
+    // 1. 认证验证
+    const auth = getUserAuthFromRequest(request);
+    if (!auth) {
+      return NextResponse.json(
+        { success: false, error: '需要认证' },
+        { status: 401 }
+      );
+    }
+
+    // 2. 参数获取
+    const { searchParams } = new URL(request.url);
+    const page = parseInt(searchParams.get('page')) || 1;
+    const pageSize = parseInt(searchParams.get('pageSize')) || 10;
+
+    // 3. 业务逻辑处理
+    const data = await getData(auth.username, { page, pageSize });
+
+    // 4. 返回结果
+    return NextResponse.json({ success: true, data });
+
+  } catch (error) {
+    console.error('API Error:', error);
+    return NextResponse.json(
+      { success: false, error: '服务器内部错误' },
+      { status: 500 }
+    );
+  }
+}
+```
+
+### HTTP方法实现
+```javascript
+// GET请求 - 获取数据
+export async function GET(request) {
+  // 实现获取逻辑
+}
+
+// POST请求 - 创建数据
+export async function POST(request) {
+  const body = await request.json();
+  // 实现创建逻辑
+}
+
+// PATCH请求 - 更新数据
+export async function PATCH(request) {
+  const body = await request.json();
+  // 实现更新逻辑
+}
+
+// DELETE请求 - 删除数据
+export async function DELETE(request) {
+  // 实现删除逻辑
+}
+```
+
+## 参数处理
+
+### GET参数
+```javascript
+// URL查询参数
+const { searchParams } = new URL(request.url);
+const page = searchParams.get('page');
+const search = searchParams.get('search');
+const status = searchParams.get('status');
+
+// 参数验证
+if (page && isNaN(parseInt(page))) {
+  return NextResponse.json(
+    { success: false, error: '页码参数无效' },
+    { status: 400 }
+  );
+}
+```
+
+### POST/PATCH参数
+```javascript
+// JSON请求体
+const body = await request.json();
+
+// 参数验证
+if (!body.username || !body.password) {
+  return NextResponse.json(
+    { success: false, error: '缺少必要参数' },
+    { status: 400 }
+  );
+}
+```
+
+### 动态路由参数
+```javascript
+// 从路径中获取参数
+export async function GET(request, { params }) {
+  const { id } = params;
+  
+  if (!id) {
+    return NextResponse.json(
+      { success: false, error: '缺少ID参数' },
+      { status: 400 }
+    );
+  }
+}
+```
+
+## 响应格式规范
+
+### 成功响应
+```javascript
+// 单条数据
+return NextResponse.json({
+  success: true,
+  data: { id: 1, name: 'test' }
+});
+
+// 列表数据
+return NextResponse.json({
+  success: true,
+  data: {
+    items: [...],
+    total: 100,
+    page: 1,
+    pageSize: 10
+  }
+});
+
+// 操作成功
+return NextResponse.json({
+  success: true,
+  message: '操作成功'
+});
+```
+
+### 错误响应
+```javascript
+// 认证失败
+return NextResponse.json(
+  { success: false, error: '认证失败' },
+  { status: 401 }
+);
+
+// 参数错误
+return NextResponse.json(
+  { success: false, error: '参数无效' },
+  { status: 400 }
+);
+
+// 资源不存在
+return NextResponse.json(
+  { success: false, error: '资源不存在' },
+  { status: 404 }
+);
+
+// 服务器错误
+return NextResponse.json(
+  { success: false, error: '服务器内部错误' },
+  { status: 500 }
+);
+```
+
+## 错误处理
+
+### 统一错误处理
+```javascript
+export async function GET(request) {
+  try {
+    // API逻辑
+    const result = await processRequest(request);
+    return NextResponse.json({ success: true, data: result });
+    
+  } catch (error) {
+    console.error('API Error:', error);
+    
+    // 根据错误类型返回不同状态码
+    if (error.name === 'ValidationError') {
+      return NextResponse.json(
+        { success: false, error: error.message },
+        { status: 400 }
+      );
+    }
+    
+    if (error.name === 'NotFoundError') {
+      return NextResponse.json(
+        { success: false, error: '资源不存在' },
+        { status: 404 }
+      );
+    }
+    
+    // 默认服务器错误
+    return NextResponse.json(
+      { success: false, error: '服务器内部错误' },
+      { status: 500 }
+    );
+  }
+}
+```
+
+### 自定义错误类
+```javascript
+class ValidationError extends Error {
+  constructor(message) {
+    super(message);
+    this.name = 'ValidationError';
+  }
+}
+
+class NotFoundError extends Error {
+  constructor(message) {
+    super(message);
+    this.name = 'NotFoundError';
+  }
+}
+
+// 使用示例
+if (!username) {
+  throw new ValidationError('用户名不能为空');
+}
+
+if (!user) {
+  throw new NotFoundError('用户不存在');
+}
+```
+
+## 数据库操作
+
+### 使用服务层
+```javascript
+// ✅ 正确 - 使用服务层
+import { getUserMessages } from '@/lib/services/messages';
+
+const messages = await getUserMessages(username, { page, pageSize });
+
+// ❌ 错误 - 直接操作数据库
+import prisma from '@/lib/db';
+const messages = await prisma.message.findMany({...});
+```
+
+### 事务处理
+```javascript
+import prisma from '@/lib/db';
+
+// 使用事务确保数据一致性
+const result = await prisma.$transaction(async (tx) => {
+  // 创建用户
+  const user = await tx.user.create({
+    data: { username, password }
+  });
+  
+  // 创建初始卡密
+  const card = await tx.card.create({
+    data: { userId: user.id }
+  });
+  
+  return { user, card };
+});
+```
+
+## 分页处理
+
+### 标准分页参数
+```javascript
+// 获取分页参数
+const page = parseInt(searchParams.get('page')) || 1;
+const pageSize = parseInt(searchParams.get('pageSize')) || 10;
+const search = searchParams.get('search') || '';
+
+// 计算偏移量
+const skip = (page - 1) * pageSize;
+
+// 查询数据
+const [items, total] = await Promise.all([
+  getItems({ skip, take: pageSize, search }),
+  getTotalCount({ search })
+]);
+
+// 返回分页结果
+return NextResponse.json({
+  success: true,
+  data: {
+    items,
+    total,
+    page,
+    pageSize,
+    totalPages: Math.ceil(total / pageSize)
+  }
+});
+```
+
+## 缓存策略
+
+### 响应缓存
+```javascript
+// 设置缓存头
+export async function GET(request) {
+  const data = await getData();
+  
+  return NextResponse.json(
+    { success: true, data },
+    {
+      headers: {
+        'Cache-Control': 'public, max-age=300' // 缓存5分钟
+      }
+    }
+  );
+}
+```
+
+### 条件请求
+```javascript
+// 支持ETag
+export async function GET(request) {
+  const data = await getData();
+  const etag = generateETag(data);
+  
+  // 检查If-None-Match
+  const ifNoneMatch = request.headers.get('if-none-match');
+  if (ifNoneMatch === etag) {
+    return new NextResponse(null, { status: 304 });
+  }
+  
+  return NextResponse.json(
+    { success: true, data },
+    {
+      headers: {
+        'ETag': etag,
+        'Cache-Control': 'public, max-age=300'
+      }
+    }
+  );
+}
+```
+
+## 日志记录
+
+### 请求日志
+```javascript
+export async function GET(request) {
+  const startTime = Date.now();
+  const { pathname, search } = new URL(request.url);
+  
+  try {
+    const result = await processRequest(request);
+    
+    // 记录成功日志
+    console.log(`[API] ${pathname}${search} - ${Date.now() - startTime}ms`);
+    
+    return NextResponse.json({ success: true, data: result });
+    
+  } catch (error) {
+    // 记录错误日志
+    console.error(`[API Error] ${pathname}${search} - ${error.message}`);
+    throw error;
+  }
+}
+```
+
+## 测试规范
+
+### API测试示例
+```bash
+# 用户登录
+curl -X POST http://localhost:3000/api/user/login \
+  -H "Content-Type: application/json" \
+  -d '{"username":"aaa","password":"aaa"}'
+
+# 用户API调用
+curl -X GET http://localhost:3000/api/user/cardlinks \
+  -H "x-username: aaa" \
+  -H "x-password: aaa"
+
+# 管理员API调用
+curl -X GET http://localhost:3000/api/admin/users \
+  -H "x-admin-password: admin123"
+
+# 公共API调用
+curl -X GET "http://localhost:3000/api/public/messages?cardKey=TESTKEY&appName=testApp"
+```
+
+### 测试账号
+```text
+普通用户：
+- 用户名: aaa
+- 密码: aaa
+
+管理员：
+- 密码: admin123
+```

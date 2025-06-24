@@ -1,0 +1,112 @@
+---
+description: 
+globs: 
+alwaysApply: false
+---
+# Cursor规则文档
+
+## 概述
+本目录包含了为sync-message-v2项目定制的Cursor开发规则，旨在提供一致的开发体验和代码质量。
+
+## 规则文件列表
+
+### 1. [common.mdc](mdc:common.mdc) - 核心开发规范
+**用途**：项目的基础开发规范，包含最重要的开发规则
+**内容**：
+- 语言选择和Material UI使用规范
+- 客户端请求和路由处理规范
+- 错误处理和数据库操作规范
+- 认证机制和测试账号信息
+- 开发流程和工具函数说明
+
+### 2. [project-structure.mdc](mdc:project-structure.mdc) - 项目结构规范
+**用途**：详细说明项目的目录结构和文件组织规范
+**内容**：
+- 项目概述和技术栈
+- 核心目录结构说明
+- 页面路由和API路由结构
+- 文件命名规范
+- 导入规范和开发环境配置
+
+### 3. [ui-development.mdc](mdc:ui-development.mdc) - UI开发规范
+**用途**：Material UI使用规范和组件开发标准
+**内容**：
+- Material UI强制使用规范
+- 组件导入和使用规范
+- 布局、表单、表格、对话框组件使用
+- 样式规范和响应式设计
+- 状态管理和错误处理
+- 组件开发原则和性能优化
+
+### 4. [api-development.mdc](mdc:api-development.mdc) - API开发规范
+**用途**：API路由开发、认证机制和错误处理规范
+**内容**：
+- API路由结构和文件命名规范
+- 用户认证和管理员认证机制
+- 路由实现规范和参数处理
+- 响应格式规范和错误处理
+- 数据库操作和分页处理
+- 缓存策略和日志记录
+- API测试规范和示例
+
+### 5. [database.mdc](mdc:database.mdc) - 数据库操作规范
+**用途**：Prisma使用规范和数据库操作标准
+**内容**：
+- Prisma使用规范和导入规范
+- 数据库操作层结构
+- 类型使用规范和查询操作
+- 事务处理和数据验证
+- 性能优化和错误处理
+- 数据迁移和监控日志
+
+### 6. [function-reference.mdc](mdc:function-reference.mdc) - 函数参考文档
+**用途**：项目中所有可用函数和工具的详细参考
+**内容**：
+- 数据库操作函数清单
+- 服务层函数清单
+- 工具函数清单
+- 客户端API调用示例
+- 组件使用示例
+- 使用规范和错误处理
+
+## 使用指南
+
+### 开发时参考顺序
+1. **开始新功能开发**：先查看 [common.mdc](mdc:common.mdc) 了解基础规范
+2. **创建新页面**：参考 [project-structure.mdc](mdc:project-structure.mdc) 和 [ui-development.mdc](mdc:ui-development.mdc)
+3. **开发API接口**：参考 [api-development.mdc](mdc:api-development.mdc)
+4. **数据库操作**：参考 [database.mdc](mdc:database.mdc)
+5. **查找可用函数**：参考 [function-reference.mdc](mdc:function-reference.mdc)
+
+### 规则更新流程
+1. 修改相关规则文件
+2. 更新此README文件（如需要）
+3. 提交代码审查
+4. 通知团队成员规则变更
+
+### 规则优先级
+1. **common.mdc** - 最高优先级，必须遵循
+2. **project-structure.mdc** - 项目结构规范
+3. **ui-development.mdc** - UI开发规范
+4. **api-development.mdc** - API开发规范
+5. **database.mdc** - 数据库操作规范
+6. **function-reference.mdc** - 参考文档
+
+## 快速查找
+
+### 常用开发任务
+- **创建新页面**：查看 [project-structure.mdc](mdc:project-structure.mdc) 的页面路由结构
+- **开发API接口**：查看 [api-development.mdc](mdc:api-development.mdc) 的路由实现规范
+- **使用Material UI**：查看 [ui-development.mdc](mdc:ui-development.mdc) 的组件使用规范
+- **数据库操作**：查看 [database.mdc](mdc:database.mdc) 的Prisma使用规范
+- **查找函数**：查看 [function-reference.mdc](mdc:function-reference.mdc) 的函数清单
+
+### 重要提醒
+- 所有UI开发必须使用Material UI组件库
+- 优先使用已有的服务层函数和工具函数
+- 遵循统一的API响应格式和错误处理
+- 使用Prisma生成的类型，禁止手动定义模型类型
+- 修改公共组件时需考虑向后兼容
+
+## 联系信息
+如有规则相关问题或建议，请通过项目issue或团队沟通渠道反馈。

@@ -1,0 +1,449 @@
+---
+description:
+globs:
+alwaysApply: false
+---
+# 数据库操作规范
+
+## Prisma使用规范
+
+### 数据库连接
+- 主数据库连接文件：[src/lib/db/index.js](mdc:src/lib/db/index.js)
+- 数据库模型定义：[prisma/schema.prisma](mdc:prisma/schema.prisma)
+
+### 导入规范
+```javascript
+// ✅ 正确 - 统一导入Prisma客户端
+import prisma from '@/lib/db';
+
+// ✅ 正确 - 导入Prisma类型
+import { Prisma } from '@prisma/client';
+
+// ❌ 错误 - 不要直接导入PrismaClient
+import { PrismaClient } from '@prisma/client';
+const prisma = new PrismaClient();
+```
+
+## 数据库操作层结构
+
+### 文件组织
+```
+src/lib/db/
+├── index.js       # Prisma客户端初始化
+├── users.js       # 用户表操作
+├── messages.js    # 消息表操作
+├── templates.js   # 模板表操作
+├── cards.js       # 卡密表操作
+└── cardlinks.js   # 卡密链接表操作
+```
+
+### 操作层规范
+```javascript
+// 每个数据库操作文件应包含：
+// 1. 导入Prisma客户端
+// 2. 导入Prisma类型
+// 3. 实现CRUD操作函数
+// 4. 使用JSDoc注释说明参数和返回值
+
+import prisma from './index';
+import { Prisma } from '@prisma/client';
+
+/**
+ * 创建用户
+ * @param {string} username - 用户名
+ * @param {string} password - 密码
+ * @param {string} webhookKey - Webhook密钥
+ * @param {Date} createdAt - 创建时间
+ * @param {boolean} canManageTemplates - 是否有模板管理权限
+ * @returns {Promise<Prisma.UserGetPayload<{}>>}
+ */
+async function createUserDb(username, password, webhookKey, createdAt, canManageTemplates) {
+  return await prisma.user.create({
+    data: {
+      username,
+      password,
+      webhookKey,
+      createdAt,
+      canManageTemplates
+    }
+  });
+}
+```
+
+## 类型使用规范
+
+### Prisma类型导入
+```javascript
+// ✅ 正确 - 使用Prisma生成的类型
+import { Prisma } from '@prisma/client';
+
+/**
+ * @param {Prisma.UserWhereUniqueInput} where
+ * @returns {Promise<Prisma.UserGetPayload<{}>>}
+ */
+async function getUser(where) {
+  return await prisma.user.findUnique({ where });
+}
+
+/**
+ * @param {Prisma.UserCreateInput} data
+ * @returns {Promise<Prisma.UserGetPayload<{}>>}
+ */
+async function createUser(data) {
+  return await prisma.user.create({ data });
+}
+```
+
+### 禁止手动定义类型
+```javascript
+// ❌ 错误 - 不要手动定义已在Prisma中定义的模型类型
+interface User {
+  id: number;
+  username: string;
+  password: string;
+}
+
+// ✅ 正确 - 使用Prisma生成的类型
+import { Prisma } from '@prisma/client';
+type User = Prisma.UserGetPayload<{}>;
+```
+
+## 查询操作规范
+
+### 基础查询
+```javascript
+// 查找单个记录
+const user = await prisma.user.findUnique({
+  where: { id: userId }
+});
+
+// 查找多个记录
+const users = await prisma.user.findMany({
+  where: { canManageTemplates: true }
+});
+
+// 计数查询
+const count = await prisma.user.count({
+  where: { createdAt: { gte: new Date('2024-01-01') } }
+});
+```
+
+### 关联查询
+```javascript
+// 包含关联数据
+const userWithMessages = await prisma.user.findUnique({
+  where: { id: userId },
+  include: {
+    messages: {
+      take: 10,
+      orderBy: { createdAt: 'desc' }
+    },
+    cards: true
+  }
+});
+
+// 选择特定字段
+const userInfo = await prisma.user.findUnique({
+  where: { id: userId },
+  select: {
+    id: true,
+    username: true,
+    canManageTemplates: true,
+    _count: {
+      select: { messages: true }
+    }
+  }
+});
+```
+
+### 分页查询
+```javascript
+// 标准分页
+const messages = await prisma.message.findMany({
+  where: { username },
+  skip: (page - 1) * pageSize,
+  take: pageSize,
+  orderBy: { createdAt: 'desc' }
+});
+
+// 同时获取总数
+const [messages, total] = await Promise.all([
+  prisma.message.findMany({
+    where: { username },
+    skip: (page - 1) * pageSize,
+    take: pageSize,
+    orderBy: { createdAt: 'desc' }
+  }),
+  prisma.message.count({ where: { username } })
+]);
+```
+
+## 事务处理
+
+### 基本事务
+```javascript
+// 使用事务确保数据一致性
+const result = await prisma.$transaction(async (tx) => {
+  // 创建用户
+  const user = await tx.user.create({
+    data: { username, password }
+  });
+  
+  // 创建初始卡密
+  const card = await tx.card.create({
+    data: { userId: user.id }
+  });
+  
+  return { user, card };
+});
+```
+
+### 事务回滚
+```javascript
+try {
+  const result = await prisma.$transaction(async (tx) => {
+    // 事务操作
+    const user = await tx.user.create({ data: userData });
+    const card = await tx.card.create({ data: cardData });
+    
+    // 如果任何操作失败，整个事务会回滚
+    return { user, card };
+  });
+} catch (error) {
+  console.error('Transaction failed:', error);
+  // 处理事务失败
+}
+```
+
+### 嵌套事务
+```javascript
+// 嵌套事务（Prisma支持）
+const result = await prisma.$transaction(async (tx) => {
+  const user = await tx.user.create({ data: userData });
+  
+  // 嵌套事务
+  const cards = await tx.$transaction(async (nestedTx) => {
+    return await Promise.all([
+      nestedTx.card.create({ data: { userId: user.id, type: 'basic' } }),
+      nestedTx.card.create({ data: { userId: user.id, type: 'premium' } })
+    ]);
+  });
+  
+  return { user, cards };
+});
+```
+
+## 数据验证
+
+### 输入验证
+```javascript
+// 在数据库操作前验证输入
+function validateUserInput(data) {
+  if (!data.username || data.username.length < 3) {
+    throw new Error('用户名至少需要3个字符');
+  }
+  
+  if (!data.password || data.password.length < 6) {
+    throw new Error('密码至少需要6个字符');
+  }
+  
+  return data;
+}
+
+async function createUser(data) {
+  const validatedData = validateUserInput(data);
+  
+  return await prisma.user.create({
+    data: validatedData
+  });
+}
+```
+
+### 唯一性检查
+```javascript
+// 检查用户名唯一性
+async function createUser(data) {
+  // 检查用户名是否已存在
+  const existingUser = await prisma.user.findUnique({
+    where: { username: data.username }
+  });
+  
+  if (existingUser) {
+    throw new Error('用户名已存在');
+  }
+  
+  return await prisma.user.create({ data });
+}
+```
+
+## 性能优化
+
+### 批量操作
+```javascript
+// 批量创建
+const users = await prisma.user.createMany({
+  data: [
+    { username: 'user1', password: 'pass1' },
+    { username: 'user2', password: 'pass2' },
+    { username: 'user3', password: 'pass3' }
+  ]
+});
+
+// 批量更新
+const updated = await prisma.user.updateMany({
+  where: { canManageTemplates: false },
+  data: { canManageTemplates: true }
+});
+
+// 批量删除
+const deleted = await prisma.message.deleteMany({
+  where: { 
+    createdAt: { lt: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000) } // 30天前
+  }
+});
+```
+
+### 查询优化
+```javascript
+// 使用索引字段进行查询
+const user = await prisma.user.findUnique({
+  where: { username } // username应该有唯一索引
+});
+
+// 避免N+1查询
+const usersWithMessages = await prisma.user.findMany({
+  include: {
+    messages: {
+      take: 10,
+      orderBy: { createdAt: 'desc' }
+    }
+  }
+});
+
+// 使用select减少数据传输
+const userList = await prisma.user.findMany({
+  select: {
+    id: true,
+    username: true,
+    canManageTemplates: true
+  }
+});
+```
+
+## 错误处理
+
+### 数据库错误处理
+```javascript
+async function createUser(data) {
+  try {
+    return await prisma.user.create({ data });
+  } catch (error) {
+    if (error.code === 'P2002') {
+      // 唯一约束违反
+      throw new Error('用户名已存在');
+    }
+    
+    if (error.code === 'P2003') {
+      // 外键约束违反
+      throw new Error('关联数据不存在');
+    }
+    
+    // 其他数据库错误
+    console.error('Database error:', error);
+    throw new Error('数据库操作失败');
+  }
+}
+```
+
+### 连接错误处理
+```javascript
+// 在数据库连接文件中处理连接错误
+import { PrismaClient } from '@prisma/client';
+
+const prisma = new PrismaClient({
+  log: ['query', 'info', 'warn', 'error'],
+});
+
+// 处理连接错误
+prisma.$on('error', (e) => {
+  console.error('Prisma error:', e);
+});
+
+// 优雅关闭
+process.on('beforeExit', async () => {
+  await prisma.$disconnect();
+});
+
+export default prisma;
+```
+
+## 数据迁移
+
+### 迁移文件
+```bash
+# 生成迁移
+npx prisma migrate dev --name add_user_fields
+
+# 应用迁移
+npx prisma migrate deploy
+
+# 重置数据库
+npx prisma migrate reset
+```
+
+### 种子数据
+```javascript
+// prisma/seed.mjs
+import { PrismaClient } from '@prisma/client';
+
+const prisma = new PrismaClient();
+
+async function main() {
+  // 创建测试用户
+  const user = await prisma.user.create({
+    data: {
+      username: 'aaa',
+      password: 'aaa',
+      canManageTemplates: false
+    }
+  });
+  
+  console.log('Seed data created:', user);
+}
+
+main()
+  .catch(console.error)
+  .finally(() => prisma.$disconnect());
+```
+
+## 监控和日志
+
+### 查询日志
+```javascript
+// 启用查询日志
+const prisma = new PrismaClient({
+  log: [
+    { emit: 'event', level: 'query' },
+    { emit: 'stdout', level: 'info' },
+    { emit: 'stdout', level: 'warn' },
+    { emit: 'stdout', level: 'error' },
+  ],
+});
+
+// 监听查询事件
+prisma.$on('query', (e) => {
+  console.log('Query: ' + e.query);
+  console.log('Params: ' + e.params);
+  console.log('Duration: ' + e.duration + 'ms');
+});
+```
+
+### 性能监控
+```javascript
+// 监控慢查询
+prisma.$on('query', (e) => {
+  if (e.duration > 1000) { // 超过1秒的查询
+    console.warn(`Slow query detected: ${e.query} (${e.duration}ms)`);
+  }
+});
+```
