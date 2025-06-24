@@ -8,21 +8,40 @@ import {
 
 /**
  * 添加消息
- * @param {string} username
- * @param {string} smsContent
- * @param {number} [recTime] - 时间戳
- * @param {number} [receivedAt] - 接收时间戳
- * @param {string} [type] - 消息类型
+ * @param {string} username - 用户名
+ * @param {string} smsContent - 短信内容
+ * @param {number} smsReceivedAt - 短信在手机上接收的时间戳
+ * @param {number} systemReceivedAt - 系统接收时间戳
+ * @param {string} sourceType - 消息来源类型
+ * @param {string} [senderPhone] - 发件人号码
+ * @param {string} [receiverCard] - 接收手机卡标识
+ * @param {string} [sourceApp] - 来源应用标识
+ * @param {string} [rawData] - 原始数据JSON字符串
  * @returns {Promise<{success: boolean, message?: string}>}
  */
-export async function addMessage(username, smsContent, recTime, receivedAt = Date.now(), type) {
+export async function addMessage(
+  username,
+  smsContent,
+  smsReceivedAt,
+  systemReceivedAt = Date.now(),
+  sourceType,
+  senderPhone = null,
+  receiverCard = null,
+  sourceApp = null,
+  rawData = null
+) {
   try {
     await createMessage({
       username,
       smsContent,
-      recTime,
-      receivedAt,
-      type,
+      smsReceivedAt,
+      systemReceivedAt,
+      sourceType,
+      senderPhone,
+      receiverCard,
+      sourceApp,
+      rawData,
+      createdAt: Date.now(),
     });
     return { success: true };
   } catch (error) {
@@ -64,7 +83,7 @@ export async function cleanupOldMessages(username) {
       const toDelete = count - 1000;
       const oldestMessages = await prisma.message.findMany({
         where: { username },
-        orderBy: { receivedAt: 'asc' },
+        orderBy: { systemReceivedAt: 'asc' },
         take: toDelete,
         select: { id: true },
       });
@@ -90,7 +109,7 @@ export async function cleanupOldMessages(username) {
 export async function getAllMessages() {
   try {
     const messages = await prisma.message.findMany({
-      orderBy: { receivedAt: 'desc' },
+      orderBy: { systemReceivedAt: 'desc' },
     });
     return { success: true, data: messages };
   } catch (error) {

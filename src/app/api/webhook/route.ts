@@ -48,14 +48,23 @@ function convertToTimestamp(timeInput: string | number, timeFormat: string): num
  * 请求体格式:
  * {
  *   "smsContent": "消息内容",
- *   "recTime": "时间值",
- *   "timeFormat": "timestamp" | "iso",  // 必填，指定时间格式
- *   "receivedAt": 1234567890           // 可选，接收时间戳
+ *   "sourceType": "SMS" | "EMAIL",              // 必填，消息来源类型
+ *   "smsReceivedAt": "时间值",                   // 短信在手机上接收的时间
+ *   "timeFormat": "timestamp" | "iso",          // 必填，指定时间格式
+ *   "systemReceivedAt": 1234567890,             // 可选，系统接收时间戳（默认当前时间）
+ *   "senderPhone": "13800138000",               // 可选，发件人号码
+ *   "receiverCard": "主卡",                     // 可选，接收手机卡标识
+ *   "sourceApp": "微信",                        // 可选，来源应用标识
+ *   "rawData": "{}"                             // 可选，原始数据JSON字符串
  * }
  * 
+ * sourceType 说明:
+ * - "SMS": 短信消息
+ * - "EMAIL": 邮件消息
+ * 
  * timeFormat 说明:
- * - "timestamp": recTime 为时间戳（数字或字符串）
- * - "iso": recTime 为ISO时间字符串（如 "2025-06-24T11:22:04.808Z"）
+ * - "timestamp": smsReceivedAt 为时间戳（数字或字符串）
+ * - "iso": smsReceivedAt 为ISO时间字符串（如 "2025-06-24T11:22:04.808Z"）
  */
 export async function POST(request: NextRequest) {
     try {
@@ -63,22 +72,12 @@ export async function POST(request: NextRequest) {
 
         const username = request.headers.get('x-username');
         const webhookKey = request.headers.get('x-webhook-key');
-        const webhookType = request.headers.get('x-webhook-type');
-        console.log(`请求头: username=${username}, webhookKey=${webhookKey ? '已提供' : '未提供'}, type=${webhookType}`);
+        console.log(`请求头: username=${username}, webhookKey=${webhookKey ? '已提供' : '未提供'}`);
 
-        if (!username || !webhookKey || !webhookType) {
+        if (!username || !webhookKey) {
             console.log('错误: 缺少必要的请求头');
             return NextResponse.json(
-                { success: false, message: '缺少必要的请求头 (需要 x-username, x-webhook-key 和 x-webhook-type)' },
-                { status: 400 }
-            );
-        }
-
-        // 验证消息类型
-        if (!['SMS', 'EMAIL'].includes(webhookType.toUpperCase())) {
-            console.log(`错误: 不支持的消息类型: ${webhookType}`);
-            return NextResponse.json(
-                { success: false, message: '不支持的消息类型，只支持 SMS 或 EMAIL' },
+                { success: false, message: '缺少必要的请求头 (需要 x-username 和 x-webhook-key)' },
                 { status: 400 }
             );
         }
@@ -105,21 +104,38 @@ export async function POST(request: NextRequest) {
             );
         }
 
-        // 验证时间格式参数
-        if (body.recTime && !body.timeFormat) {
-            console.log('错误: 提供了recTime但缺少timeFormat');
+        // 验证消息来源类型
+        if (!body.sourceType) {
+            console.log('错误: 缺少消息来源类型');
             return NextResponse.json(
-                { success: false, message: '提供了recTime时必须指定timeFormat (timestamp 或 iso)' },
+                { success: false, message: '缺少消息来源类型 (sourceType)' },
                 { status: 400 }
             );
         }
 
-        const receivedAt = body.receivedAt || Date.now();
+        if (!['SMS', 'EMAIL'].includes(body.sourceType.toUpperCase())) {
+            console.log(`错误: 不支持的消息来源类型: ${body.sourceType}`);
+            return NextResponse.json(
+                { success: false, message: '不支持的消息来源类型，只支持 SMS 或 EMAIL' },
+                { status: 400 }
+            );
+        }
 
-        // 处理recTime，必须明确指定时间格式
-        let recTime: number;
+        // 验证时间格式参数
+        if (body.smsReceivedAt && !body.timeFormat) {
+            console.log('错误: 提供了smsReceivedAt但缺少timeFormat');
+            return NextResponse.json(
+                { success: false, message: '提供了smsReceivedAt时必须指定timeFormat (timestamp 或 iso)' },
+                { status: 400 }
+            );
+        }
+
+        const systemReceivedAt = body.systemReceivedAt || Date.now();
+
+        // 处理smsReceivedAt，必须明确指定时间格式
+        let smsReceivedAt: number;
         try {
-            recTime = body.recTime ? convertToTimestamp(body.recTime, body.timeFormat) : receivedAt;
+            smsReceivedAt = body.smsReceivedAt ? convertToTimestamp(body.smsReceivedAt, body.timeFormat) : systemReceivedAt;
         } catch (error) {
             const errorMessage = error instanceof Error ? error.message : '未知错误';
             console.log(`时间格式转换错误: ${errorMessage}`);
@@ -130,18 +146,26 @@ export async function POST(request: NextRequest) {
         }
 
         console.log(`消息内容: ${body.smsContent ? body.smsContent.substring(0, 50) + '...' : '无内容'}`);
-        console.log(`接收时间: ${new Date(receivedAt).toISOString()}`);
-        console.log(`原始recTime: ${body.recTime || '未提供'}`);
+        console.log(`消息来源类型: ${body.sourceType.toUpperCase()}`);
+        console.log(`短信接收时间: ${new Date(smsReceivedAt).toISOString()}`);
+        console.log(`系统接收时间: ${new Date(systemReceivedAt).toISOString()}`);
+        console.log(`原始smsReceivedAt: ${body.smsReceivedAt || '未提供'}`);
         console.log(`时间格式: ${body.timeFormat || '未指定'}`);
-        console.log(`转换后recTime: ${new Date(recTime).toISOString()}`);
-        console.log(`消息类型: ${webhookType.toUpperCase()}`);
+        console.log(`转换后smsReceivedAt: ${new Date(smsReceivedAt).toISOString()}`);
+        console.log(`发件人: ${body.senderPhone || '未提供'}`);
+        console.log(`接收卡: ${body.receiverCard || '未提供'}`);
+        console.log(`来源应用: ${body.sourceApp || '未提供'}`);
 
         const result = await addMessage(
             username,
             body.smsContent,
-            recTime,
-            Number(receivedAt),
-            webhookType.toUpperCase()
+            smsReceivedAt,
+            systemReceivedAt,
+            body.sourceType.toUpperCase(),
+            body.senderPhone,
+            body.receiverCard,
+            body.sourceApp,
+            body.rawData
         );
         console.log(`消息添加结果: ${result.success ? '成功' : '失败'}, ${result.message || ''}`);
 

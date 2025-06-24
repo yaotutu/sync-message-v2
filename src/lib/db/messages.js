@@ -26,7 +26,7 @@ export async function findUserMessages(username, page, pageSize, search) {
   const [messages, total] = await Promise.all([
     prisma.message.findMany({
       where,
-      orderBy: { receivedAt: 'desc' },
+      orderBy: { systemReceivedAt: 'desc' },
       skip: (page - 1) * pageSize,
       take: pageSize,
     }),
@@ -54,7 +54,7 @@ export async function countUserMessages(username) {
 export async function findOldestMessageIds(username, take) {
   return prisma.message.findMany({
     where: { username },
-    orderBy: { receivedAt: 'asc' },
+    orderBy: { systemReceivedAt: 'asc' },
     take,
     select: { id: true },
   });

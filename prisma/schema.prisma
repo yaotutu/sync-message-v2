@@ -32,13 +32,28 @@ model User {
 }
 
 model Message {
-  id         Int         @id @default(autoincrement())
-  username   String
-  smsContent String
-  recTime    BigInt?
-  receivedAt BigInt
-  type       MessageType
-  user       User        @relation(fields: [username], references: [username])
+  id                    Int         @id @default(autoincrement())
+  username              String
+  smsContent            String
+  // 短信在手机上接收的时间（原始接收时间）
+  smsReceivedAt         BigInt      @map("sms_received_at")
+  // 短信转发到当前系统的时间（系统接收时间）
+  systemReceivedAt      BigInt      @map("system_received_at")
+  // 消息来源类型（SMS、EMAIL等）
+  sourceType            MessageType @map("source_type")
+  // 短信发件人号码
+  senderPhone           String?     @map("sender_phone")
+  // 短信接收手机卡标识（如：卡1、卡2、主卡等）
+  receiverCard          String?     @map("receiver_card")
+  // 短信来源应用标识（如：微信、支付宝等）
+  sourceApp             String?     @map("source_app")
+  // 短信原始数据（JSON格式，存储完整的原始信息）
+  rawData               String?     @map("raw_data")
+  // 创建时间
+  createdAt             BigInt      @map("created_at")
+  user                  User        @relation(fields: [username], references: [username])
+
+  @@map("messages")
 }
 
 model Template {
