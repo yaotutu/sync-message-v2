@@ -2,9 +2,48 @@
 
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-// import { Message } from '@/types';
+import {
+    Box,
+    Typography,
+    Paper,
+    TextField,
+    Button,
+    IconButton,
+    Divider,
+    CircularProgress,
+    Alert,
+    List,
+    ListItem,
+    ListItemText,
+    Tooltip,
+    Stack
+} from '@mui/material';
+import {
+    Refresh as RefreshIcon,
+    Search as SearchIcon,
+    Clear as ClearIcon,
+    Sms as SmsIcon,
+    Email as EmailIcon,
+    Phone as PhoneIcon,
+    Schedule as ScheduleIcon,
+    ArrowBack as ArrowBackIcon
+} from '@mui/icons-material';
 import { userApi } from '@/lib/utils/api-client';
-import { Message } from '@prisma/client';
+
+// 消息类型定义（基于Prisma模型）
+interface Message {
+    id: number;
+    username: string;
+    smsContent: string;
+    smsReceivedAt: bigint;
+    systemReceivedAt: bigint;
+    sourceType: string;
+    senderPhone: string | null;
+    receiverCard: string | null;
+    sourceApp: string | null;
+    rawData: string | null;
+    createdAt: bigint;
+}
 
 // 分页信息类型
 interface Pagination {
@@ -14,21 +53,57 @@ interface Pagination {
     totalPages: number;
 }
 
+// 格式化时间戳为可读时间
+const formatTimestamp = (timestamp: string | number | bigint) => {
+    if (!timestamp) return '未知时间';
+
+    const date = new Date(Number(timestamp));
+    return date.toLocaleString('zh-CN', {
+        month: '2-digit',
+        day: '2-digit',
+        hour: '2-digit',
+        minute: '2-digit'
+    });
+};
+
+// 获取来源类型显示信息
+const getSourceTypeInfo = (sourceType: string) => {
+    switch (sourceType?.toUpperCase()) {
+        case 'SMS':
+            return { label: '短信', icon: <SmsIcon fontSize="small" />, color: '#1976d2' };
+        case 'EMAIL':
+            return { label: '邮箱', icon: <EmailIcon fontSize="small" />, color: '#9c27b0' };
+        default:
+            return { label: sourceType || '未知', icon: null, color: '#666' };
+    }
+};
+
+// 格式化手机号显示
+const formatPhoneNumber = (phone: string | null) => {
+    if (!phone) return '未知设备';
+
+    // 如果是SIM格式，提取手机号
+    if (phone.startsWith('SIM')) {
+        const match = phone.match(/SIM\d+_(\d+)/);
+        return match ? match[1] : phone;
+    }
+
+    return phone;
+};
+
 export default function MessagesPage() {
     const [isLoading, setIsLoading] = useState(false);
     const [error, setError] = useState('');
     const [messages, setMessages] = useState<Message[]>([]);
     const [pagination, setPagination] = useState<Pagination>({
         page: 1,
-        pageSize: 2,
+        pageSize: 20,
         total: 0,
         totalPages: 0,
     });
     const [isLoadingMore, setIsLoadingMore] = useState(false);
     const [searchQuery, setSearchQuery] = useState('');
     const [isSearching, setIsSearching] = useState(false);
-
-
 
     // 当用户名和密码设置后，加载消息
     useEffect(() => {
@@ -52,9 +127,6 @@ export default function MessagesPage() {
             const response = await userApi.get(apiUrl);
 
             if (response.success) {
-                // 调试日志
-                console.log('API响应数据:', response);
-
                 if (append) {
                     setMessages((prev) => [...prev, ...(response.data || [])]);
                 } else {
@@ -63,8 +135,6 @@ export default function MessagesPage() {
 
                 if (response.pagination) {
                     setPagination(response.pagination);
-                } else {
-                    console.warn('API响应缺少分页信息');
                 }
             } else {
                 setError(response.message || '加载消息失败');
@@ -88,9 +158,8 @@ export default function MessagesPage() {
     // 清除搜索
     const clearSearch = () => {
         setSearchQuery('');
+        loadMessages(1, false, '');
     };
-
-
 
     // 切换页码
     const changePage = (newPage: number) => {
@@ -118,199 +187,341 @@ export default function MessagesPage() {
     };
 
     const { start, end } = getPaginationRange();
-    const btnClass = 'px-3 py-1 mx-1 rounded-md bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-300 dark:hover:bg-gray-600';
-    const activeBtnClass = 'bg-blue-500 text-white';
 
     return (
-        <div className="min-h-screen bg-gray-100 dark:bg-gray-900 py-8 px-4">
-            <div className="max-w-4xl mx-auto">
-                <div className="space-y-6">
-                    {/* 标题 */}
-                    <div className="bg-white dark:bg-gray-800 rounded-lg shadow p-6">
-                        <div className="flex justify-between items-center mb-4">
-                            <h2 className="text-2xl font-bold text-gray-900 dark:text-white">
-                                我的消息
-                            </h2>
-                            <a
-                                href="/user"
-                                className="px-4 py-2 bg-gray-200 dark:bg-gray-600 text-gray-700 dark:text-gray-300 rounded-lg hover:bg-gray-300 dark:hover:bg-gray-500 transition-colors"
+        <Box sx={{ minHeight: '100vh', bgcolor: '#f5f5f5', py: 3 }}>
+            <Box sx={{ maxWidth: '900px', mx: 'auto', px: 2 }}>
+                {/* 标题栏 */}
+                <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 3 }}>
+                    <Typography variant="h4" component="h1" fontWeight="bold" color="#333">
+                        我的消息
+                    </Typography>
+                    <Button
+                        variant="outlined"
+                        startIcon={<ArrowBackIcon />}
+                        href="/user"
+                        sx={{
+                            textDecoration: 'none',
+                            borderColor: '#ddd',
+                            color: '#666',
+                            '&:hover': {
+                                borderColor: '#999',
+                                bgcolor: '#f9f9f9'
+                            }
+                        }}
+                    >
+                        返回用户中心
+                    </Button>
+                </Box>
+
+                {/* 搜索栏 */}
+                <Paper sx={{
+                    p: 3,
+                    mb: 3,
+                    bgcolor: 'white',
+                    borderRadius: 2,
+                    boxShadow: '0 2px 8px rgba(0,0,0,0.1)'
+                }}>
+                    <Box component="form" onSubmit={handleSearch} sx={{ display: 'flex', gap: 2 }}>
+                        <TextField
+                            fullWidth
+                            size="medium"
+                            placeholder="搜索消息内容..."
+                            value={searchQuery}
+                            onChange={(e) => setSearchQuery(e.target.value)}
+                            sx={{
+                                '& .MuiOutlinedInput-root': {
+                                    borderRadius: 2,
+                                    '&:hover fieldset': {
+                                        borderColor: '#1976d2',
+                                    },
+                                    '&.Mui-focused fieldset': {
+                                        borderColor: '#1976d2',
+                                    },
+                                }
+                            }}
+                        />
+                        <Button
+                            type="submit"
+                            variant="contained"
+                            // startIcon={<SearchIcon />}
+                            disabled={isSearching}
+
+                        >
+                            {isSearching ? '搜索中...' : '搜索'}
+                        </Button>
+                        {searchQuery && (
+                            <IconButton
+                                onClick={clearSearch}
+                                size="medium"
+                                sx={{
+                                    color: '#666',
+                                    '&:hover': { color: '#1976d2' }
+                                }}
                             >
-                                返回用户中心
-                            </a>
-                        </div>
-                    </div>
-
-                    {/* 消息列表 */}
-                    <div className="bg-white dark:bg-gray-800 rounded-lg shadow overflow-hidden">
-                        <div className="p-6 border-b dark:border-gray-700">
-                            <div className="flex flex-col md:flex-row md:justify-between md:items-center space-y-4 md:space-y-0">
-                                <div className="flex items-center">
-                                    <h3 className="text-xl font-bold text-gray-900 dark:text-white">
-                                        消息列表
-                                    </h3>
-                                    <button
-                                        onClick={refreshData}
-                                        disabled={isLoading}
-                                        className="ml-2 p-1 text-blue-500 hover:text-blue-600 dark:text-blue-400 dark:hover:text-blue-300 disabled:opacity-50"
-                                        title="刷新数据"
-                                    >
-                                        <svg
-                                            xmlns="http://www.w3.org/2000/svg"
-                                            className="h-5 w-5"
-                                            fill="none"
-                                            viewBox="0 0 24 24"
-                                            stroke="currentColor"
-                                        >
-                                            <path
-                                                strokeLinecap="round"
-                                                strokeLinejoin="round"
-                                                strokeWidth={2}
-                                                d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"
-                                            />
-                                        </svg>
-                                    </button>
-                                </div>
-
-                                {/* 搜索框 */}
-                                <div className="flex-1 md:max-w-xs md:ml-4">
-                                    <form onSubmit={handleSearch} className="flex">
-                                        <input
-                                            type="text"
-                                            value={searchQuery}
-                                            onChange={(e) => setSearchQuery(e.target.value)}
-                                            placeholder="搜索消息内容"
-                                            className="flex-1 px-4 py-2 border dark:border-gray-600 rounded-l-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition-all bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
-                                        />
-                                        {searchQuery && (
-                                            <button
-                                                type="button"
-                                                onClick={clearSearch}
-                                                className="px-3 py-2 bg-gray-200 dark:bg-gray-600 text-gray-700 dark:text-gray-300 hover:bg-gray-300 dark:hover:bg-gray-500"
-                                            >
-                                                ×
-                                            </button>
-                                        )}
-                                        <button
-                                            type="submit"
-                                            className="px-4 py-2 bg-blue-500 text-white rounded-r-lg hover:bg-blue-600 dark:bg-blue-600 dark:hover:bg-blue-700 disabled:opacity-50"
-                                            disabled={isSearching}
-                                        >
-                                            {isSearching ? '搜索中...' : '搜索'}
-                                        </button>
-                                    </form>
-                                </div>
-                            </div>
-
-                            {/* 搜索结果统计 */}
-                            {searchQuery && (
-                                <div className="mt-2 text-sm text-gray-500 dark:text-gray-400">
-                                    搜索 "{searchQuery}" 找到 {messages.length} 个结果
-                                </div>
-                            )}
-                        </div>
-                        <div className="divide-y dark:divide-gray-700">
-                            {messages.map(message => (
-                                <div key={message.id} className="p-4 border-b dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-700/50">
-                                    <div className="space-y-2">
-                                        <p className="font-medium text-gray-800 dark:text-gray-200">
-                                            {message.smsContent || '无内容'}
-                                        </p>
-                                        <div className="flex flex-wrap gap-x-4 gap-y-1 text-sm text-gray-500 dark:text-gray-400">
-                                            <div>
-                                                <span className="font-semibold">ID: </span>
-                                                <span>{message.id}</span>
-                                            </div>
-                                            {message.username && (
-                                                <div>
-                                                    <span className="font-semibold">用户: </span>
-                                                    <span>{message.username}</span>
-                                                </div>
-                                            )}
-                                            <div>
-                                                <span className="font-semibold">时间: </span>
-                                                <span>{message.recTime || '未知时间'}</span>
-                                            </div>
-                                        </div>
-                                    </div>
-                                </div>
-                            ))}
-                            {messages.length === 0 && (
-                                <div className="p-4 text-center text-gray-500 dark:text-gray-400">
-                                    {isLoading
-                                        ? '加载中...'
-                                        : '暂无消息'}
-                                </div>
-                            )}
-                        </div>
-
-                        {/* 分页控件 */}
-                        {pagination.totalPages > 1 && (
-                            <div className="p-4 flex justify-center items-center">
-                                <div className="flex flex-wrap justify-center">
-                                    <button
-                                        onClick={() => changePage(pagination.page - 1)}
-                                        disabled={pagination.page === 1 || isLoadingMore}
-                                        className={`${btnClass} disabled:opacity-50`}
-                                    >
-                                        上一页
-                                    </button>
-
-                                    {start > 1 && (
-                                        <button
-                                            onClick={() => changePage(1)}
-                                            className={btnClass}
-                                        >
-                                            1
-                                        </button>
-                                    )}
-                                    {start > 2 && <span className="px-3 py-1">...</span>}
-
-                                    {Array.from({ length: end - start + 1 }, (_, i) => start + i).map(page => (
-                                        <button
-                                            key={page}
-                                            onClick={() => changePage(page)}
-                                            className={`${btnClass} ${pagination.page === page ? activeBtnClass : ''}`}
-                                        >
-                                            {page}
-                                        </button>
-                                    ))}
-
-                                    {end < pagination.totalPages - 1 && <span className="px-3 py-1">...</span>}
-                                    {end < pagination.totalPages && (
-                                        <button
-                                            onClick={() => changePage(pagination.totalPages)}
-                                            className={btnClass}
-                                        >
-                                            {pagination.totalPages}
-                                        </button>
-                                    )}
-
-                                    <button
-                                        onClick={() => changePage(pagination.page + 1)}
-                                        disabled={pagination.page === pagination.totalPages || isLoadingMore}
-                                        className={`${btnClass} disabled:opacity-50`}
-                                    >
-                                        下一页
-                                    </button>
-                                </div>
-                            </div>
+                                <ClearIcon />
+                            </IconButton>
                         )}
+                        <IconButton
+                            onClick={refreshData}
+                            disabled={isLoading}
+                            sx={{
+                                color: '#666',
+                                '&:hover': { color: '#1976d2' },
+                                '&:disabled': { color: '#ccc' }
+                            }}
+                            title="刷新数据"
+                        >
+                            <RefreshIcon />
+                        </IconButton>
+                    </Box>
 
-                        {/* 加载状态 */}
-                        {isLoadingMore && (
-                            <div className="p-4 text-center text-gray-500 dark:text-gray-400">加载中...</div>
-                        )}
-                    </div>
-
-                    {/* 加载状态指示器 */}
-                    {isLoading && (
-                        <div className="fixed inset-0 bg-white/50 dark:bg-gray-800/50 flex items-center justify-center z-50">
-                            <div className="animate-spin rounded-full h-12 w-12 border-4 border-blue-500 border-t-transparent"></div>
-                            <div className="ml-3 text-blue-500 font-medium">加载中...</div>
-                        </div>
+                    {/* 搜索结果统计 */}
+                    {searchQuery && (
+                        <Typography variant="body2" color="#666" sx={{ mt: 2 }}>
+                            搜索 "{searchQuery}" 找到 {messages.length} 个结果
+                        </Typography>
                     )}
-                </div>
-            </div>
-        </div>
+                </Paper>
+
+                {/* 消息列表 */}
+                <Paper sx={{
+                    overflow: 'hidden',
+                    bgcolor: 'white',
+                    borderRadius: 2,
+                    boxShadow: '0 2px 8px rgba(0,0,0,0.1)'
+                }}>
+                    <List sx={{ p: 0 }}>
+                        {messages.map((message, index) => {
+                            const sourceTypeInfo = getSourceTypeInfo(message.sourceType);
+                            return (
+                                <Box key={message.id}>
+                                    <ListItem sx={{
+                                        flexDirection: 'column',
+                                        alignItems: 'stretch',
+                                        py: 3,
+                                        px: 3,
+                                        '&:hover': { bgcolor: '#f8f9fa' }
+                                    }}>
+                                        {/* 消息内容 */}
+                                        <Typography variant="body1" sx={{
+                                            mb: 2,
+                                            wordBreak: 'break-word',
+                                            lineHeight: 1.6,
+                                            color: '#333',
+                                            fontSize: '16px'
+                                        }}>
+                                            {message.smsContent || '无内容'}
+                                        </Typography>
+
+                                        {/* 消息元信息 */}
+                                        <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 2, alignItems: 'center' }}>
+                                            {/* 来源类型 */}
+                                            <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
+                                                {sourceTypeInfo.icon}
+                                                <Typography variant="body2" sx={{ color: sourceTypeInfo.color, fontWeight: 500 }}>
+                                                    {sourceTypeInfo.label}
+                                                </Typography>
+                                            </Box>
+
+                                            {/* 发送设备 */}
+                                            <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
+                                                <PhoneIcon fontSize="small" sx={{ color: '#666' }} />
+                                                <Typography variant="body2" color="#666">
+                                                    {formatPhoneNumber(message.senderPhone)}
+                                                </Typography>
+                                            </Box>
+
+                                            {/* 时间信息 */}
+                                            {message.smsReceivedAt && (
+                                                <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
+                                                    <ScheduleIcon fontSize="small" sx={{ color: '#666' }} />
+                                                    <Typography variant="body2" color="#666">
+                                                        {formatTimestamp(message.smsReceivedAt)}
+                                                    </Typography>
+                                                </Box>
+                                            )}
+
+                                            {/* 消息ID */}
+                                            <Typography variant="body2" color="#999">
+                                                ID: {message.id}
+                                            </Typography>
+
+                                            {/* 额外信息 */}
+                                            {message.sourceApp && (
+                                                <Typography variant="body2" color="#666">
+                                                    应用: {message.sourceApp}
+                                                </Typography>
+                                            )}
+                                        </Box>
+                                    </ListItem>
+                                    {index < messages.length - 1 && <Divider sx={{ mx: 3 }} />}
+                                </Box>
+                            );
+                        })}
+                    </List>
+
+                    {/* 空状态 */}
+                    {messages.length === 0 && (
+                        <Box sx={{ p: 6, textAlign: 'center' }}>
+                            <Typography color="#999" fontSize="16px">
+                                {isLoading ? '加载中...' : '暂无消息'}
+                            </Typography>
+                        </Box>
+                    )}
+                </Paper>
+
+                {/* 分页控件 */}
+                {pagination.totalPages > 1 && (
+                    <Paper sx={{
+                        p: 3,
+                        mt: 3,
+                        bgcolor: 'white',
+                        borderRadius: 2,
+                        boxShadow: '0 2px 8px rgba(0,0,0,0.1)'
+                    }}>
+                        <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', gap: 1 }}>
+                            <Button
+                                variant="outlined"
+                                onClick={() => changePage(pagination.page - 1)}
+                                disabled={pagination.page === 1 || isLoadingMore}
+                                size="small"
+                                sx={{
+                                    borderColor: '#ddd',
+                                    color: '#666',
+                                    '&:hover': {
+                                        borderColor: '#1976d2',
+                                        color: '#1976d2'
+                                    }
+                                }}
+                            >
+                                上一页
+                            </Button>
+
+                            {start > 1 && (
+                                <Button
+                                    variant="outlined"
+                                    onClick={() => changePage(1)}
+                                    size="small"
+                                    sx={{
+                                        borderColor: '#ddd',
+                                        color: '#666',
+                                        '&:hover': {
+                                            borderColor: '#1976d2',
+                                            color: '#1976d2'
+                                        }
+                                    }}
+                                >
+                                    1
+                                </Button>
+                            )}
+                            {start > 2 && <Typography sx={{ px: 1, color: '#999' }}>...</Typography>}
+
+                            {Array.from({ length: end - start + 1 }, (_, i) => start + i).map(page => (
+                                <Button
+                                    key={page}
+                                    variant={pagination.page === page ? "contained" : "outlined"}
+                                    onClick={() => changePage(page)}
+                                    size="small"
+                                    sx={{
+                                        ...(pagination.page === page ? {
+                                            bgcolor: '#1976d2',
+                                            '&:hover': { bgcolor: '#1565c0' }
+                                        } : {
+                                            borderColor: '#ddd',
+                                            color: '#666',
+                                            '&:hover': {
+                                                borderColor: '#1976d2',
+                                                color: '#1976d2'
+                                            }
+                                        })
+                                    }}
+                                >
+                                    {page}
+                                </Button>
+                            ))}
+
+                            {end < pagination.totalPages - 1 && <Typography sx={{ px: 1, color: '#999' }}>...</Typography>}
+                            {end < pagination.totalPages && (
+                                <Button
+                                    variant="outlined"
+                                    onClick={() => changePage(pagination.totalPages)}
+                                    size="small"
+                                    sx={{
+                                        borderColor: '#ddd',
+                                        color: '#666',
+                                        '&:hover': {
+                                            borderColor: '#1976d2',
+                                            color: '#1976d2'
+                                        }
+                                    }}
+                                >
+                                    {pagination.totalPages}
+                                </Button>
+                            )}
+
+                            <Button
+                                variant="outlined"
+                                onClick={() => changePage(pagination.page + 1)}
+                                disabled={pagination.page === pagination.totalPages || isLoadingMore}
+                                size="small"
+                                sx={{
+                                    borderColor: '#ddd',
+                                    color: '#666',
+                                    '&:hover': {
+                                        borderColor: '#1976d2',
+                                        color: '#1976d2'
+                                    }
+                                }}
+                            >
+                                下一页
+                            </Button>
+                        </Box>
+                    </Paper>
+                )}
+
+                {/* 加载状态 */}
+                {isLoadingMore && (
+                    <Box sx={{ p: 3, textAlign: 'center' }}>
+                        <CircularProgress size={20} sx={{ color: '#1976d2' }} />
+                        <Typography variant="body2" color="#666" sx={{ mt: 1 }}>
+                            加载中...
+                        </Typography>
+                    </Box>
+                )}
+
+                {/* 错误提示 */}
+                {error && (
+                    <Alert severity="error" onClose={() => setError('')} sx={{ mt: 3 }}>
+                        {error}
+                    </Alert>
+                )}
+
+                {/* 加载状态指示器 */}
+                {isLoading && (
+                    <Box
+                        sx={{
+                            position: 'fixed',
+                            top: 0,
+                            left: 0,
+                            right: 0,
+                            bottom: 0,
+                            bgcolor: 'rgba(255, 255, 255, 0.9)',
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            zIndex: 9999
+                        }}
+                    >
+                        <Box sx={{ textAlign: 'center' }}>
+                            <CircularProgress size={40} sx={{ color: '#1976d2' }} />
+                            <Typography variant="h6" color="#1976d2" sx={{ mt: 2 }}>
+                                加载中...
+                            </Typography>
+                        </Box>
+                    </Box>
+                )}
+            </Box>
+        </Box>
     );
 }
