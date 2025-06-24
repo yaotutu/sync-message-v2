@@ -30,3 +30,27 @@ export interface UpdateTemplateDTO {
     description?: string;
   }>;
 }
+
+/**
+ * 创建卡密链接DTO
+ */
+export interface CreateCardLinkDTO {
+  appName: string;
+  phone?: string;
+  templateId?: string;
+}
+
+/**
+ * 卡密链接响应DTO
+ */
+export interface CardLinkResponseDTO {
+  id: string;
+  cardKey: string;
+  username: string;
+  appName: string;
+  phone: string | null;
+  createdAt: string;
+  firstUsedAt: string | null;
+  url: string;
+  templateId?: string;
+}

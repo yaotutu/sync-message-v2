@@ -216,13 +216,11 @@ export default function CardLinksPage() {
 
             const creationPromises = [];
             for (let i = 0; i < linkCount; i++) {
-                const phoneToUse = validPhones.length > 0 ?
-                    (validPhones.length === 1 ? validPhones : [validPhones[i % validPhones.length]]) :
-                    undefined;
+                const phoneToUse = validPhones.length > 0 ? validPhones[0] : undefined;
                 creationPromises.push(
                     userApi.post('/api/user/cardlinks', {
                         appName: templateName,
-                        phones: phoneToUse,
+                        phone: phoneToUse,
                         templateId: selectedTemplate
                     })
                 );
@@ -581,7 +579,7 @@ export default function CardLinksPage() {
                         {filteredCardLinks.length > 0 ? (
                             filteredCardLinks.map((cardLink) => (
                                 <Box
-                                    key={cardLink.key}
+                                    key={cardLink.cardKey}
                                     p={2}
                                     display="flex"
                                     justifyContent="space-between"
@@ -593,13 +591,10 @@ export default function CardLinksPage() {
                                             应用：{cardLink.appName}
                                         </Typography>
                                         <Typography variant="body2" color="text.secondary">
-                                            卡密：{cardLink.key}
+                                            卡密：{cardLink.cardKey}
                                         </Typography>
                                         <Typography variant="body2" color="text.secondary">
-                                            手机号：{Array.isArray(cardLink.phones)
-                                                ? cardLink.phones.join(', ')
-                                                : (typeof cardLink.phones === 'string' ? cardLink.phones : '无手机号')
-                                            }
+                                            手机号：{cardLink.phone || '无手机号'}
                                         </Typography>
                                         <Typography variant="body2" color="text.secondary">
                                             创建时间：{new Date(Number(cardLink.createdAt)).toLocaleString()}
@@ -646,7 +641,7 @@ export default function CardLinksPage() {
                                             <Tooltip title="删除">
                                                 <span>
                                                     <IconButton
-                                                        onClick={() => deleteCardLink(cardLink.key)}
+                                                        onClick={() => deleteCardLink(cardLink.cardKey)}
                                                         color="error"
                                                         disabled={isLoading}
                                                     >

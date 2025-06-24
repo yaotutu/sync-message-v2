@@ -70,10 +70,10 @@ model Rule {
 
 model CardLink {
   id          String    @id
-  key         String    @unique
+  cardKey     String    @unique @map("card_key")
   username    String
   appName     String    @map("app_name")
-  phones      String?
+  phone       String?   @map("phone")
   createdAt   BigInt    @map("created_at")
   firstUsedAt BigInt?   @map("first_used_at")
   url         String

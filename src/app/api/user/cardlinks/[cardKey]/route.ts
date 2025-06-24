@@ -4,7 +4,7 @@ import { deleteCardLink } from '@/lib/db/cardlinks';
 
 export async function DELETE(
     request: NextRequest,
-    { params }: { params: { key: string } }
+    { params }: { params: { cardKey: string } }
 ) {
     try {
         console.log('收到删除卡密链接请求');
@@ -31,7 +31,7 @@ export async function DELETE(
         console.log(`用户验证成功: ${username}`);
 
         // 删除卡密链接
-        const success = await deleteCardLink(username, params.key);
+        const success = await deleteCardLink(username, params.cardKey);
         if (!success) {
             return NextResponse.json(
                 { success: false, message: '删除失败，可能是卡密链接不存在或已被使用' },

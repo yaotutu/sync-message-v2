@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { validateUser } from '@/lib/services/users';
 import { createCardLink } from '@/lib/services/cardlinks';
-import { CreateCardLinkDTO } from '@/types';
+import { CreateCardLinkDTO, CardLinkResponseDTO } from '@/types';
 import { getTemplateById } from '@/lib/services/templates';
 import { getUserCardLinks } from '@/lib/db/cardlinks';
 
@@ -39,8 +39,7 @@ export async function GET(request: NextRequest) {
     const search = url.searchParams.get('search');
 
     console.log(
-      `分页参数: page=${page}, pageSize=${pageSize}, status=${status || '全部'}, search=${
-        search || '无'
+      `分页参数: page=${page}, pageSize=${pageSize}, status=${status || '全部'}, search=${search || '无'
       }`,
     );
 
@@ -90,11 +89,9 @@ export async function POST(request: NextRequest) {
     console.log(`用户验证成功: ${username}`);
 
     // 解析请求体
-    const data = await request.json();
+    const data: CreateCardLinkDTO = await request.json();
     console.log(
-      `请求参数: appName=${data.appName}, phones=${data.phones?.length || 0}个, phoneNumbers=${
-        data.phoneNumbers?.length || 0
-      }个, templateId=${data.templateId || '未提供'}`,
+      `请求参数: appName=${data.appName}, phone=${data.phone || '未提供'}, templateId=${data.templateId || '未提供'}`,
     );
 
     // 验证必填字段
@@ -103,26 +100,20 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ success: false, message: '应用名称不能为空' }, { status: 400 });
     }
 
-    // 处理手机号，支持phones和phoneNumbers两个字段
-    let phones: string[] = [];
-    if (data.phones) {
-      phones = Array.isArray(data.phones) ? data.phones : [data.phones];
-    } else if (data.phoneNumbers) {
-      phones = Array.isArray(data.phoneNumbers) ? data.phoneNumbers : [data.phoneNumbers];
-    }
-
-    // 如果提供了手机号，验证格式
-    if (phones.length > 0) {
-      const validPhones = phones.filter((phone: string) => phone.trim() && /^1\d{10}$/.test(phone));
-      if (validPhones.length === 0) {
-        console.log('错误: 无有效手机号');
+    // 处理手机号
+    let phone = null;
+    if (data.phone) {
+      const phoneStr = data.phone.trim();
+      if (phoneStr && /^1\d{10}$/.test(phoneStr)) {
+        phone = phoneStr;
+        console.log(`有效手机号: ${phone}`);
+      } else {
+        console.log('错误: 无效的手机号格式');
         return NextResponse.json(
           { success: false, message: '请提供有效的手机号（11位数字，以1开头）' },
           { status: 400 },
         );
       }
-      phones = validPhones;
-      console.log(`有效手机号: ${validPhones.length}个, 手机号列表: ${validPhones.join(', ')}`);
     } else {
       console.log('未提供手机号，将创建不带手机号的卡密链接');
     }
@@ -142,17 +133,14 @@ export async function POST(request: NextRequest) {
 
     // 创建卡链接
     console.log(
-      `尝试创建卡密链接: 用户=${username}, 应用=${
-        templateName || data.appName
-      }, 手机号=${phones.join(', ')}`,
+      `尝试创建卡密链接: 用户=${username}, 应用=${templateName || data.appName}, 手机号=${phone || '无'}`,
     );
     const cardLink = await createCardLink(username, {
       appName: templateName || data.appName,
-      phoneNumbers: phones,
-      phones: phones,
+      phone: phone || undefined,
       templateId: data.templateId,
     });
-    console.log(`卡密链接创建成功: key=${cardLink.key}, url=${cardLink.url}`);
+    console.log(`卡密链接创建成功: cardKey=${cardLink.cardKey}, url=${cardLink.url}`);
 
     return NextResponse.json({ success: true, data: cardLink });
   } catch (error) {

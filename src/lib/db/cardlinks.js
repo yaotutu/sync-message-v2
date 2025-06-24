@@ -19,15 +19,15 @@ export function generateCardLinkKey() {
 
 /**
  * 生成卡密链接URL
- * @param {string} key
+ * @param {string} cardKey
  * @param {string} appName
  * @param {string|null} phone
  * @returns {string}
  */
-export function generateCardLinkUrl(key, appName, phone) {
+export function generateCardLinkUrl(cardKey, appName, phone) {
   const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:3000';
   const params = new URLSearchParams({
-    cardKey: key,
+    cardKey: cardKey,
     appName: appName,
   });
 
@@ -43,37 +43,25 @@ export function generateCardLinkUrl(key, appName, phone) {
  * @param {string} username
  * @param {Object} data
  * @param {string} data.appName
- * @param {string[]|string} [data.phones]
- * @param {string[]|string} [data.phoneNumbers]
+ * @param {string} [data.phone]
  * @param {string} [data.templateId]
  * @returns {Promise<Object>}
  */
 export async function createCardLink(username, data) {
   const id = randomUUID();
-  const key = generateCardLinkKey();
+  const cardKey = generateCardLinkKey();
   const now = Date.now();
 
-  let phones = [];
-  if (data.phones && Array.isArray(data.phones)) {
-    phones = data.phones;
-  } else if (data.phones && typeof data.phones === 'string') {
-    phones = [data.phones];
-  } else if (data.phoneNumbers && Array.isArray(data.phoneNumbers)) {
-    phones = data.phoneNumbers;
-  } else if (data.phoneNumbers && typeof data.phoneNumbers === 'string') {
-    phones = [data.phoneNumbers];
-  }
-
-  const url = generateCardLinkUrl(key, data.appName, phones[0] || null);
-  const phonesJson = phones.length > 0 ? JSON.stringify(phones) : null;
+  const phone = data.phone || null;
+  const url = generateCardLinkUrl(cardKey, data.appName, phone);
 
   await prisma.cardLink.create({
     data: {
       id,
-      key,
+      cardKey,
       username,
       appName: data.appName,
-      phones: phonesJson,
+      phone,
       createdAt: now,
       url,
       templateId: data.templateId || null,
@@ -83,10 +71,10 @@ export async function createCardLink(username, data) {
 
   return {
     id,
-    key,
+    cardKey,
     username,
     appName: data.appName,
-    phones,
+    phone,
     createdAt: now,
     url,
     templateId: data.templateId,
@@ -112,10 +100,10 @@ export async function getUserCardLinks(username, page = 1, pageSize = 10, status
 
   if (search) {
     where.OR = [
-      { key: { contains: search } },
+      { cardKey: { contains: search } },
       { appName: { contains: search } },
       { url: { contains: search } },
-      { phones: { contains: search } },
+      { phone: { contains: search } },
     ];
   }
 
@@ -128,10 +116,10 @@ export async function getUserCardLinks(username, page = 1, pageSize = 10, status
       orderBy: { createdAt: 'desc' },
       select: {
         id: true,
-        key: true,
+        cardKey: true,
         username: true,
         appName: true,
-        phones: true,
+        phone: true,
         createdAt: true,
         firstUsedAt: true,
         url: true,
@@ -149,30 +137,12 @@ export async function getUserCardLinks(username, page = 1, pageSize = 10, status
       },
     });
 
-    let phonesArray = [];
-    try {
-      if (typeof link.phones === 'string') {
-        try {
-          phonesArray = JSON.parse(link.phones);
-        } catch (parseError) {
-          phonesArray = [link.phones];
-        }
-      } else if (Array.isArray(link.phones)) {
-        phonesArray = link.phones;
-      } else if (link.phones) {
-        phonesArray = [String(link.phones)];
-      }
-    } catch (error) {
-      console.error(`处理phones字段失败:`, error);
-      phonesArray = [];
-    }
-
     return {
       id: link.id,
-      key: link.key,
+      cardKey: link.cardKey,
       username: link.username,
       appName: link.appName,
-      phones: phonesArray,
+      phone: link.phone,
       createdAt:
         link.createdAt instanceof Date
           ? link.createdAt.toISOString()
@@ -194,102 +164,50 @@ export async function getUserCardLinks(username, page = 1, pageSize = 10, status
 
 /**
  * 获取单个卡密链接
- * @param {string} key
+ * @param {string} cardKey
  * @returns {Promise<Object|null>}
  */
-export async function getCardLink(key) {
-  console.log(`[db/cardlinks] 尝试获取卡密链接: ${key}`);
+export async function getCardLink(cardKey) {
+  const link = await prisma.cardLink.findUnique({
+    where: { cardKey },
+    select: {
+      id: true,
+      cardKey: true,
+      username: true,
+      appName: true,
+      phone: true,
+      createdAt: true,
+      firstUsedAt: true,
+      url: true,
+      templateId: true,
+    },
+  });
 
-  try {
-    let link = await prisma.cardLink.findUnique({
-      where: { key },
-      select: {
-        id: true,
-        key: true,
-        username: true,
-        appName: true,
-        phones: true,
-        createdAt: true,
-        url: true,
-        firstUsedAt: true,
-      },
-    });
-
-    if (!link) {
-      console.log(`[db/cardlinks] 未找到卡密链接: ${key}`);
-      return null;
-    }
-
-    console.log(`[db/cardlinks] 找到卡密链接原始数据:`, link);
-
-    if (!link.firstUsedAt) {
-      const now = Date.now();
-      console.log(`[db/cardlinks] 卡密第一次被使用，更新first_used_at: ${now}`);
-
-      link = await prisma.cardLink.update({
-        where: { key },
-        data: { firstUsedAt: now },
-        select: {
-          id: true,
-          key: true,
-          username: true,
-          appName: true,
-          phones: true,
-          createdAt: true,
-          firstUsedAt: true,
-          url: true,
-        },
-      });
-    } else {
-      console.log(`[db/cardlinks] 卡密已被使用过，first_used_at: ${link.firstUsedAt}`);
-    }
-
-    let phonesArray = [];
-
-    if (link.phones) {
-      console.log(`[db/cardlinks] 处理phones字段，类型: ${typeof link.phones}, 值:`, link.phones);
-      try {
-        if (typeof link.phones === 'string') {
-          try {
-            phonesArray = JSON.parse(link.phones);
-            console.log(`[db/cardlinks] 成功解析phones字符串为数组:`, phonesArray);
-          } catch (parseError) {
-            console.error(`[db/cardlinks] JSON解析phones字段失败:`, parseError);
-            console.log(`[db/cardlinks] 尝试将phones作为单个字符串处理`);
-            phonesArray = [link.phones];
-          }
-        } else if (Array.isArray(link.phones)) {
-          phonesArray = link.phones;
-          console.log(`[db/cardlinks] phones已经是数组:`, phonesArray);
-        } else {
-          phonesArray = [String(link.phones)];
-          console.log(`[db/cardlinks] 将phones转换为单元素数组:`, phonesArray);
-        }
-      } catch (error) {
-        console.error(`[db/cardlinks] 处理phones字段失败:`, error);
-        phonesArray = [];
-      }
-    } else {
-      console.log(`[db/cardlinks] phones字段为空，使用空数组`);
-    }
-
-    const result = {
-      id: link.id,
-      key: link.key,
-      username: link.username,
-      appName: link.appName,
-      phones: phonesArray,
-      createdAt: link.createdAt,
-      firstUsedAt: link.firstUsedAt,
-      url: link.url,
-    };
-
-    console.log(`[db/cardlinks] 返回处理后的卡密链接:`, result);
-    return result;
-  } catch (error) {
-    console.error(`[db/cardlinks] 获取卡密链接失败:`, error);
-    throw error;
+  if (!link) {
+    return null;
   }
+
+  return {
+    id: link.id,
+    cardKey: link.cardKey,
+    username: link.username,
+    appName: link.appName,
+    phone: link.phone,
+    createdAt:
+      link.createdAt instanceof Date
+        ? link.createdAt.toISOString()
+        : typeof link.createdAt === 'number'
+          ? new Date(link.createdAt).toISOString()
+          : link.createdAt,
+    firstUsedAt:
+      link.firstUsedAt instanceof Date
+        ? link.firstUsedAt.toISOString()
+        : typeof link.firstUsedAt === 'number'
+          ? new Date(link.firstUsedAt).toISOString()
+          : link.firstUsedAt,
+    url: link.url,
+    templateId: link.templateId,
+  };
 }
 
 /**
@@ -301,10 +219,10 @@ export async function getAllCardLinks() {
     orderBy: { createdAt: 'desc' },
     select: {
       id: true,
-      key: true,
+      cardKey: true,
       username: true,
       appName: true,
-      phones: true,
+      phone: true,
       createdAt: true,
       firstUsedAt: true,
       url: true,
@@ -312,32 +230,24 @@ export async function getAllCardLinks() {
   });
 
   return links.map((link) => {
-    let phonesArray = [];
-    try {
-      if (typeof link.phones === 'string') {
-        try {
-          phonesArray = JSON.parse(link.phones);
-        } catch (parseError) {
-          phonesArray = [link.phones];
-        }
-      } else if (Array.isArray(link.phones)) {
-        phonesArray = link.phones;
-      } else if (link.phones) {
-        phonesArray = [String(link.phones)];
-      }
-    } catch (error) {
-      console.error(`处理phones字段失败:`, error);
-      phonesArray = [];
-    }
-
     return {
       id: link.id,
-      key: link.key,
+      cardKey: link.cardKey,
       username: link.username,
       appName: link.appName,
-      phones: phonesArray,
-      createdAt: link.createdAt,
-      firstUsedAt: link.firstUsedAt,
+      phone: link.phone,
+      createdAt:
+        link.createdAt instanceof Date
+          ? link.createdAt.toISOString()
+          : typeof link.createdAt === 'number'
+            ? new Date(link.createdAt).toISOString()
+            : link.createdAt,
+      firstUsedAt:
+        link.firstUsedAt instanceof Date
+          ? link.firstUsedAt.toISOString()
+          : typeof link.firstUsedAt === 'number'
+            ? new Date(link.firstUsedAt).toISOString()
+            : link.firstUsedAt,
       url: link.url,
     };
   });
@@ -346,20 +256,18 @@ export async function getAllCardLinks() {
 /**
  * 删除卡密链接
  * @param {string} username
- * @param {string} key
+ * @param {string} cardKey
  * @returns {Promise<boolean>}
  */
-export async function deleteCardLink(username, key) {
+export async function deleteCardLink(username, cardKey) {
   try {
-    const result = await prisma.cardLink.deleteMany({
+    await prisma.cardLink.delete({
       where: {
+        cardKey,
         username,
-        key,
-        firstUsedAt: null,
       },
     });
-
-    return result.count > 0;
+    return true;
   } catch (error) {
     console.error('删除卡密链接失败:', error);
     return false;

@@ -31,14 +31,14 @@ export function generateCardLinkUrl(key, appName, phone) {
  * @param {string} username
  * @param {Object} data
  * @param {string} data.appName
- * @param {string[]} [data.phoneNumbers]
+ * @param {string} [data.phone]
  * @param {string} [data.templateId]
- * @returns {Promise<Object>}
+ * @returns {Promise<{id: string, cardKey: string, username: string, appName: string, phone: string|null, createdAt: number, url: string, templateId: string|null}>}
  */
 export async function createCardLink(username, data) {
   return dbCreateCardLink(username, {
     appName: data.appName,
-    phoneNumbers: data.phoneNumbers,
+    phone: data.phone,
     templateId: data.templateId,
   });
 }

@@ -1,50 +1,161 @@
 import { NextResponse } from 'next/server';
 import prisma from '@/lib/db';
+import { processMessagesWithRules } from '@/lib/services/messageProcessor.js';
 
 export async function GET(request) {
+    const startTime = Date.now();
+    console.log(`[public-messages] 开始处理请求: ${request.url}`);
+
     try {
+        // 1. 获取和验证参数
         const { searchParams } = new URL(request.url);
         const cardKey = searchParams.get('cardKey');
         const appName = searchParams.get('appName');
         const phone = searchParams.get('phone');
 
-        if (!cardKey) {
+        // 解码URL参数，处理中文
+        const decodedCardKey = cardKey ? decodeURIComponent(cardKey) : null;
+        const decodedAppName = appName ? decodeURIComponent(appName) : null;
+        const decodedPhone = phone ? decodeURIComponent(phone) : null;
+
+        console.log(`[public-messages] 原始参数 - cardKey: ${cardKey}, appName: ${appName}, phone: ${phone}`);
+        console.log(`[public-messages] 解码参数 - cardKey: ${decodedCardKey}, appName: ${decodedAppName}, phone: ${decodedPhone}`);
+
+        // 验证参数完整性
+        if (!decodedCardKey || !decodedAppName || !decodedPhone) {
+            console.log(`[public-messages] 参数验证失败 - 缺少必要参数`);
             return NextResponse.json(
-                { success: false, error: '缺少卡密参数' },
+                { success: false, error: '缺少必要参数 (cardKey, appName, phone)' },
                 { status: 400, headers: { 'Content-Type': 'application/json' } },
             );
         }
 
-        // 获取卡密链接信息
+        // 2. 查询卡密链接
+        console.log(`[public-messages] 开始查询卡密链接`);
+
+        // 精确查询
         const cardLink = await prisma.cardLink.findUnique({
-            where: { key: cardKey },
-            select: { username: true, firstUsedAt: true },
+            where: {
+                cardKey: decodedCardKey,
+                appName: decodedAppName,
+                phone: decodedPhone
+            },
+            select: {
+                username: true,
+                firstUsedAt: true,
+                templateId: true
+            },
         });
 
         if (!cardLink) {
+            console.log(`[public-messages] 卡密链接查询失败 - 未找到匹配记录`);
+            console.log(`[public-messages] 查询条件 - cardKey: ${decodedCardKey}, appName: ${decodedAppName}, phone: ${decodedPhone}`);
+
+            // 尝试模糊查询，看看是否有相似的数据
+            const similarLinks = await prisma.cardLink.findMany({
+                where: {
+                    OR: [
+                        { cardKey: decodedCardKey },
+                        { appName: decodedAppName }
+                    ]
+                },
+                select: {
+                    cardKey: true,
+                    appName: true,
+                    phone: true,
+                    username: true
+                },
+                take: 5
+            });
+
+            if (similarLinks.length > 0) {
+                console.log(`[public-messages] 找到相似的数据:`);
+                similarLinks.forEach((link, index) => {
+                    console.log(`[public-messages] 相似${index + 1}: cardKey=${link.cardKey}, appName=${link.appName}, phone=${link.phone}, username=${link.username}`);
+                });
+            }
+
             return NextResponse.json(
                 { success: false, error: '无效的卡密链接' },
                 { status: 400, headers: { 'Content-Type': 'application/json' } },
             );
         }
 
-        // 获取最新消息
-        const latestMessage = await prisma.message.findFirst({
-            where: { username: cardLink.username },
+        console.log(`[public-messages] 卡密链接查询成功 - username: ${cardLink.username}, templateId: ${cardLink.templateId}`);
+
+        // 3. 处理firstUsedAt
+        let firstUsedAt = cardLink.firstUsedAt;
+        if (!firstUsedAt) {
+            console.log(`[public-messages] firstUsedAt不存在，更新为当前时间`);
+            const currentTime = Date.now();
+
+            await prisma.cardLink.update({
+                where: {
+                    cardKey: decodedCardKey,
+                    appName: decodedAppName,
+                    phone: decodedPhone
+                },
+                data: { firstUsedAt: currentTime },
+            });
+
+            firstUsedAt = currentTime;
+            console.log(`[public-messages] firstUsedAt已更新: ${firstUsedAt}`);
+        } else {
+            console.log(`[public-messages] 使用现有firstUsedAt: ${firstUsedAt}`);
+        }
+
+        // 4. 查询用户消息
+        console.log(`[public-messages] 开始查询用户消息 - username: ${cardLink.username}, firstUsedAt: ${firstUsedAt}`);
+        const messages = await prisma.message.findMany({
+            where: {
+                username: cardLink.username,
+                receivedAt: { gt: firstUsedAt }
+            },
             orderBy: { receivedAt: 'desc' },
-            select: { smsContent: true },
+            select: {
+                id: true,
+                smsContent: true,
+                recTime: true,
+                receivedAt: true,
+                type: true
+            },
         });
 
+        console.log(`[public-messages] 消息查询完成，找到 ${messages.length} 条消息`);
+
+        // 5. 规则管道处理
+        let processedMessages = messages;
+        if (cardLink.templateId) {
+            console.log(`[public-messages] 开始规则管道处理，模板ID: ${cardLink.templateId}`);
+            processedMessages = await processMessagesWithRules(messages, cardLink.templateId);
+            console.log(`[public-messages] 规则管道处理完成，剩余 ${processedMessages.length} 条消息`);
+        } else {
+            console.log(`[public-messages] 无模板ID，跳过规则处理`);
+        }
+
+        // 6. 获取最终结果
+        const finalMessage = processedMessages.length > 0 ? processedMessages[0] : null;
+        const messageContent = finalMessage ? finalMessage.smsContent : '';
+
+        console.log(`[public-messages] 最终结果 - 消息内容长度: ${messageContent.length}`);
+
+        // 7. 返回响应
+        const response = {
+            success: true,
+            message: messageContent,
+            firstUsedAt: firstUsedAt,
+        };
+
+        const endTime = Date.now();
+        console.log(`[public-messages] 请求处理完成，耗时: ${endTime - startTime}ms`);
+
         return NextResponse.json(
-            {
-                success: true,
-                message: latestMessage?.smsContent || '',
-                firstUsedAt: cardLink.firstUsedAt,
-            },
+            response,
             { headers: { 'Content-Type': 'application/json' } },
         );
+
     } catch (error) {
-        console.error('获取消息失败:', error);
+        console.error(`[public-messages] 处理请求失败:`, error);
         return NextResponse.json(
             { success: false, error: '获取消息失败' },
             { status: 500, headers: { 'Content-Type': 'application/json' } },
