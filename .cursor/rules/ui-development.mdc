@@ -1,7 +1,7 @@
 ---
-description:
-globs:
-alwaysApply: false
+description: 
+globs: 
+alwaysApply: true
 ---
 # UI开发规范
 
@@ -225,7 +225,7 @@ import ConfirmDialog from '@/components/ConfirmDialog';
 ### 组件开发规范
 
 #### 公共组件位置
-- 所有可复用组件放在 [src/components/](mdc:src/components/) 目录
+- 所有可复用组件放在 [src/components/](mdc:src/components) 目录
 - 当前已有组件：[ConfirmDialog.jsx](mdc:src/components/ConfirmDialog.jsx)
 
 #### 组件开发原则
