@@ -7,7 +7,7 @@ import { getTemplateRules } from './templates.js';
  * @returns {Array} 过滤后的消息列表
  */
 function applyRule(messages, rule) {
-    console.log(`[messageProcessor] 应用规则: ${rule.id}, 类型: ${rule.type}, 模式: ${rule.mode}, 模式: ${rule.pattern}`);
+    console.log(`[messageProcessor] 应用规则: ${rule.id}, 模式: ${rule.mode}, 模式: ${rule.pattern}`);
     console.log(`[messageProcessor] 过滤前消息数量: ${messages.length}`);
 
     if (!rule.isActive) {
@@ -18,19 +18,53 @@ function applyRule(messages, rule) {
     let filteredMessages = [];
 
     try {
-        switch (rule.type) {
-            case 'content':
-            case 'include':  // 兼容旧版本规则类型
-                filteredMessages = filterByContent(messages, rule);
+        // 根据规则模式进行过滤
+        switch (rule.mode) {
+            case 'simple_include':
+                // 包含指定文本 - 保留包含该文本的消息
+                filteredMessages = messages.filter(msg => msg.smsContent.includes(rule.pattern));
                 break;
-            case 'time':
-                filteredMessages = filterByTime(messages, rule);
+
+            case 'simple_exclude':
+                // 排除指定文本 - 保留不包含该文本的消息
+                filteredMessages = messages.filter(msg => !msg.smsContent.includes(rule.pattern));
                 break;
-            case 'length':
-                filteredMessages = filterByLength(messages, rule);
+
+            case 'regex':
+                // 正则表达式匹配 - 保留匹配正则的消息
+                try {
+                    const regex = new RegExp(rule.pattern, 'i');
+                    filteredMessages = messages.filter(msg => regex.test(msg.smsContent));
+                } catch (error) {
+                    console.error(`[messageProcessor] 正则表达式无效: ${rule.pattern}`, error);
+                    return messages; // 正则无效时返回原消息
+                }
                 break;
+
+            case 'regex_include':
+                // 正则表达式包含 - 保留匹配正则的消息
+                try {
+                    const regex = new RegExp(rule.pattern, 'i');
+                    filteredMessages = messages.filter(msg => regex.test(msg.smsContent));
+                } catch (error) {
+                    console.error(`[messageProcessor] 正则表达式无效: ${rule.pattern}`, error);
+                    return messages;
+                }
+                break;
+
+            case 'regex_exclude':
+                // 正则表达式排除 - 保留不匹配正则的消息
+                try {
+                    const regex = new RegExp(rule.pattern, 'i');
+                    filteredMessages = messages.filter(msg => !regex.test(msg.smsContent));
+                } catch (error) {
+                    console.error(`[messageProcessor] 正则表达式无效: ${rule.pattern}`, error);
+                    return messages;
+                }
+                break;
+
             default:
-                console.log(`[messageProcessor] 未知规则类型: ${rule.type}，跳过`);
+                console.log(`[messageProcessor] 未知规则模式: ${rule.mode}，跳过`);
                 return messages;
         }
 
@@ -39,33 +73,6 @@ function applyRule(messages, rule) {
     } catch (error) {
         console.error(`[messageProcessor] 应用规则失败:`, error);
         return messages; // 规则处理失败时返回原消息列表
-    }
-}
-
-/**
- * 按内容过滤消息
- */
-function filterByContent(messages, rule) {
-    const { mode, pattern } = rule;
-
-    switch (mode) {
-        case 'simple_include':
-            return messages.filter(msg => msg.smsContent.includes(pattern));
-
-        case 'simple_exclude':
-            return messages.filter(msg => !msg.smsContent.includes(pattern));
-
-        case 'regex_include':
-            const includeRegex = new RegExp(pattern, 'i');
-            return messages.filter(msg => includeRegex.test(msg.smsContent));
-
-        case 'regex_exclude':
-            const excludeRegex = new RegExp(pattern, 'i');
-            return messages.filter(msg => !excludeRegex.test(msg.smsContent));
-
-        default:
-            console.log(`[messageProcessor] 未知内容过滤模式: ${mode}`);
-            return messages;
     }
 }
 

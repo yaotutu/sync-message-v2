@@ -145,7 +145,7 @@ export default function TemplatesPage() {
 
   // 添加规则输入
   const addRuleInput = () => {
-    setRules([...rules, { type: 'include', mode: 'simple_include', pattern: '', description: '' }]);
+    setRules([...rules, { mode: 'simple_include', pattern: '', description: '' }]);
   };
 
   // 移除规则输入
@@ -163,23 +163,13 @@ export default function TemplatesPage() {
     setRules(updatedRules);
   };
 
-  // 更新规则类型和模式
-  const updateRuleTypeAndMode = (index, value) => {
+  // 更新规则模式
+  const updateRuleMode = (index, value) => {
     const updatedRules = [...rules];
-    if (value === 'regex') {
-      updatedRules[index] = {
-        ...updatedRules[index],
-        type: 'include',
-        mode: 'regex',
-      };
-    } else {
-      const [type, mode] = value.split('_');
-      updatedRules[index] = {
-        ...updatedRules[index],
-        type: type,
-        mode: `simple_${type}`,
-      };
-    }
+    updatedRules[index] = {
+      ...updatedRules[index],
+      mode: value,
+    };
     setRules(updatedRules);
   };
 
@@ -327,15 +317,15 @@ export default function TemplatesPage() {
                               </Box>
                               <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
                                 <Box>
-                                  <Typography variant="caption">规则类型</Typography>
+                                  <Typography variant="caption">规则模式</Typography>
                                   <Select
                                     fullWidth
-                                    value={rule.mode === 'regex' ? 'regex' : rule.type}
-                                    onChange={(e) => updateRuleTypeAndMode(index, e.target.value)}
+                                    value={rule.mode}
+                                    onChange={(e) => updateRuleMode(index, e.target.value)}
                                   >
-                                    <MenuItem value="include">包含文本</MenuItem>
-                                    <MenuItem value="exclude">排除文本</MenuItem>
-                                    <MenuItem value="regex">正则表达式</MenuItem>
+                                    <MenuItem value="simple_include">必须包含文本</MenuItem>
+                                    <MenuItem value="simple_exclude">不能包含文本</MenuItem>
+                                    <MenuItem value="regex">正则表达式匹配</MenuItem>
                                   </Select>
                                 </Box>
                                 <Box>
@@ -431,12 +421,15 @@ export default function TemplatesPage() {
                                         width: 8,
                                         height: 8,
                                         borderRadius: '50%',
-                                        bgcolor: rule.type === 'include' ? 'success.main' : 'error.main',
+                                        bgcolor: rule.mode === 'simple_include' || rule.mode === 'regex' ? 'success.main' : 'error.main',
                                         mr: 1
                                       }}
                                     />
                                     <Typography variant="body2" sx={{ flex: 1 }}>
-                                      {rule.type === 'include' ? '包含' : '排除'}: {rule.pattern}
+                                      {rule.mode === 'simple_include' ? '必须包含' :
+                                        rule.mode === 'simple_exclude' ? '不能包含' :
+                                          rule.mode === 'regex' ? '正则匹配' :
+                                            rule.mode === 'regex_exclude' ? '正则排除' : '未知'}: {rule.pattern}
                                     </Typography>
                                   </Box>
                                   {rule.description && (

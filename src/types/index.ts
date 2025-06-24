@@ -7,7 +7,6 @@ export interface CreateTemplateDTO {
   isPublic?: boolean;
   username?: string;
   rules?: Array<{
-    type: string;
     mode: string;
     pattern: string;
     description?: string;
@@ -24,7 +23,6 @@ export interface UpdateTemplateDTO {
   isPublic?: boolean;
   username?: string;
   rules?: Array<{
-    type: string;
     mode: string;
     pattern: string;
     description?: string;

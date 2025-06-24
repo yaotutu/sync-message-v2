@@ -31,7 +31,6 @@ export async function getTemplateRulesFromDb(templateId) {
     orderBy: { orderNum: 'asc' },
     select: {
       id: true,
-      type: true,
       mode: true,
       pattern: true,
       description: true,
@@ -101,7 +100,6 @@ export async function createTemplateInDb(templateData, rules = []) {
         data: rules.map((rule, i) => ({
           id: randomUUID(),
           templateId,
-          type: rule.type,
           mode: rule.mode,
           pattern: rule.pattern,
           description: rule.description || '',
@@ -119,7 +117,6 @@ export async function createTemplateInDb(templateData, rules = []) {
       updatedAt: now,
       rules: rules.map((rule, i) => ({
         id: randomUUID(),
-        type: rule.type,
         mode: rule.mode,
         pattern: rule.pattern,
         description: rule.description || '',
@@ -174,7 +171,6 @@ export async function updateTemplateInDb(id, templateData, rules) {
           data: rules.map((rule, i) => ({
             id: randomUUID(),
             templateId: id,
-            type: rule.type,
             mode: rule.mode,
             pattern: rule.pattern,
             description: rule.description || '',
@@ -236,7 +232,6 @@ export async function addRuleToTemplateInDb(templateId, ruleData) {
       data: {
         id: ruleId,
         templateId,
-        type: ruleData.type,
         mode: ruleData.mode,
         pattern: ruleData.pattern,
         description: ruleData.description || '',
@@ -254,7 +249,6 @@ export async function addRuleToTemplateInDb(templateId, ruleData) {
 
     return {
       id: ruleId,
-      type: ruleData.type,
       mode: ruleData.mode,
       pattern: ruleData.pattern,
       description: ruleData.description || '',

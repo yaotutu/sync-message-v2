@@ -112,9 +112,19 @@ export async function createTemplate(data) {
   const processedRules =
     data.rules?.map((rule) => {
       let pattern = rule.pattern;
-      if (rule.mode === 'simple_include' || rule.mode === 'simple_exclude') {
-        pattern = escapeRegExp(pattern);
+
+      // 注意：simple_include 和 simple_exclude 使用 includes() 方法，不需要正则转义
+      // 只有正则表达式模式才需要特殊处理
+      if (rule.mode === 'regex' || rule.mode === 'regex_include' || rule.mode === 'regex_exclude') {
+        // 验证正则表达式是否有效
+        try {
+          new RegExp(pattern);
+        } catch (error) {
+          console.error(`[templates] 无效的正则表达式: ${pattern}`, error);
+          throw new Error(`无效的正则表达式: ${pattern}`);
+        }
       }
+
       return { ...rule, pattern };
     }) || [];
 
@@ -137,9 +147,19 @@ export async function updateTemplate(id, data) {
   const processedRules =
     data.rules?.map((rule) => {
       let pattern = rule.pattern;
-      if (rule.mode === 'simple_include' || rule.mode === 'simple_exclude') {
-        pattern = escapeRegExp(pattern);
+
+      // 注意：simple_include 和 simple_exclude 使用 includes() 方法，不需要正则转义
+      // 只有正则表达式模式才需要特殊处理
+      if (rule.mode === 'regex' || rule.mode === 'regex_include' || rule.mode === 'regex_exclude') {
+        // 验证正则表达式是否有效
+        try {
+          new RegExp(pattern);
+        } catch (error) {
+          console.error(`[templates] 无效的正则表达式: ${pattern}`, error);
+          throw new Error(`无效的正则表达式: ${pattern}`);
+        }
       }
+
       return { ...rule, pattern };
     }) || [];
 
@@ -159,8 +179,17 @@ export async function deleteTemplate(id, username) {
 export async function addRule(templateId, data) {
   // 处理规则模式
   let pattern = data.pattern;
-  if (data.mode === 'simple_include' || data.mode === 'simple_exclude') {
-    pattern = escapeRegExp(pattern);
+
+  // 注意：simple_include 和 simple_exclude 使用 includes() 方法，不需要正则转义
+  // 只有正则表达式模式才需要特殊处理
+  if (data.mode === 'regex' || data.mode === 'regex_include' || data.mode === 'regex_exclude') {
+    // 验证正则表达式是否有效
+    try {
+      new RegExp(pattern);
+    } catch (error) {
+      console.error(`[templates] 无效的正则表达式: ${pattern}`, error);
+      throw new Error(`无效的正则表达式: ${pattern}`);
+    }
   }
 
   return await addRuleToTemplateInDb(templateId, { ...data, pattern });
