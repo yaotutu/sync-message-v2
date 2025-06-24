@@ -2,32 +2,6 @@ import { NextResponse } from 'next/server';
 import prisma from '@/lib/db';
 import { processMessagesWithRules } from '@/lib/services/messageProcessor.js';
 
-/**
- * 提取短信中的验证码
- * @param {string} content - 短信内容
- * @returns {string|null} 验证码或null
- */
-function extractVerificationCode(content) {
-    if (!content) return null;
-
-    // 常见的验证码模式
-    const patterns = [
-        /验证码[：:]\s*(\d{4,8})/,           // 验证码：123456
-        /码[：:]\s*(\d{4,8})/,               // 码：123456
-        /(\d{4,8})/,                         // 4-8位数字
-        /[验证码|码]\s*(\d{4,8})/,           // 验证码 123456
-        /(\d{4,8})\s*[验证码|码]/,           // 123456 验证码
-    ];
-
-    for (const pattern of patterns) {
-        const match = content.match(pattern);
-        if (match && match[1]) {
-            return match[1];
-        }
-    }
-
-    return null;
-}
 
 export async function GET(request) {
     const startTime = Date.now();
@@ -74,39 +48,6 @@ export async function GET(request) {
             },
         });
 
-        if (!cardLink) {
-            console.log(`[public-messages] 卡密链接查询失败 - 未找到匹配记录`);
-            console.log(`[public-messages] 查询条件 - cardKey: ${decodedCardKey}, appName: ${decodedAppName}, phone: ${decodedPhone}`);
-
-            // 尝试模糊查询，看看是否有相似的数据
-            const similarLinks = await prisma.cardLink.findMany({
-                where: {
-                    OR: [
-                        { cardKey: decodedCardKey },
-                        { appName: decodedAppName }
-                    ]
-                },
-                select: {
-                    cardKey: true,
-                    appName: true,
-                    phone: true,
-                    username: true
-                },
-                take: 5
-            });
-
-            if (similarLinks.length > 0) {
-                console.log(`[public-messages] 找到相似的数据:`);
-                similarLinks.forEach((link, index) => {
-                    console.log(`[public-messages] 相似${index + 1}: cardKey=${link.cardKey}, appName=${link.appName}, phone=${link.phone}, username=${link.username}`);
-                });
-            }
-
-            return NextResponse.json(
-                { success: false, error: '无效的卡密链接' },
-                { status: 400, headers: { 'Content-Type': 'application/json' } },
-            );
-        }
 
         console.log(`[public-messages] 卡密链接查询成功 - username: ${cardLink.username}, templateId: ${cardLink.templateId}`);
 
@@ -136,15 +77,15 @@ export async function GET(request) {
         const messages = await prisma.message.findMany({
             where: {
                 username: cardLink.username,
-                systemReceivedAt: { gt: firstUsedAt }  // 使用新的字段名
+                systemReceivedAt: { gt: firstUsedAt }
             },
-            orderBy: { systemReceivedAt: 'desc' },  // 使用新的字段名
+            orderBy: { systemReceivedAt: 'desc' },
             select: {
                 id: true,
                 smsContent: true,
-                smsReceivedAt: true,  // 使用新的字段名
-                systemReceivedAt: true,  // 使用新的字段名
-                sourceType: true  // 使用新的字段名
+                smsReceivedAt: true,
+                systemReceivedAt: true,
+                sourceType: true
             },
         });
 
