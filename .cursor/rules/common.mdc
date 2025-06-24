@@ -149,18 +149,13 @@ function getUserAuthFromRequest(request) {
 ## 功能函数清单
 ### 数据库操作 (src/lib/db/)
 #### cardlinks.js
-- `generateCardKey()`: 生成16位随机卡密
+- `generateCardLinkKey()`: 生成16位随机卡密链接key
 - `generateCardLinkUrl(key, appName, phone)`: 生成卡密链接URL
 - `createCardLink(username, data)`: 创建新的卡密链接
 - `getUserCardLinks(username, page, pageSize, status, search)`: 获取用户卡密链接列表
 - `getCardLink(key)`: 获取单个卡密链接
 - `getAllCardLinks()`: 获取所有卡密链接
 - `deleteCardLink(username, key)`: 删除卡密链接
-
-#### cards.js
-- `addCardKey(username)`: 为用户添加卡密
-- `getUserCardKeys(username)`: 获取用户卡密列表
-- `validateCardKey(key)`: 验证卡密有效性
 
 #### messages.js
 - `createMessage(data)`: 创建消息记录
@@ -194,7 +189,7 @@ function getUserAuthFromRequest(request) {
 - `verifyAdminAuth(req)`: 验证管理员权限
 
 #### cardlinks.js
-- `generateCardKey()`: 生成卡密(调用db模块)
+- `generateCardLinkKey()`: 生成卡密链接key(调用db模块)
 - `generateCardLinkUrl(key, appName, phone)`: 生成卡密链接URL(调用db模块)
 - `createCardLink(username, data)`: 创建卡密链接(调用db模块)
 - `getUserCardLinks(username)`: 获取用户卡密链接(调用db模块)
