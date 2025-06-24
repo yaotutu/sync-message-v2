@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import Link from 'next/link';
+import { logout } from '@/lib/utils/auth';
 import NavigationCard from '@/components/NavigationCard';
 
 interface User {
@@ -21,7 +21,6 @@ export default function UserPage() {
     // 模拟加载用户数据
     const loadUserData = async () => {
       setLoading(true);
-
       // 模拟API调用延迟
       setTimeout(() => {
         setUser({
@@ -36,6 +35,11 @@ export default function UserPage() {
 
     loadUserData();
   }, []);
+
+  const handleLogout = () => {
+    logout();
+    router.push('/');
+  };
 
   if (loading) {
     return (
@@ -61,17 +65,26 @@ export default function UserPage() {
     <div className="min-h-screen bg-gray-100 dark:bg-gray-900 py-8 px-4">
       <div className="max-w-4xl mx-auto">
         <div className="space-y-6">
-          {/* 用户信息卡片 */}
+          {/* 页面头部 */}
           <div className="bg-white dark:bg-gray-800 rounded-lg shadow p-6">
             <div className="flex justify-between items-center mb-4">
               <h2 className="text-2xl font-bold text-gray-900 dark:text-white">用户中心</h2>
-              <button
-                onClick={() => router.push('/')}
-                className="px-4 py-2 bg-gray-500 text-white rounded-lg hover:bg-gray-600 dark:bg-gray-600 dark:hover:bg-gray-700 focus:ring-2 focus:ring-gray-500 focus:ring-offset-2 dark:focus:ring-offset-gray-800 transition-all"
-              >
-                返回首页
-              </button>
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={handleLogout}
+                  className="px-4 py-2 bg-red-500 text-white rounded-lg hover:bg-red-600 dark:bg-red-600 dark:hover:bg-red-700 focus:ring-2 focus:ring-red-500 focus:ring-offset-2 dark:focus:ring-offset-gray-800 transition-all"
+                >
+                  退出登录
+                </button>
+                <button
+                  onClick={() => router.push('/')}
+                  className="px-4 py-2 bg-gray-500 text-white rounded-lg hover:bg-gray-600 dark:bg-gray-600 dark:hover:bg-gray-700 focus:ring-2 focus:ring-gray-500 focus:ring-offset-2 dark:focus:ring-offset-gray-800 transition-all"
+                >
+                  返回首页
+                </button>
+              </div>
             </div>
+            {/* 用户信息 */}
             <div className="space-y-2">
               <p className="text-gray-700 dark:text-gray-300">
                 <span className="font-medium">用户名:</span> {user?.username}
