@@ -22,6 +22,15 @@ export async function POST(request: NextRequest) {
             );
         }
 
+        // 验证消息类型
+        if (!['SMS', 'EMAIL'].includes(webhookType.toUpperCase())) {
+            console.log(`错误: 不支持的消息类型: ${webhookType}`);
+            return NextResponse.json(
+                { success: false, message: '不支持的消息类型，只支持 SMS 或 EMAIL' },
+                { status: 400 }
+            );
+        }
+
         // 验证 webhook key
         const userResult = await getUserByUsername(username);
         if (!userResult.success || !userResult.data || userResult.data.webhookKey !== webhookKey) {
@@ -34,16 +43,27 @@ export async function POST(request: NextRequest) {
         console.log(`用户验证成功: ${username}`);
 
         const body = await request.json();
-        const received_at = body.received_at || Date.now();
-        console.log(`消息内容: ${body.sms_content ? body.sms_content.substring(0, 50) + '...' : '无内容'}`);
-        console.log(`接收时间: ${new Date(received_at).toISOString()}, 原始时间: ${body.rec_time || '未提供'}`);
+
+        // 验证请求体
+        if (!body.smsContent) {
+            console.log('错误: 缺少消息内容');
+            return NextResponse.json(
+                { success: false, message: '缺少消息内容 (smsContent)' },
+                { status: 400 }
+            );
+        }
+
+        const receivedAt = body.receivedAt || Date.now();
+        console.log(`消息内容: ${body.smsContent ? body.smsContent.substring(0, 50) + '...' : '无内容'}`);
+        console.log(`接收时间: ${new Date(receivedAt).toISOString()}, 原始时间: ${body.recTime || '未提供'}`);
+        console.log(`消息类型: ${webhookType.toUpperCase()}`);
 
         const result = await addMessage(
             username,
-            body.sms_content,
-            body.rec_time,
-            Number(received_at),
-            webhookType
+            body.smsContent,
+            body.recTime,
+            Number(receivedAt),
+            webhookType.toUpperCase()
         );
         console.log(`消息添加结果: ${result.success ? '成功' : '失败'}, ${result.message || ''}`);
 
