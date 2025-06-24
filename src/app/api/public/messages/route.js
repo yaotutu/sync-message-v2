@@ -2,6 +2,33 @@ import { NextResponse } from 'next/server';
 import prisma from '@/lib/db';
 import { processMessagesWithRules } from '@/lib/services/messageProcessor.js';
 
+/**
+ * 提取短信中的验证码
+ * @param {string} content - 短信内容
+ * @returns {string|null} 验证码或null
+ */
+function extractVerificationCode(content) {
+    if (!content) return null;
+
+    // 常见的验证码模式
+    const patterns = [
+        /验证码[：:]\s*(\d{4,8})/,           // 验证码：123456
+        /码[：:]\s*(\d{4,8})/,               // 码：123456
+        /(\d{4,8})/,                         // 4-8位数字
+        /[验证码|码]\s*(\d{4,8})/,           // 验证码 123456
+        /(\d{4,8})\s*[验证码|码]/,           // 123456 验证码
+    ];
+
+    for (const pattern of patterns) {
+        const match = content.match(pattern);
+        if (match && match[1]) {
+            return match[1];
+        }
+    }
+
+    return null;
+}
+
 export async function GET(request) {
     const startTime = Date.now();
     console.log(`[public-messages] 开始处理请求: ${request.url}`);
@@ -104,20 +131,20 @@ export async function GET(request) {
             console.log(`[public-messages] 使用现有firstUsedAt: ${firstUsedAt}`);
         }
 
-        // 4. 查询用户消息
+        // 4. 查询用户消息 - 更新字段名以适配新的表结构
         console.log(`[public-messages] 开始查询用户消息 - username: ${cardLink.username}, firstUsedAt: ${firstUsedAt}`);
         const messages = await prisma.message.findMany({
             where: {
                 username: cardLink.username,
-                receivedAt: { gt: firstUsedAt }
+                systemReceivedAt: { gt: firstUsedAt }  // 使用新的字段名
             },
-            orderBy: { receivedAt: 'desc' },
+            orderBy: { systemReceivedAt: 'desc' },  // 使用新的字段名
             select: {
                 id: true,
                 smsContent: true,
-                recTime: true,
-                receivedAt: true,
-                type: true
+                smsReceivedAt: true,  // 使用新的字段名
+                systemReceivedAt: true,  // 使用新的字段名
+                sourceType: true  // 使用新的字段名
             },
         });
 
