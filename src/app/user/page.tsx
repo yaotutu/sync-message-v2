@@ -3,38 +3,58 @@
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { logout } from '@/lib/utils/auth';
+import { userApi } from '@/lib/utils/api-client';
 import NavigationCard from '@/components/NavigationCard';
 
 interface User {
+  id: number;
   username: string;
   webhookKey?: string;
   createdAt?: string;
-  updatedAt?: string;
+  canManageTemplates?: boolean;
+  expiryDate?: string;
 }
 
 export default function UserPage() {
   const router = useRouter();
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState('');
 
   useEffect(() => {
-    // 模拟加载用户数据
+    // 加载用户数据
     const loadUserData = async () => {
       setLoading(true);
-      // 模拟API调用延迟
-      setTimeout(() => {
-        setUser({
-          username: 'demo_user',
-          webhookKey: 'demo_webhook_key_12345',
-          createdAt: '2024-01-01T00:00:00Z',
-          updatedAt: '2024-01-15T00:00:00Z'
-        });
+      setError('');
+
+      try {
+        const response = await userApi.get('/api/user/profile');
+
+        if (response.success) {
+          setUser(response.data);
+        } else {
+          setError(response.message || '获取用户信息失败');
+          // 如果认证失败，跳转到登录页面
+          if (response.message?.includes('认证') || response.message?.includes('用户名或密码')) {
+            logout();
+            router.push('/');
+            return;
+          }
+        }
+      } catch (err) {
+        console.error('获取用户信息失败:', err);
+        setError('获取用户信息失败，请检查网络连接');
+        // 如果网络错误，可能是认证问题，跳转到登录页面
+        logout();
+        router.push('/');
+        return;
+      } finally {
         setLoading(false);
-      }, 1000);
+      }
     };
 
     loadUserData();
-  }, []);
+  }, [router]);
 
   const handleLogout = () => {
     logout();
@@ -54,6 +74,27 @@ export default function UserPage() {
                 <div className="h-10 bg-gray-200 dark:bg-gray-700 rounded"></div>
                 <div className="h-4 bg-gray-200 dark:bg-gray-700 rounded w-3/4"></div>
               </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="min-h-screen bg-gray-100 dark:bg-gray-900 py-8 px-4">
+        <div className="max-w-4xl mx-auto">
+          <div className="bg-white dark:bg-gray-800 rounded-lg shadow p-6">
+            <div className="text-center">
+              <h2 className="text-2xl font-bold text-gray-900 dark:text-white mb-4">加载失败</h2>
+              <p className="text-red-500 mb-4">{error}</p>
+              <button
+                onClick={() => window.location.reload()}
+                className="px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 transition-all"
+              >
+                重新加载
+              </button>
             </div>
           </div>
         </div>
@@ -96,7 +137,13 @@ export default function UserPage() {
               )}
               {user?.createdAt && (
                 <p className="text-gray-700 dark:text-gray-300">
-                  <span className="font-medium">创建时间:</span> {new Date(user.createdAt).toLocaleString()}
+                  <span className="font-medium">创建时间:</span> {new Date(Number(user.createdAt)).toLocaleString()}
+                </p>
+              )}
+              {user?.canManageTemplates && (
+                <p className="text-gray-700 dark:text-gray-300">
+                  <span className="font-medium">权限:</span>
+                  <span className="text-green-600 dark:text-green-400 ml-1">模板管理</span>
                 </p>
               )}
             </div>
