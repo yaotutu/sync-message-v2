@@ -10,7 +10,9 @@ import {
  * 添加消息
  * @param {string} username
  * @param {string} smsContent
- * @param {string} [recTime]
+ * @param {number} [recTime] - 时间戳
+ * @param {number} [receivedAt] - 接收时间戳
+ * @param {string} [type] - 消息类型
  * @returns {Promise<{success: boolean, message?: string}>}
  */
 export async function addMessage(username, smsContent, recTime, receivedAt = Date.now(), type) {

@@ -25,6 +25,21 @@ async function main() {
   });
 
   console.log('Admin user created successfully');
+
+  await prisma.user.upsert({
+    where: { username: 'aaa' },
+    update: {},
+    create: {
+      username: 'aaa',
+      password: 'aaa',
+      webhookKey: 'aaa',
+      createdAt: BigInt(Date.now()),
+      isAdmin: false,
+      canManageTemplates: true,
+    },
+  });
+
+  console.log('Regular user "aaa" created successfully');
 }
 
 main()
