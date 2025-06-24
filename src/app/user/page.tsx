@@ -169,14 +169,16 @@ export default function UserPage() {
                 randomColor={false}
                 className=""
               />
-              <NavigationCard
-                href="/templates"
-                title="应用模版"
-                description="查看和管理应用模版"
-                colorTheme="purple"
-                randomColor={false}
-                className=""
-              />
+              {user?.canManageTemplates && (
+                <NavigationCard
+                  href="/templates"
+                  title="应用模版"
+                  description="查看和管理应用模版"
+                  colorTheme="purple"
+                  randomColor={false}
+                  className=""
+                />
+              )}
             </div>
           </div>
         </div>
