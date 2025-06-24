@@ -20,6 +20,7 @@ function applyRule(messages, rule) {
     try {
         switch (rule.type) {
             case 'content':
+            case 'include':  // 兼容旧版本规则类型
                 filteredMessages = filterByContent(messages, rule);
                 break;
             case 'time':
@@ -81,15 +82,15 @@ function filterByTime(messages, rule) {
         switch (mode) {
             case 'within_minutes':
                 const minutesAgo = now - (timeValue * 60 * 1000);
-                return messages.filter(msg => msg.receivedAt >= minutesAgo);
+                return messages.filter(msg => msg.systemReceivedAt >= minutesAgo);
 
             case 'within_hours':
                 const hoursAgo = now - (timeValue * 60 * 60 * 1000);
-                return messages.filter(msg => msg.receivedAt >= hoursAgo);
+                return messages.filter(msg => msg.systemReceivedAt >= hoursAgo);
 
             case 'within_days':
                 const daysAgo = now - (timeValue * 24 * 60 * 60 * 1000);
-                return messages.filter(msg => msg.receivedAt >= daysAgo);
+                return messages.filter(msg => msg.systemReceivedAt >= daysAgo);
 
             default:
                 console.log(`[messageProcessor] 未知时间过滤模式: ${mode}`);

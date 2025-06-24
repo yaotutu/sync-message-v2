@@ -26,20 +26,12 @@ import { copyToClipboard } from '@/lib/utils/clipboard';
 function extractVerificationCode(content) {
     if (!content) return null;
 
-    // 常见的验证码模式
-    const patterns = [
-        /验证码[：:]\s*(\d{4,8})/,           // 验证码：123456
-        /码[：:]\s*(\d{4,8})/,               // 码：123456
-        /(\d{4,8})/,                         // 4-8位数字
-        /[验证码|码]\s*(\d{4,8})/,           // 验证码 123456
-        /(\d{4,8})\s*[验证码|码]/,           // 123456 验证码
-    ];
+    // 查找"验证码"后面的第一串数字
+    const pattern = /验证码[^0-9]*(\d{4,8})/;
+    const match = content.match(pattern);
 
-    for (const pattern of patterns) {
-        const match = content.match(pattern);
-        if (match && match[1]) {
-            return match[1];
-        }
+    if (match && match[1]) {
+        return match[1];
     }
 
     return null;
