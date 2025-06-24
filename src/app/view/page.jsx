@@ -18,6 +18,33 @@ import {
 } from '@mui/material';
 import { copyToClipboard } from '@/lib/utils/clipboard';
 
+/**
+ * 提取短信中的验证码
+ * @param {string} content - 短信内容
+ * @returns {string|null} 验证码或null
+ */
+function extractVerificationCode(content) {
+    if (!content) return null;
+
+    // 常见的验证码模式
+    const patterns = [
+        /验证码[：:]\s*(\d{4,8})/,           // 验证码：123456
+        /码[：:]\s*(\d{4,8})/,               // 码：123456
+        /(\d{4,8})/,                         // 4-8位数字
+        /[验证码|码]\s*(\d{4,8})/,           // 验证码 123456
+        /(\d{4,8})\s*[验证码|码]/,           // 123456 验证码
+    ];
+
+    for (const pattern of patterns) {
+        const match = content.match(pattern);
+        if (match && match[1]) {
+            return match[1];
+        }
+    }
+
+    return null;
+}
+
 function ViewPageContent() {
     const searchParams = useSearchParams();
     const [isLoading, setIsLoading] = useState(true);
@@ -152,6 +179,25 @@ function ViewPageContent() {
     const appName = searchParams.get('appName');
     const phone = searchParams.get('phone');
 
+    // 提取验证码
+    const verificationCode = message ? extractVerificationCode(message) : null;
+    const displayContent = verificationCode || message || '未找到验证码';
+
+    // 修复时间戳显示
+    const formatFirstUsedTime = (timestamp) => {
+        if (!timestamp) return '';
+        // 确保时间戳是数字
+        const time = typeof timestamp === 'string' ? parseInt(timestamp) : timestamp;
+        return new Date(time).toLocaleString('zh-CN', {
+            year: 'numeric',
+            month: '2-digit',
+            day: '2-digit',
+            hour: '2-digit',
+            minute: '2-digit',
+            second: '2-digit'
+        });
+    };
+
     return (
         <Box
             sx={{
@@ -179,7 +225,7 @@ function ViewPageContent() {
                                 color="text.secondary"
                                 sx={{ mt: 1, fontSize: { xs: '0.75rem', sm: '0.875rem' } }}
                             >
-                                首次使用时间：{new Date(firstUsedAt).toLocaleString()}
+                                首次使用时间：{formatFirstUsedTime(firstUsedAt)}
                             </Typography>
                         )}
                     </CardContent>
@@ -263,13 +309,13 @@ function ViewPageContent() {
                                         component="h3"
                                         sx={{ fontWeight: 'bold' }}
                                     >
-                                        验证码
+                                        {verificationCode ? '验证码' : '短信内容'}
                                     </Typography>
                                     <Button
                                         variant="contained"
                                         color="success"
-                                        onClick={() => message?.content && handleCopy(message.content, 'code')}
-                                        disabled={!message?.content}
+                                        onClick={() => displayContent && handleCopy(displayContent, 'code')}
+                                        disabled={!displayContent}
                                         size={isMobile ? "large" : "medium"}
                                         sx={{
                                             minHeight: { xs: 48, sm: 36 },
@@ -277,7 +323,7 @@ function ViewPageContent() {
                                             px: { xs: 3, sm: 2 }
                                         }}
                                     >
-                                        {copyStatus.code || '复制验证码'}
+                                        {copyStatus.code || (verificationCode ? '复制验证码' : '复制内容')}
                                     </Button>
                                 </Box>
                                 <Paper
@@ -286,15 +332,15 @@ function ViewPageContent() {
                                         bgcolor: 'grey.100',
                                         fontFamily: 'monospace',
                                         fontSize: { xs: '1rem', sm: '1.125rem' },
-                                        textAlign: 'center',
+                                        textAlign: verificationCode ? 'center' : 'left',
                                         wordBreak: 'break-all',
                                         minHeight: { xs: 48, sm: 56 },
                                         display: 'flex',
-                                        alignItems: 'center',
-                                        justifyContent: 'center'
+                                        alignItems: verificationCode ? 'center' : 'flex-start',
+                                        justifyContent: verificationCode ? 'center' : 'flex-start'
                                     }}
                                 >
-                                    {message?.content || '未找到验证码'}
+                                    {displayContent}
                                 </Paper>
                                 <Typography
                                     variant="caption"
@@ -305,7 +351,7 @@ function ViewPageContent() {
                                         fontSize: { xs: '0.75rem', sm: '0.75rem' }
                                     }}
                                 >
-                                    第二步：点击"复制验证码"按钮复制验证码
+                                    第二步：点击"复制{verificationCode ? '验证码' : '内容'}"按钮复制{verificationCode ? '验证码' : '短信内容'}
                                 </Typography>
                             </Box>
                         </Box>
