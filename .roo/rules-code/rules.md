@@ -1,0 +1,335 @@
+# API请求编码规则
+
+## 语言选择
+1. UI开发必须使用Material UI组件库（强制要求）
+   - 优先使用Material UI组件替代原生HTML元素
+   - 必须从@mui/material导入组件
+   - 示例：
+     ```jsx
+     // 正确
+     import { Button, TextField } from '@mui/material';
+     // 错误
+     import Button from '@mui/material/Button';
+     ```
+2. 优先使用JavaScript(JS)和JSX语法
+3. 仅在必要时使用TypeScript
+4. 新页面开发和重构必须使用JSX语法
+
+## 公共组件
+1. 所有可复用公共组件存放在`src/components`目录
+2. 开发时应优先使用现有公共组件
+3. 当前已有组件：
+   - `ConfirmDialog.jsx`：通用确认对话框组件
+4. 组件修改规范：
+   - 修改公共组件时需考虑向后兼容
+   - 避免破坏性变更，如需重大修改应创建新版本组件
+   - 修改后需测试所有引用该组件的页面
+
+
+## 客户端请求
+1. 使用统一封装的`apiRequest`函数
+2. 优先使用`userApi`封装方法
+   - 用户相关请求统一使用`userApi`，自动处理用户认证
+3. 方法：
+   - `get(url, options)`
+   - `post(url, body, options)`
+   - `patch(url, body, options)`
+   - `delete(url, options)`
+4. 认证头自动处理：
+   - 用户API：自动添加`x-username`和`x-password`请求头
+   - 管理员API：自动添加`x-admin-password`请求头
+5. 调用示例：
+   ```javascript
+   // 用户API调用示例
+   const userMessages = await userApi.get('/api/user/messages', {
+     params: { page: 1, pageSize: 10 }
+   });
+   
+   // 管理员API调用示例
+   const allUsers = await adminApi.get('/api/admin/users');
+   ```
+
+## 路由处理
+1. 每个API端点单独文件
+2. 使用Next.js Route Handlers
+3. 命名导出对应HTTP方法(`POST`, `GET`等)
+4. 参数获取：
+   - GET参数：`URL.searchParams`
+   - POST参数：`request.json()`
+5. 响应格式：
+   ```javascript
+   // 成功
+   NextResponse.json({success: true, ...data})
+   
+   // 失败
+   NextResponse.json({success: false, error: '消息'}, {status: xxx})
+   ```
+
+## 错误处理
+1. 统一捕获错误并返回500状态码
+2. 验证失败返回400/401
+3. 资源不存在返回404
+
+## 数据库操作
+1. 所有数据库操作逻辑必须放在`src/lib/db/`目录下
+2. 使用Prisma作为ORM实现数据库操作
+3. 每个数据表对应一个独立的操作文件
+4. 示例文件结构：
+   ```
+   src/lib/db/
+   ├── index.js       # 数据库连接初始化
+   ├── users.js       # 用户表操作
+   ├── messages.js    # 消息表操作
+   └── ...            # 其他表操作
+   ```
+5. 数据库模块功能 (src/lib/db/):
+   - `cardlinks.js`: 卡密链接CRUD操作
+   - `cards.js`: 卡密管理功能
+   - `messages.js`: 消息存储与查询
+   - `templates.js`: 模板管理
+   - `users.js`: 用户数据操作
+
+6. Prisma类型使用规范：
+   - 类型定义优先从Prisma Client生成
+   - 禁止手动定义已在Prisma中定义的模型类型
+   - 使用`import { Prisma } from '@prisma/client'`导入类型
+
+7. Prisma使用示例：
+   ```javascript
+   // 查询用户示例（使用Prisma生成类型）
+   import prisma from './index'
+   import { Prisma } from '@prisma/client'
+   
+   /**
+    * @param {Prisma.UserWhereUniqueInput} where
+    * @returns {Promise<Prisma.UserGetPayload<{}>>}
+    */
+   async function getUser(where) {
+     return await prisma.user.findUnique({ where })
+   }
+   ```
+
+## 示例代码
+```javascript
+// 客户端调用 - 用户API
+const userData = await userApi.get('/api/user/cardlinks');
+
+// 客户端调用 - 管理员API
+const adminData = await adminApi.get('/api/admin/users');
+
+// 路由实现 - 用户API验证
+export async function GET(request) {
+  const auth = getUserAuthFromRequest(request); // 从请求中获取认证信息
+  
+  if (!auth) {
+    return NextResponse.json(
+      {success: false, error: '需要认证'},
+      {status: 401}
+    );
+  }
+
+  // 处理业务逻辑...
+  return NextResponse.json({success: true, data: []});
+}
+
+// 辅助函数 - 从请求中获取用户认证
+function getUserAuthFromRequest(request) {
+  const username = request.headers.get('x-username');
+  const password = request.headers.get('x-password');
+  
+  return username && password ? {username, password} : null;
+}
+```
+
+## 功能函数清单
+### 数据库操作 (src/lib/db/)
+#### cardlinks.js
+- `generateCardKey()`: 生成16位随机卡密
+- `generateCardLinkUrl(key, appName, phone)`: 生成卡密链接URL
+- `createCardLink(username, data)`: 创建新的卡密链接
+- `getUserCardLinks(username, page, pageSize, status, search)`: 获取用户卡密链接列表
+- `getCardLink(key)`: 获取单个卡密链接
+- `getAllCardLinks()`: 获取所有卡密链接
+- `deleteCardLink(username, key)`: 删除卡密链接
+
+#### cards.js
+- `addCardKey(username)`: 为用户添加卡密
+- `getUserCardKeys(username)`: 获取用户卡密列表
+- `validateCardKey(key)`: 验证卡密有效性
+
+#### messages.js
+- `createMessage(data)`: 创建消息记录
+- `findUserMessages(username, page, pageSize, search)`: 查询用户消息
+- `countUserMessages(username)`: 统计用户消息数量
+- `findOldestMessageIds(username, take)`: 获取最早的消息ID
+- `deleteMessages(ids)`: 批量删除消息
+
+#### templates.js
+- `getAllTemplatesFromDb()`: 获取所有模板
+- `getTemplateRulesFromDb(templateId)`: 获取模板规则
+- `getTemplateByIdFromDb(id)`: 根据ID获取模板
+- `getTemplateByNameFromDb(name)`: 根据名称获取模板
+- `createTemplateInDb(templateData, rules)`: 创建新模板
+- `updateTemplateInDb(id, templateData, rules)`: 更新模板
+- `deleteTemplateFromDb(id)`: 删除模板
+- `addRuleToTemplateInDb(templateId, ruleData)`: 添加规则到模板
+- `deleteRuleFromDb(templateId, ruleId)`: 删除规则
+
+#### users.js
+- `createUserDb(username, password, webhookKey, createdAt, canManageTemplates)`: 创建用户
+- `getUserByIdDb(userId)`: 根据ID获取用户
+- `deleteUserDb(username)`: 删除用户
+- `getAllUsersDb()`: 获取所有用户
+- `validateUserDb(username, password)`: 验证用户
+- `getUserByUsernameDb(username)`: 根据用户名获取用户
+- `updateUserDb(username, updates)`: 更新用户信息
+
+### 服务层 (src/lib/services/)
+#### auth.js
+- `verifyAdminAuth(req)`: 验证管理员权限
+
+#### cardlinks.js
+- `generateCardKey()`: 生成卡密(调用db模块)
+- `generateCardLinkUrl(key, appName, phone)`: 生成卡密链接URL(调用db模块)
+- `createCardLink(username, data)`: 创建卡密链接(调用db模块)
+- `getUserCardLinks(username)`: 获取用户卡密链接(调用db模块)
+- `getCardLink(key)`: 获取卡密链接(调用db模块)
+
+#### messages.js
+- `addMessage(username, smsContent, recTime, receivedAt, type)`: 添加消息
+- `getUserMessages(username, page, pageSize, search)`: 获取用户消息
+- `cleanupOldMessages(username)`: 清理旧消息(保留最近1000条)
+- `getAllMessages()`: 获取所有消息
+
+#### templates.js
+- `generateTemplateId()`: 生成模板ID
+- `generateRuleId()`: 生成规则ID
+- `escapeRegExp(string)`: 转义正则表达式特殊字符
+- `getAllTemplates()`: 获取所有模板(包含规则)
+- `getTemplateRules(templateId)`: 获取模板规则
+- `getTemplateById(id)`: 根据ID获取模板
+- `getTemplateByName(name)`: 根据名称获取模板
+- `createTemplate(data)`: 创建模板
+- `updateTemplate(id, data)`: 更新模板
+- `deleteTemplate(id)`: 删除模板
+- `addRule(templateId, data)`: 添加规则到模板
+- `deleteRule(templateId, ruleId)`: 删除规则
+
+#### users.js
+- `createUser(username, password, canManageTemplates)`: 创建用户
+- `getUser(userId)`: 获取用户
+- `deleteUser(username)`: 删除用户
+- `getAllUsers()`: 获取所有用户
+- `validateUser(username, password)`: 验证用户
+- `getUserByUsername(username)`: 根据用户名获取用户
+- `updateUser(username, updates)`: 更新用户信息
+- `isAdmin(username, password)`: 检查是否为管理员
+- `canManageTemplates(username, password)`: 检查是否有模板管理权限
+
+### 工具函数 (src/lib/utils/)
+#### account.js
+- `isAccountActive(expiryDate)`: 检查账号是否有效
+- `getPermanentExpiryDate()`: 获取永久有效日期
+- `formatExpiryDate(expiryDate)`: 格式化有效期显示
+
+#### api-client.ts
+- `apiRequest(url, options)`: 通用API请求函数
+- `getUserAuth()`: 获取用户认证信息
+- `getAdminAuth()`: 获取管理员认证信息
+- `userApi`: 用户API封装(get/post/patch/delete)
+- `adminApi`: 管理员API封装(get/post/patch/delete)
+
+#### auth.js
+- `getAuthStatus()`: 获取用户认证状态
+
+#### clipboard.ts
+- `copyToClipboard(text, onSuccess, onError)`: 复制文本到剪贴板
+
+## 使用规范
+1. 开发时应优先使用上述已有函数
+2. 如需新增功能，应先检查是否已有类似函数
+3. 修改现有函数时，必须同步更新此文档
+4. 函数变更流程：
+   - 修改函数实现
+   - 更新测试用例
+   - 更新此文档中的函数描述
+   - 提交代码审查
+```
+
+## 工具函数
+1. 通用工具封装在`src/lib/utils/`
+2. 主要功能：
+   - `api-client.ts`: 统一API请求封装
+   - `auth.js`: 认证相关工具
+   - `clipboard.ts`: 剪贴板操作
+   - `account.js`: 账号相关工具
+```
+
+## API测试规范
+
+### 认证机制
+1. 用户认证：
+   - 通过`x-username`和`x-password`请求头认证
+   - 登录接口：`POST /api/user/login`
+   - 示例：
+     ```bash
+     curl -X POST http://localhost:3000/api/user/login \
+       -H "Content-Type: application/json" \
+       -d '{"username":"aaa","password":"aaa"}'
+     ```
+
+2. 管理员认证：
+   - 通过`x-admin-password`请求头认证
+   - 默认密码：`admin123` (可通过环境变量修改)
+   - 示例：
+     ```bash
+     curl -X GET http://localhost:3000/api/admin/users \
+       -H "x-admin-password: admin123"
+     ```
+
+3. 公共接口：
+   - 无需任何认证头
+   - 示例：
+     ```bash
+     curl -X GET "http://localhost:3000/api/public/messages?cardKey=TESTKEY&appName=testApp"
+     ```
+
+### 测试账号
+```text
+普通用户：
+- 用户名: aaa
+- 密码: aaa
+
+管理员：
+- 密码: admin123
+```
+
+### 请求示例
+
+1. 用户登录验证：
+```bash
+curl -X POST http://localhost:3000/api/user/login \
+  -H "Content-Type: application/json" \
+  -d '{"username":"aaa","password":"aaa"}'
+```
+
+2. 用户API调用（需认证头）：
+```bash
+# 获取卡密链接
+curl -X GET http://localhost:3000/api/user/cardlinks \
+  -H "x-username: aaa" \
+  -H "x-password: aaa"
+```
+
+3. 管理员API调用：
+```bash
+# 获取用户列表
+curl -X GET http://localhost:3000/api/admin/users \
+  -H "x-admin-password: admin123"
+```
+
+4. 公共API调用：
+```bash
+# 获取模板列表
+curl -X GET http://localhost:3000/api/public/templates
+```

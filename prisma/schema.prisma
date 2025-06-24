@@ -1,0 +1,83 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id                 Int        @id @default(autoincrement())
+  username           String     @unique
+  password           String
+  webhookKey         String     @unique @map("webhook_key")
+  createdAt          BigInt
+  isAdmin            Boolean    @default(false)
+  canManageTemplates Boolean    @default(false)
+  expiryDate         String?    @default("20991231") @map("expiry_date")
+  templates          Template[]
+  cardLinks          CardLink[]
+  messages           Message[]
+
+  @@map("users")
+}
+
+model Message {
+  id               Int     @id @default(autoincrement())
+  username         String
+  smsContent       String
+  smsReceivedAt    BigInt  @map("sms_received_at")
+  systemReceivedAt BigInt  @map("system_received_at")
+  sourceType       String  @map("source_type")
+  senderPhone      String? @map("sender_phone")
+  receiverCard     String? @map("receiver_card")
+  sourceApp        String? @map("source_app")
+  rawData          String? @map("raw_data")
+  createdAt        BigInt  @map("created_at")
+  user             User    @relation(fields: [username], references: [username])
+
+  @@map("messages")
+}
+
+model Template {
+  id          String     @id
+  name        String
+  description String?
+  createdAt   String
+  updatedAt   String
+  isPublic    Boolean    @default(false)
+  username    String?
+  rules       Rule[]
+  user        User?      @relation(fields: [username], references: [username])
+  cardLinks   CardLink[]
+
+  @@index([username])
+}
+
+model Rule {
+  id          String   @id
+  templateId  String   @map("template_id")
+  mode        String
+  pattern     String
+  description String?
+  orderNum    Int      @map("order_num")
+  isActive    Boolean  @default(true) @map("is_active")
+  template    Template @relation(fields: [templateId], references: [id], onDelete: Cascade)
+}
+
+model CardLink {
+  id          String    @id
+  cardKey     String    @unique @map("card_key")
+  username    String
+  appName     String    @map("app_name")
+  phone       String?   @map("phone")
+  createdAt   BigInt    @map("created_at")
+  firstUsedAt BigInt?   @map("first_used_at")
+  url         String
+  templateId  String?   @map("template_id")
+  template    Template? @relation(fields: [templateId], references: [id])
+  user        User      @relation(fields: [username], references: [username])
+
+  @@map("cardLinks")
+}
