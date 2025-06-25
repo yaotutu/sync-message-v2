@@ -47,10 +47,12 @@ function convertToTimestamp(timeInput: string | number, timeFormat: string): num
  * 
  * 请求体格式:
  * {
- *   "smsContent": "消息内容",
+ *   "username": "用户名",                        // 必填，用户名
+ *   "webhookKey": "webhook密钥",                 // 必填，webhook密钥
+ *   "smsContent": "消息内容",                    // 必填，消息内容
  *   "sourceType": "SMS" | "EMAIL",              // 必填，消息来源类型
- *   "smsReceivedAt": "时间值",                   // 短信在手机上接收的时间
- *   "timeFormat": "timestamp" | "iso",          // 必填，指定时间格式
+ *   "smsReceivedAt": "时间值",                   // 可选，短信在手机上接收的时间
+ *   "timeFormat": "timestamp" | "iso",          // 可选，时间格式（提供smsReceivedAt时必填）
  *   "systemReceivedAt": 1234567890,             // 可选，系统接收时间戳（默认当前时间）
  *   "senderPhone": "13800138000",               // 可选，发件人号码
  *   "receiverCard": "主卡",                     // 可选，接收手机卡标识
@@ -70,32 +72,29 @@ export async function POST(request: NextRequest) {
     try {
         console.log('收到webhook消息请求');
 
-        const username = request.headers.get('x-username');
-        const webhookKey = request.headers.get('x-webhook-key');
-        console.log(`请求头: username=${username}, webhookKey=${webhookKey ? '已提供' : '未提供'}`);
+        const body = await request.json();
 
-        if (!username || !webhookKey) {
-            console.log('错误: 缺少必要的请求头');
+        // 验证认证信息
+        if (!body.username || !body.webhookKey) {
+            console.log('错误: 缺少认证信息');
             return NextResponse.json(
-                { success: false, message: '缺少必要的请求头 (需要 x-username 和 x-webhook-key)' },
+                { success: false, message: '缺少认证信息 (需要 username 和 webhookKey)' },
                 { status: 400 }
             );
         }
 
         // 验证 webhook key
-        const userResult = await getUserByUsername(username);
-        if (!userResult.success || !userResult.data || userResult.data.webhookKey !== webhookKey) {
-            console.log(`错误: Webhook Key 验证失败，用户: ${username}`);
+        const userResult = await getUserByUsername(body.username);
+        if (!userResult.success || !userResult.data || userResult.data.webhookKey !== body.webhookKey) {
+            console.log(`错误: Webhook Key 验证失败，用户: ${body.username}`);
             return NextResponse.json(
                 { success: false, message: 'Webhook Key 验证失败' },
                 { status: 401 }
             );
         }
-        console.log(`用户验证成功: ${username}`);
+        console.log(`用户验证成功: ${body.username}`);
 
-        const body = await request.json();
-
-        // 验证请求体
+        // 验证消息内容
         if (!body.smsContent) {
             console.log('错误: 缺少消息内容');
             return NextResponse.json(
@@ -157,7 +156,7 @@ export async function POST(request: NextRequest) {
         console.log(`来源应用: ${body.sourceApp || '未提供'}`);
 
         const result = await addMessage(
-            username,
+            body.username,
             body.smsContent,
             smsReceivedAt,
             systemReceivedAt,
