@@ -18,22 +18,22 @@ Webhook API 提供了两个主要功能，用于第三方系统与消息同步�
 
 ### Webhook Key 认证
 - 每个用户都有唯一的 `webhookKey`（UUID格式）
-- 通过请求头 `x-webhook-key` 传递
+- 通过请求体中的 `webhookKey` 字段传递
 - 系统会验证 webhookKey 与用户名的匹配关系
 - 验证失败返回 401 状态码
 
 ### 用户认证
-- 通过请求头 `x-username` 传递用户名
-- 通过请求头 `x-password` 传递密码（仅登录接口使用）
+- 通过请求体中的 `username` 字段传递用户名
+- 通过请求体中的 `password` 字段传递密码（仅登录接口使用）
 
 ## 关键字段说明
 
-### webhookType 字段的重要性
+### sourceType 字段的重要性
 
-**`x-webhook-type` 是webhook接口的核心字段，具有以下关键特性：**
+**`sourceType` 是webhook接口的核心字段，具有以下关键特性：**
 
 1. **直接映射到数据库**
-   - `webhookType` 字段直接对应 Message 模型中的 `type` 字段
+   - `sourceType` 字段直接对应 Message 模型中的 `type` 字段
    - 该字段决定了消息在数据库中的存储类型
    - 影响后续的消息查询、过滤和分类功能
 
@@ -53,7 +53,7 @@ Webhook API 提供了两个主要功能，用于第三方系统与消息同步�
    - 支持按类型进行消息管理
 
 **⚠️ 重要提醒：**
-- 必须正确设置 `x-webhook-type` 字段，否则消息无法正确存储
+- 必须正确设置 `sourceType` 字段，否则消息无法正确存储
 - 该字段决定了消息在系统中的分类和处理方式
 - 建议在集成时仔细验证此字段的值
 
@@ -68,50 +68,67 @@ Webhook API 提供了两个主要功能，用于第三方系统与消息同步�
 #### 请求头
 | 字段名 | 类型 | 必填 | 说明 |
 |--------|------|------|------|
-| `x-username` | string | 是 | 用户名 |
-| `x-webhook-key` | string | 是 | Webhook密钥（UUID格式） |
-| `x-webhook-type` | string | 是 | 消息类型，必须是 `SMS` 或 `EMAIL`（不区分大小写） |
 | `Content-Type` | string | 是 | 必须为 `application/json` |
 
 #### 请求体
 ```json
 {
+  "username": "用户名",
+  "webhookKey": "webhook密钥",
   "smsContent": "您的验证码是：123456，5分钟内有效",
-  "recTime": "2024-01-15 10:30:00",
-  "receivedAt": 1705297800000
+  "sourceType": "SMS",
+  "smsReceivedAt": "时间值",
+  "timeFormat": "timestamp",
+  "systemReceivedAt": 1705297800000,
+  "senderPhone": "13800138000",
+  "receiverCard": "主卡",
+  "sourceApp": "微信",
+  "rawData": "{}"
 }
 ```
 
 | 字段名 | 类型 | 必填 | 说明 |
 |--------|------|------|------|
+| `username` | string | 是 | 用户名 |
+| `webhookKey` | string | 是 | Webhook密钥（UUID格式） |
 | `smsContent` | string | 是 | 消息内容 |
-| `recTime` | string | 否 | 原始接收时间字符串 |
-| `receivedAt` | number | 否 | 接收时间戳（毫秒），不提供则使用当前时间 |
+| `sourceType` | string | 是 | 消息来源类型，必须是 `SMS` 或 `EMAIL`（不区分大小写） |
+| `smsReceivedAt` | string/number | 否 | 短信在手机上接收的时间 |
+| `timeFormat` | string | 否 | 时间格式（提供smsReceivedAt时必填）：`timestamp` 或 `iso` |
+| `systemReceivedAt` | number | 否 | 系统接收时间戳（毫秒），不提供则使用当前时间 |
+| `senderPhone` | string | 否 | 发件人号码 |
+| `receiverCard` | string | 否 | 接收手机卡标识 |
+| `sourceApp` | string | 否 | 来源应用标识 |
+| `rawData` | string | 否 | 原始数据JSON字符串 |
 
 #### 验证规则
 
-1. **消息类型验证（关键）**
-   - `x-webhook-type` 是**核心字段**，直接决定消息在数据库中的存储类型
+1. **认证信息验证**
+   - `username` 和 `webhookKey` 必须同时提供
+   - 系统会验证 webhookKey 与用户名的匹配关系
+
+2. **消息来源类型验证（关键）**
+   - `sourceType` 是**核心字段**，直接决定消息在数据库中的存储类型
    - 必须是 `SMS` 或 `EMAIL`，对应 Message 模型的 `type` 字段
    - 不区分大小写，系统会自动转换为大写存储
    - **其他值将返回 400 错误，消息无法存储**
    - 此字段影响整个消息的生命周期和业务逻辑
 
-2. **消息内容验证**
+3. **消息内容验证**
    - `smsContent` 字段不能为空
    - 空内容将返回 400 错误
 
-3. **时间戳验证**
-   - `receivedAt` 必须是有效的数字
-   - 如果不提供，系统使用当前时间戳
+4. **时间格式验证**
+   - 如果提供 `smsReceivedAt`，必须同时提供 `timeFormat`
+   - `timeFormat` 只支持 `timestamp` 或 `iso`
+   - 如果提供 `smsReceivedAt` 但缺少 `timeFormat`，将返回 400 错误
 
 #### 响应格式
 
 **成功响应：**
 ```json
 {
-  "success": true,
-  "message": "消息添加成功"
+  "success": true
 }
 ```
 
@@ -125,7 +142,7 @@ Webhook API 提供了两个主要功能，用于第三方系统与消息同步�
 
 #### 状态码
 - `200` - 请求成功
-- `400` - 请求参数错误（缺少必要请求头、参数或消息类型不支持）
+- `400` - 请求参数错误（缺少必要参数、参数格式错误或消息类型不支持）
 - `401` - 认证失败（Webhook Key 验证失败）
 - `500` - 服务器内部错误
 
@@ -135,13 +152,16 @@ Webhook API 提供了两个主要功能，用于第三方系统与消息同步�
 ```bash
 curl -X POST http://localhost:3000/api/webhook \
   -H "Content-Type: application/json" \
-  -H "x-username: testuser" \
-  -H "x-webhook-key: 550e8400-e29b-41d4-a716-446655440000" \
-  -H "x-webhook-type: SMS" \
   -d '{
+    "username": "testuser",
+    "webhookKey": "550e8400-e29b-41d4-a716-446655440000",
     "smsContent": "您的验证码是：123456，5分钟内有效",
-    "recTime": "2024-01-15 10:30:00",
-    "receivedAt": 1705297800000
+    "sourceType": "SMS",
+    "smsReceivedAt": "2025-01-20T10:30:00.000Z",
+    "timeFormat": "iso",
+    "senderPhone": "13800138000",
+    "receiverCard": "主卡",
+    "sourceApp": "微信"
   }'
 ```
 
@@ -149,13 +169,42 @@ curl -X POST http://localhost:3000/api/webhook \
 ```bash
 curl -X POST http://localhost:3000/api/webhook \
   -H "Content-Type: application/json" \
-  -H "x-username: testuser" \
-  -H "x-webhook-key: 550e8400-e29b-41d4-a716-446655440000" \
-  -H "x-webhook-type: EMAIL" \
   -d '{
+    "username": "testuser",
+    "webhookKey": "550e8400-e29b-41d4-a716-446655440000",
     "smsContent": "您收到一封新邮件：验证码 123456",
-    "recTime": "2024-01-15 10:30:00",
-    "receivedAt": 1705297800000
+    "sourceType": "EMAIL",
+    "smsReceivedAt": "2025-01-20T10:30:00.000Z",
+    "timeFormat": "iso",
+    "senderPhone": "test@example.com",
+    "receiverCard": "邮箱",
+    "sourceApp": "Gmail"
+  }'
+```
+
+**使用时间戳格式：**
+```bash
+curl -X POST http://localhost:3000/api/webhook \
+  -H "Content-Type: application/json" \
+  -d '{
+    "username": "testuser",
+    "webhookKey": "550e8400-e29b-41d4-a716-446655440000",
+    "smsContent": "时间戳格式测试",
+    "sourceType": "SMS",
+    "smsReceivedAt": 1705297800000,
+    "timeFormat": "timestamp"
+  }'
+```
+
+**最小化调用（只提供必填字段）：**
+```bash
+curl -X POST http://localhost:3000/api/webhook \
+  -H "Content-Type: application/json" \
+  -d '{
+    "username": "testuser",
+    "webhookKey": "550e8400-e29b-41d4-a716-446655440000",
+    "smsContent": "简单测试消息",
+    "sourceType": "SMS"
   }'
 ```
 
@@ -231,7 +280,7 @@ curl -X POST http://localhost:3000/api/webhook/login \
 
 | 状态码 | 错误类型 | 说明 | 解决方案 |
 |--------|----------|------|----------|
-| 400 | 参数错误 | 缺少必要的请求头、参数或消息类型不支持 | 检查请求头、请求体格式和消息类型 |
+| 400 | 参数错误 | 缺少必要的参数、参数格式错误或消息类型不支持 | 检查请求体格式和参数值 |
 | 401 | 认证失败 | Webhook Key 验证失败 | 确认用户名和 webhookKey 的正确性 |
 | 500 | 服务器错误 | 服务器内部处理错误 | 检查服务器日志，稍后重试 |
 
@@ -246,19 +295,19 @@ curl -X POST http://localhost:3000/api/webhook/login \
 
 ### 常见错误场景
 
-1. **缺少必要请求头**
+1. **缺少认证信息**
    ```json
    {
      "success": false,
-     "message": "缺少必要的请求头 (需要 x-username, x-webhook-key 和 x-webhook-type)"
+     "message": "缺少认证信息 (需要 username 和 webhookKey)"
    }
    ```
 
-2. **不支持的消息类型（严重错误）**
+2. **不支持的消息来源类型（严重错误）**
    ```json
    {
      "success": false,
-     "message": "不支持的消息类型，只支持 SMS 或 EMAIL"
+     "message": "不支持的消息来源类型，只支持 SMS 或 EMAIL"
    }
    ```
    **影响：** 消息无法存储到数据库，整个请求失败
@@ -279,6 +328,22 @@ curl -X POST http://localhost:3000/api/webhook/login \
    }
    ```
 
+5. **缺少消息来源类型**
+   ```json
+   {
+     "success": false,
+     "message": "缺少消息来源类型 (sourceType)"
+   }
+   ```
+
+6. **时间格式错误**
+   ```json
+   {
+     "success": false,
+     "message": "提供了smsReceivedAt时必须指定timeFormat (timestamp 或 iso)"
+   }
+   ```
+
 ## 安全注意事项
 
 1. **Webhook Key 安全**
@@ -295,7 +360,7 @@ curl -X POST http://localhost:3000/api/webhook/login \
 3. **数据验证**
    - 发送前请验证消息内容的格式和长度
    - 时间戳建议使用毫秒级精度
-   - 确保消息类型正确（SMS 或 EMAIL）
+   - 确保消息来源类型正确（SMS 或 EMAIL）
 
 ## 集成建议
 
@@ -308,23 +373,26 @@ curl -X POST http://localhost:3000/api/webhook/login \
  * @param {string} username - 用户名
  * @param {string} webhookKey - Webhook密钥
  * @param {object} message - 消息对象
- * @param {string} type - 消息类型 (SMS/EMAIL)
+ * @param {string} sourceType - 消息来源类型 (SMS/EMAIL)
  * @returns {Promise<object>} 响应结果
  */
-async function sendMessage(username, webhookKey, message, type = 'SMS') {
+async function sendMessage(username, webhookKey, message, sourceType = 'SMS') {
   try {
     const response = await fetch('/api/webhook', {
       method: 'POST',
       headers: {
-        'Content-Type': 'application/json',
-        'x-username': username,
-        'x-webhook-key': webhookKey,
-        'x-webhook-type': type.toUpperCase()
+        'Content-Type': 'application/json'
       },
       body: JSON.stringify({
-        smsContent: message.content,
-        recTime: message.recTime,
-        receivedAt: Date.now()
+        username: username,
+        webhookKey: webhookKey,
+        smsContent: message.smsContent,
+        sourceType: sourceType.toUpperCase(),
+        smsReceivedAt: message.smsReceivedAt,
+        timeFormat: message.timeFormat,
+        senderPhone: message.senderPhone,
+        receiverCard: message.receiverCard,
+        sourceApp: message.sourceApp
       })
     });
     
@@ -337,8 +405,10 @@ async function sendMessage(username, webhookKey, message, type = 'SMS') {
 
 // 使用示例
 const result = await sendMessage('testuser', 'webhook-key', {
-  content: '您的验证码是：123456',
-  recTime: '2024-01-15 10:30:00'
+  smsContent: '您的验证码是：123456',
+  smsReceivedAt: '2025-01-20T10:30:00.000Z',
+  timeFormat: 'iso',
+  senderPhone: '13800138000'
 }, 'SMS');
 
 if (result.success) {
@@ -392,35 +462,47 @@ import requests
 import json
 from datetime import datetime
 
-def send_message(username, webhook_key, content, message_type="SMS", rec_time=None):
+def send_message(username, webhook_key, sms_content, source_type="SMS", sms_received_at=None, time_format=None, sender_phone=None, receiver_card=None, source_app=None):
     """
     发送消息到webhook接口
     
     Args:
         username (str): 用户名
         webhook_key (str): Webhook密钥
-        content (str): 消息内容
-        message_type (str): 消息类型 (SMS/EMAIL)
-        rec_time (str): 原始接收时间
+        sms_content (str): 消息内容
+        source_type (str): 消息来源类型 (SMS/EMAIL)
+        sms_received_at (str/int): 短信在手机上接收的时间
+        time_format (str): 时间格式 (timestamp/iso)
+        sender_phone (str): 发件人号码
+        receiver_card (str): 接收手机卡标识
+        source_app (str): 来源应用标识
     
     Returns:
         dict: 响应结果
     """
     url = "http://localhost:3000/api/webhook"
     headers = {
-        "Content-Type": "application/json",
-        "x-username": username,
-        "x-webhook-key": webhook_key,
-        "x-webhook-type": message_type.upper()
+        "Content-Type": "application/json"
     }
     
     data = {
-        "smsContent": content,
-        "receivedAt": int(datetime.now().timestamp() * 1000)
+        "username": username,
+        "webhookKey": webhook_key,
+        "smsContent": sms_content,
+        "sourceType": source_type.upper()
     }
     
-    if rec_time:
-        data["recTime"] = rec_time
+    if sms_received_at:
+        data["smsReceivedAt"] = sms_received_at
+        if time_format:
+            data["timeFormat"] = time_format
+    
+    if sender_phone:
+        data["senderPhone"] = sender_phone
+    if receiver_card:
+        data["receiverCard"] = receiver_card
+    if source_app:
+        data["sourceApp"] = source_app
     
     try:
         response = requests.post(url, headers=headers, json=data)
@@ -432,9 +514,13 @@ def send_message(username, webhook_key, content, message_type="SMS", rec_time=No
 result = send_message(
     username="testuser",
     webhook_key="550e8400-e29b-41d4-a716-446655440000",
-    content="您的验证码是：123456",
-    message_type="SMS",
-    rec_time="2024-01-15 10:30:00"
+    sms_content="您的验证码是：123456",
+    source_type="SMS",
+    sms_received_at="2025-01-20T10:30:00.000Z",
+    time_format="iso",
+    sender_phone="13800138000",
+    receiver_card="主卡",
+    source_app="微信"
 )
 
 if result["success"]:
@@ -453,28 +539,44 @@ else:
  * 
  * @param string $username 用户名
  * @param string $webhookKey Webhook密钥
- * @param string $content 消息内容
- * @param string $type 消息类型 (SMS/EMAIL)
- * @param string|null $recTime 原始接收时间
+ * @param string $smsContent 消息内容
+ * @param string $sourceType 消息来源类型 (SMS/EMAIL)
+ * @param string|null $smsReceivedAt 短信在手机上接收的时间
+ * @param string|null $timeFormat 时间格式 (timestamp/iso)
+ * @param string|null $senderPhone 发件人号码
+ * @param string|null $receiverCard 接收手机卡标识
+ * @param string|null $sourceApp 来源应用标识
  * @return array 响应结果
  */
-function sendMessage($username, $webhookKey, $content, $type = 'SMS', $recTime = null) {
+function sendMessage($username, $webhookKey, $smsContent, $sourceType = 'SMS', $smsReceivedAt = null, $timeFormat = null, $senderPhone = null, $receiverCard = null, $sourceApp = null) {
     $url = 'http://localhost:3000/api/webhook';
     
     $headers = [
-        'Content-Type: application/json',
-        'x-username: ' . $username,
-        'x-webhook-key: ' . $webhookKey,
-        'x-webhook-type: ' . strtoupper($type)
+        'Content-Type: application/json'
     ];
     
     $data = [
-        'smsContent' => $content,
-        'receivedAt' => round(microtime(true) * 1000)
+        'username' => $username,
+        'webhookKey' => $webhookKey,
+        'smsContent' => $smsContent,
+        'sourceType' => strtoupper($sourceType)
     ];
     
-    if ($recTime) {
-        $data['recTime'] = $recTime;
+    if ($smsReceivedAt) {
+        $data['smsReceivedAt'] = $smsReceivedAt;
+        if ($timeFormat) {
+            $data['timeFormat'] = $timeFormat;
+        }
+    }
+    
+    if ($senderPhone) {
+        $data['senderPhone'] = $senderPhone;
+    }
+    if ($receiverCard) {
+        $data['receiverCard'] = $receiverCard;
+    }
+    if ($sourceApp) {
+        $data['sourceApp'] = $sourceApp;
     }
     
     $ch = curl_init();
@@ -501,7 +603,11 @@ $result = sendMessage(
     '550e8400-e29b-41d4-a716-446655440000',
     '您的验证码是：123456',
     'SMS',
-    '2024-01-15 10:30:00'
+    '2025-01-20T10:30:00.000Z',
+    'iso',
+    '13800138000',
+    '主卡',
+    '微信'
 );
 
 if ($result['success']) {
@@ -573,12 +679,16 @@ curl -X POST http://localhost:3000/api/admin/users \
 ```bash
 curl -X POST http://localhost:3000/api/webhook \
   -H "Content-Type: application/json" \
-  -H "x-username: testuser" \
-  -H "x-webhook-key: YOUR_WEBHOOK_KEY" \
-  -H "x-webhook-type: SMS" \
   -d '{
+    "username": "testuser",
+    "webhookKey": "YOUR_WEBHOOK_KEY",
     "smsContent": "测试短信：验证码 123456",
-    "recTime": "2024-01-15 10:30:00"
+    "sourceType": "SMS",
+    "smsReceivedAt": "2025-01-20T10:30:00.000Z",
+    "timeFormat": "iso",
+    "senderPhone": "13800138000",
+    "receiverCard": "主卡",
+    "sourceApp": "微信"
   }'
 ```
 
@@ -586,24 +696,28 @@ curl -X POST http://localhost:3000/api/webhook \
 ```bash
 curl -X POST http://localhost:3000/api/webhook \
   -H "Content-Type: application/json" \
-  -H "x-username: testuser" \
-  -H "x-webhook-key: YOUR_WEBHOOK_KEY" \
-  -H "x-webhook-type: EMAIL" \
   -d '{
+    "username": "testuser",
+    "webhookKey": "YOUR_WEBHOOK_KEY",
     "smsContent": "测试邮件：您收到一封新邮件",
-    "recTime": "2024-01-15 10:30:00"
+    "sourceType": "EMAIL",
+    "smsReceivedAt": "2025-01-20T10:30:00.000Z",
+    "timeFormat": "iso",
+    "senderPhone": "test@example.com",
+    "receiverCard": "邮箱",
+    "sourceApp": "Gmail"
   }'
 ```
 
-**测试用例3：错误的消息类型**
+**测试用例3：错误的消息来源类型**
 ```bash
 curl -X POST http://localhost:3000/api/webhook \
   -H "Content-Type: application/json" \
-  -H "x-username: testuser" \
-  -H "x-webhook-key: YOUR_WEBHOOK_KEY" \
-  -H "x-webhook-type: INVALID_TYPE" \
   -d '{
-    "smsContent": "测试消息"
+    "username": "testuser",
+    "webhookKey": "YOUR_WEBHOOK_KEY",
+    "smsContent": "测试消息",
+    "sourceType": "INVALID_TYPE"
   }'
 ```
 
@@ -611,10 +725,24 @@ curl -X POST http://localhost:3000/api/webhook \
 ```bash
 curl -X POST http://localhost:3000/api/webhook \
   -H "Content-Type: application/json" \
-  -H "x-username: testuser" \
-  -H "x-webhook-key: YOUR_WEBHOOK_KEY" \
-  -H "x-webhook-type: SMS" \
-  -d '{}'
+  -d '{
+    "username": "testuser",
+    "webhookKey": "YOUR_WEBHOOK_KEY",
+    "sourceType": "SMS"
+  }'
+```
+
+**测试用例5：缺少时间格式**
+```bash
+curl -X POST http://localhost:3000/api/webhook \
+  -H "Content-Type: application/json" \
+  -d '{
+    "username": "testuser",
+    "webhookKey": "YOUR_WEBHOOK_KEY",
+    "smsContent": "测试消息",
+    "sourceType": "SMS",
+    "smsReceivedAt": "2025-01-20T10:30:00.000Z"
+  }'
 ```
 
 ### 3. 测试登录验证接口
@@ -664,14 +792,14 @@ curl -X GET "http://localhost:3000/api/user/messages?page=1&pageSize=10" \
 - 始终检查响应状态码和success字段
 - 实现重试机制处理临时网络错误
 - 记录详细的错误日志用于调试
-- **特别注意webhookType字段的验证错误，这是导致消息存储失败的主要原因**
+- **特别注意sourceType字段的验证错误，这是导致消息存储失败的主要原因**
 
-### 2. webhookType 字段最佳实践
+### 2. sourceType 字段最佳实践
 - **严格验证**：确保只传递 `SMS` 或 `EMAIL` 值
 - **大小写处理**：虽然系统不区分大小写，但建议统一使用大写
-- **业务逻辑**：根据实际业务需求正确设置消息类型
+- **业务逻辑**：根据实际业务需求正确设置消息来源类型
 - **测试验证**：在集成前充分测试两种类型的消息发送
-- **错误监控**：特别关注webhookType相关的错误响应
+- **错误监控**：特别关注sourceType相关的错误响应
 
 ### 3. 性能优化
 - 批量发送消息时控制并发数量
@@ -682,7 +810,7 @@ curl -X GET "http://localhost:3000/api/user/messages?page=1&pageSize=10" \
 - 监控API调用成功率
 - 记录请求响应时间
 - 设置告警机制
-- **特别监控webhookType验证失败的情况**
+- **特别监控sourceType验证失败的情况**
 
 ### 5. 安全性
 - 定期轮换Webhook Key
@@ -691,6 +819,10 @@ curl -X GET "http://localhost:3000/api/user/messages?page=1&pageSize=10" \
 
 ## 更新日志
 
+- **v2.0.0** - 认证信息移至请求体
+  - 认证信息从请求头改为请求体中的 `username` 和 `webhookKey` 字段
+  - 保持其他所有参数命名不变
+  - 更简洁的调用方式，认证信息统一在JSON中
 - **v1.2.0** - 优化字段命名，统一使用小驼峰风格
 - **v1.1.0** - 增强消息类型验证，支持 SMS 和 EMAIL 两种类型
 - **v1.0.0** - 初始版本，支持基本的消息接收和用户验证功能

@@ -61,6 +61,9 @@ export default function UsersPage() {
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [userToDelete, setUserToDelete] = useState(null);
 
+  // 直接读取公共环境变量
+  const showExpirationColumns = process.env.NEXT_PUBLIC_USER_EXPIRATION_ENABLED === 'true';
+
   useEffect(() => {
     loadUsers();
   }, []);
@@ -129,7 +132,7 @@ export default function UsersPage() {
       setDeleteDialogOpen(false);
       return;
     }
-    
+
     // 确保关闭对话框后再执行删除操作
     setDeleteDialogOpen(false);
     await new Promise(resolve => setTimeout(resolve, 0)); // 确保状态更新完成
@@ -307,8 +310,8 @@ export default function UsersPage() {
                     <TableCell>用户名</TableCell>
                     <TableCell>Webhook密钥</TableCell>
                     <TableCell>模板管理</TableCell>
-                    <TableCell>账号状态</TableCell>
-                    <TableCell>有效期</TableCell>
+                    {showExpirationColumns && <TableCell>账号状态</TableCell>}
+                    {showExpirationColumns && <TableCell>有效期</TableCell>}
                     <TableCell>创建时间</TableCell>
                     <TableCell align="right">操作</TableCell>
                   </TableRow>
@@ -349,55 +352,59 @@ export default function UsersPage() {
                           label={user.canManageTemplates ? '已启用' : '已禁用'}
                         />
                       </TableCell>
-                      <TableCell>
-                        <Typography
-                          color={isAccountActive(user.expiryDate) ? 'success.main' : 'error.main'}
-                        >
-                          {isAccountActive(user.expiryDate) ? '有效' : '无效'}
-                        </Typography>
-                      </TableCell>
-                      <TableCell>
-                        {editingExpiry === user.username ? (
-                          <Box display="flex" alignItems="center" gap={1}>
-                            <TextField
-                              size="small"
-                              value={expiryInput}
-                              onChange={(e) => setExpiryInput(e.target.value)}
-                              placeholder="YYYYMMDD"
-                              sx={{ width: '120px' }}
-                            />
-                            <IconButton
-                              size="small"
-                              color="primary"
-                              onClick={() => saveExpiry(user.username)}
-                            >
-                              <CheckIcon fontSize="small" />
-                            </IconButton>
-                            <IconButton
-                              size="small"
-                              onClick={() => {
-                                setEditingExpiry('');
-                                setExpiryInput('');
-                              }}
-                            >
-                              <CloseIcon fontSize="small" />
-                            </IconButton>
-                          </Box>
-                        ) : (
-                          <Box display="flex" alignItems="center" gap={1}>
-                            <Typography>{formatExpiryDate(user.expiryDate)}</Typography>
-                            <IconButton
-                              size="small"
-                              onClick={() => {
-                                setEditingExpiry(user.username);
-                                setExpiryInput(user.expiryDate || '');
-                              }}
-                            >
-                              <EditIcon fontSize="small" />
-                            </IconButton>
-                          </Box>
-                        )}
-                      </TableCell>
+                      {showExpirationColumns && (
+                        <TableCell>
+                          <Typography
+                            color={isAccountActive(user.expiryDate) ? 'success.main' : 'error.main'}
+                          >
+                            {isAccountActive(user.expiryDate) ? '有效' : '无效'}
+                          </Typography>
+                        </TableCell>
+                      )}
+                      {showExpirationColumns && (
+                        <TableCell>
+                          {editingExpiry === user.username ? (
+                            <Box display="flex" alignItems="center" gap={1}>
+                              <TextField
+                                size="small"
+                                value={expiryInput}
+                                onChange={(e) => setExpiryInput(e.target.value)}
+                                placeholder="YYYYMMDD"
+                                sx={{ width: '120px' }}
+                              />
+                              <IconButton
+                                size="small"
+                                color="primary"
+                                onClick={() => saveExpiry(user.username)}
+                              >
+                                <CheckIcon fontSize="small" />
+                              </IconButton>
+                              <IconButton
+                                size="small"
+                                onClick={() => {
+                                  setEditingExpiry('');
+                                  setExpiryInput('');
+                                }}
+                              >
+                                <CloseIcon fontSize="small" />
+                              </IconButton>
+                            </Box>
+                          ) : (
+                            <Box display="flex" alignItems="center" gap={1}>
+                              <Typography>{formatExpiryDate(user.expiryDate)}</Typography>
+                              <IconButton
+                                size="small"
+                                onClick={() => {
+                                  setEditingExpiry(user.username);
+                                  setExpiryInput(user.expiryDate || '');
+                                }}
+                              >
+                                <EditIcon fontSize="small" />
+                              </IconButton>
+                            </Box>
+                          )}
+                        </TableCell>
+                      )}
                       <TableCell>
                         {new Date(user.createdAt).toLocaleString()}
                       </TableCell>

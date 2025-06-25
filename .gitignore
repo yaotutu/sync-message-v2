@@ -63,3 +63,6 @@ Thumbs.db
 prisma/data/*
 prisma/migrations/*
 database.db
+
+# PM2 logs
+/logs
