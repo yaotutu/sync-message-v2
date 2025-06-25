@@ -3,6 +3,7 @@
 import { useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { getAuthStatus } from '@/lib/utils/auth';
+import Footer from '@/components/Footer';
 
 export default function ProtectedLayout({ children }: { children: React.ReactNode }) {
   const router = useRouter();
@@ -16,5 +17,12 @@ export default function ProtectedLayout({ children }: { children: React.ReactNod
     }
   }, [router]);
 
-  return <div className="min-h-screen bg-gray-100 dark:bg-gray-900">{children}</div>;
+  return (
+    <div className="h-screen bg-gray-100 dark:bg-gray-900" style={{ display: 'flex', flexDirection: 'column' }}>
+      <div style={{ flex: 1, overflow: 'auto' }}>
+        {children}
+      </div>
+      <Footer />
+    </div>
+  );
 }

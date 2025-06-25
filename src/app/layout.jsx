@@ -9,7 +9,15 @@ export default function RootLayout({ children }) {
   return (
     <html lang="zh-CN" className="tongyi-design-pc">
       <body className="min-h-screen bg-gray-50 dark:bg-gray-900 text-gray-900 dark:text-gray-100 antialiased">
-        {children}
+        <div style={{
+          display: 'flex',
+          flexDirection: 'column',
+          minHeight: '100vh'
+        }}>
+          <main style={{ flex: 1 }}>
+            {children}
+          </main>
+        </div>
       </body>
     </html>
   );

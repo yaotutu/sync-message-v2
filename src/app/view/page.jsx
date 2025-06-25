@@ -17,6 +17,7 @@ import {
     useMediaQuery
 } from '@mui/material';
 import { copyToClipboard } from '@/lib/utils/clipboard';
+import Footer from '@/components/Footer';
 
 /**
  * 提取短信中的验证码
@@ -116,7 +117,7 @@ function ViewPageContent() {
         return (
             <Box
                 sx={{
-                    minHeight: '100vh',
+                    height: '100%',
                     bgcolor: 'grey.100',
                     display: 'flex',
                     alignItems: 'center',
@@ -133,7 +134,7 @@ function ViewPageContent() {
         return (
             <Box
                 sx={{
-                    minHeight: '100vh',
+                    height: '100%',
                     bgcolor: 'grey.100',
                     display: 'flex',
                     alignItems: 'center',
@@ -152,7 +153,7 @@ function ViewPageContent() {
         return (
             <Box
                 sx={{
-                    minHeight: '100vh',
+                    height: '100%',
                     bgcolor: 'grey.100',
                     display: 'flex',
                     alignItems: 'center',
@@ -193,7 +194,7 @@ function ViewPageContent() {
     return (
         <Box
             sx={{
-                minHeight: '100vh',
+                height: '100%',
                 bgcolor: 'grey.100',
                 py: { xs: 2, sm: 4 },
                 px: { xs: 1, sm: 2 }
@@ -356,21 +357,31 @@ function ViewPageContent() {
 
 export default function ViewPage() {
     return (
-        <Suspense fallback={
-            <Box
-                sx={{
-                    minHeight: '100vh',
-                    bgcolor: 'grey.100',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    p: 2
-                }}
-            >
-                <CircularProgress />
+        <Box sx={{
+            height: '100vh',
+            display: 'flex',
+            flexDirection: 'column',
+            bgcolor: 'grey.100'
+        }}>
+            <Box sx={{ flex: 1, overflow: 'auto' }}>
+                <Suspense fallback={
+                    <Box
+                        sx={{
+                            height: '100%',
+                            bgcolor: 'grey.100',
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            p: 2
+                        }}
+                    >
+                        <CircularProgress />
+                    </Box>
+                }>
+                    <ViewPageContent />
+                </Suspense>
             </Box>
-        }>
-            <ViewPageContent />
-        </Suspense>
+            <Footer />
+        </Box>
     );
 } 
