@@ -5,6 +5,9 @@ import { useRouter } from 'next/navigation';
 import { logout } from '@/lib/utils/auth';
 import { userApi } from '@/lib/utils/api-client';
 import NavigationCard from '@/components/NavigationCard';
+import ConfigDialog from '@/components/ConfigDialog';
+import { Button, Box } from '@mui/material';
+import { Settings } from '@mui/icons-material';
 
 interface User {
   id: number;
@@ -20,6 +23,7 @@ export default function UserPage() {
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
+  const [configDialogOpen, setConfigDialogOpen] = useState(false);
 
   useEffect(() => {
     // 加载用户数据
@@ -59,6 +63,14 @@ export default function UserPage() {
   const handleLogout = () => {
     logout();
     router.push('/');
+  };
+
+  const handleOpenConfig = () => {
+    setConfigDialogOpen(true);
+  };
+
+  const handleCloseConfig = () => {
+    setConfigDialogOpen(false);
   };
 
   if (loading) {
@@ -149,6 +161,30 @@ export default function UserPage() {
             </div>
           </div>
 
+          {/* 配置文件区域 */}
+          <div className="bg-white dark:bg-gray-800 rounded-lg shadow p-6">
+            <div className="flex justify-between items-center mb-4">
+              <h3 className="text-xl font-bold text-gray-900 dark:text-white">短信转发器配置</h3>
+              <Button
+                variant="contained"
+                color="primary"
+                startIcon={<Settings />}
+                onClick={handleOpenConfig}
+                sx={{
+                  backgroundColor: '#1976d2',
+                  '&:hover': {
+                    backgroundColor: '#1565c0'
+                  }
+                }}
+              >
+                查看配置文件
+              </Button>
+            </div>
+            <p className="text-gray-600 dark:text-gray-400 text-sm">
+              点击上方按钮查看您的短信转发器配置文件。配置文件包含用户名、Webhook密钥等信息，需要复制到您的设备中使用。
+            </p>
+          </div>
+
           {/* 功能导航卡片 */}
           <div className="bg-white dark:bg-gray-800 rounded-lg shadow p-6">
             <h3 className="text-xl font-bold text-gray-900 dark:text-white mb-4">功能导航</h3>
@@ -183,6 +219,12 @@ export default function UserPage() {
           </div>
         </div>
       </div>
+
+      {/* 配置文件对话框 */}
+      <ConfigDialog
+        open={configDialogOpen}
+        onClose={handleCloseConfig}
+      />
     </div>
   );
 }
