@@ -73,11 +73,14 @@ export async function GET(request) {
         }
 
         // 4. 查询用户消息 - 更新字段名以适配新的表结构
-        console.log(`[public-messages] 开始查询用户消息 - username: ${cardLink.username}, firstUsedAt: ${firstUsedAt}`);
+        console.log(`[public-messages] 开始查询用户消息 - username: ${cardLink.username}, firstUsedAt: ${firstUsedAt}, phone: ${decodedPhone}`);
         const messages = await prisma.message.findMany({
             where: {
                 username: cardLink.username,
-                systemReceivedAt: { gt: firstUsedAt }
+                systemReceivedAt: { gt: firstUsedAt },
+                senderPhone: {
+                    contains: decodedPhone
+                }
             },
             orderBy: { systemReceivedAt: 'desc' },
             select: {
@@ -85,11 +88,13 @@ export async function GET(request) {
                 smsContent: true,
                 smsReceivedAt: true,
                 systemReceivedAt: true,
-                sourceType: true
+                sourceType: true,
+                senderPhone: true
             },
         });
 
         console.log(`[public-messages] 消息查询完成，找到 ${messages.length} 条消息`);
+        console.log(`[public-messages] 消息senderPhone匹配条件: 包含 "${decodedPhone}"`);
 
         // 5. 规则管道处理
         let processedMessages = messages;
