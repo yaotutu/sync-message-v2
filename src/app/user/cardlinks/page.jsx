@@ -39,8 +39,8 @@ import AddIcon from '@mui/icons-material/Add';
 export default function CardLinksPage() {
     const [selectedTemplate, setSelectedTemplate] = useState('');
     const [phones, setPhones] = useState(['']);
-    const [linkCountInput, setLinkCountInput] = useState('100');
-    const [linkCount, setLinkCount] = useState(100);
+    const [groupCountInput, setGroupCountInput] = useState('1');
+    const [groupCount, setGroupCount] = useState(1);
     const [error, setError] = useState('');
     const [cardLinks, setCardLinks] = useState([]);
     const [filteredCardLinks, setFilteredCardLinks] = useState([]);
@@ -51,6 +51,7 @@ export default function CardLinksPage() {
     const [pagination, setPagination] = useState({ totalPages: 0, page: 1, pageSize: 10, total: 0 });
     const [templates, setTemplates] = useState([]);
     const [isSearching, setIsSearching] = useState(false);
+    const [loopMode, setLoopMode] = useState('sequence');
 
     // Dialog states
     const [confirmDialog, setConfirmDialog] = useState({ open: false, title: '', message: '', onConfirm: null });
@@ -203,6 +204,16 @@ export default function CardLinksPage() {
             return;
         }
 
+        if (validPhones.length === 0) {
+            setError('请至少输入一个有效手机号');
+            return;
+        }
+
+        if (groupCount < 1) {
+            setError('组数必须大于0');
+            return;
+        }
+
         setIsLoading(true);
         setError('');
 
@@ -214,17 +225,28 @@ export default function CardLinksPage() {
                 return;
             }
 
-            const creationPromises = [];
-            for (let i = 0; i < linkCount; i++) {
-                const phoneToUse = validPhones.length > 0 ? validPhones[0] : undefined;
-                creationPromises.push(
-                    userApi.post('/api/user/cardlinks', {
-                        appName: templateName,
-                        phone: phoneToUse,
-                        templateId: selectedTemplate
-                    })
-                );
+            let phoneList = [];
+            if (loopMode === 'sequence') {
+                // 顺序循环：ABCABCABC
+                for (let i = 0; i < groupCount; i++) {
+                    phoneList.push(...validPhones);
+                }
+            } else if (loopMode === 'group') {
+                // 分组循环：AAABBBCCC
+                for (let i = 0; i < validPhones.length; i++) {
+                    for (let j = 0; j < groupCount; j++) {
+                        phoneList.push(validPhones[i]);
+                    }
+                }
             }
+
+            const creationPromises = phoneList.map(phone =>
+                userApi.post('/api/user/cardlinks', {
+                    appName: templateName,
+                    phone,
+                    templateId: selectedTemplate
+                })
+            );
 
             const results = await Promise.all(creationPromises);
             const failedResults = results.filter((result) => !result.success);
@@ -425,19 +447,22 @@ export default function CardLinksPage() {
                                 </Typography>
                             </Box>
 
-                            {/* 链接数量选择 */}
+                            {/* 生成组数 */}
                             <Box>
                                 <Typography variant="subtitle2" mb={1}>
-                                    生成链接数量 *
+                                    生成组数 *
                                 </Typography>
                                 <TextField
                                     type="number"
-                                    value={linkCountInput}
-                                    onChange={(e) => setLinkCountInput(e.target.value)}
+                                    value={groupCountInput}
+                                    onChange={(e) => setGroupCountInput(e.target.value)}
                                     onBlur={() => {
-                                        const count = parseInt(linkCountInput, 10);
+                                        const count = parseInt(groupCountInput, 10);
                                         if (!isNaN(count) && count > 0) {
-                                            setLinkCount(count);
+                                            setGroupCount(count);
+                                        } else {
+                                            setGroupCount(1);
+                                            setGroupCountInput('1');
                                         }
                                     }}
                                     inputProps={{ min: 1 }}
@@ -446,8 +471,25 @@ export default function CardLinksPage() {
                                     disabled={isLoading}
                                 />
                                 <Typography variant="caption" color="text.secondary" display="block" mt={1}>
-                                    默认生成100个链接，可以自定义数量（最少1个）
+                                    生成组数 × 有效手机号数量 = 实际生成链接数
                                 </Typography>
+                            </Box>
+
+                            {/* 循环模式选择 */}
+                            <Box>
+                                <FormControl fullWidth sx={{ mt: 2 }}>
+                                    <InputLabel id="loop-mode-label">循环模式</InputLabel>
+                                    <Select
+                                        labelId="loop-mode-label"
+                                        value={loopMode}
+                                        label="循环模式"
+                                        onChange={(e) => setLoopMode(e.target.value)}
+                                        size="small"
+                                    >
+                                        <MenuItem value="sequence">顺序循环（如ABCABCABC）</MenuItem>
+                                        <MenuItem value="group">分组循环（如AAABBBCCC）</MenuItem>
+                                    </Select>
+                                </FormControl>
                             </Box>
 
                             {/* 生成按钮 */}
@@ -459,7 +501,7 @@ export default function CardLinksPage() {
                                 fullWidth
                                 sx={{ py: 1.5 }}
                             >
-                                {isLoading ? '生成中...' : `生成 ${linkCount} 个卡密链接`}
+                                {isLoading ? '生成中...' : `生成 ${groupCount * phones.filter((p) => p.trim() && isValidPhone(p)).length} 个卡密链接`}
                             </Button>
 
                             {error && (
