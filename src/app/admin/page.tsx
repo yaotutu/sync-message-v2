@@ -79,14 +79,14 @@ export default function AdminPage() {
                 randomColor={false}
                 className=""
               />
-              <NavigationCard
+              {/* <NavigationCard
                 href="/templates"
                 title="模板管理"
                 description="管理消息模板，自定义消息格式和样式"
                 colorTheme="green"
                 randomColor={false}
                 className=""
-              />
+              /> */}
             </div>
           </div>
         </div>
