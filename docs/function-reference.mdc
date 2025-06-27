@@ -3,3 +3,33 @@ description:
 globs:
 alwaysApply: false
 ---
+### 工具函数 (src/lib/utils/)
+#### account.js
+- `isAccountActive(expiryDate)`: 检查账号是否有效
+- `getPermanentExpiryDate()`: 获取永久有效日期
+- `formatExpiryDate(expiryDate)`: 格式化有效期显示
+
+#### api-client.ts
+- `apiRequest(url, options)`: 通用API请求函数
+- `getUserAuth()`: 获取用户认证信息
+- `getAdminAuth()`: 获取管理员认证信息
+- `userApi`: 用户API封装(get/post/patch/delete)
+- `adminApi`: 管理员API封装(get/post/patch/delete)
+
+#### auth.js
+- `getAuthStatus()`: 获取用户认证状态
+
+#### clipboard.ts
+- `copyToClipboard(text, onSuccess, onError)`: 复制文本到剪贴板
+
+#### type-conversion.js
+- `safeToNumber(value, defaultValue)`: 安全转换为数字（支持BigInt、字符串、数字）
+- `safeToString(value, defaultValue)`: 安全转换为字符串
+- `safeToBoolean(value, defaultValue)`: 安全转换为布尔值
+- `checkExpiration(firstUsedAt, expiryDays)`: 检查是否过期
+- `calculateExpiryTime(firstUsedAt, expiryDays)`: 计算过期时间
+- `calculateRemainingDays(firstUsedAt, expiryDays)`: 计算剩余天数
+- `formatTimestamp(timestamp, locale)`: 格式化时间戳
+- `getCurrentTimestamp()`: 获取当前时间戳
+- `getTimestampAfterDays(days)`: 获取指定天数后的时间戳
+- `getTimestampBeforeDays(days)`: 获取指定天数前的时间戳
