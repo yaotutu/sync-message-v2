@@ -91,7 +91,7 @@ export async function POST(request: NextRequest) {
     // 解析请求体
     const data: CreateCardLinkDTO = await request.json();
     console.log(
-      `请求参数: appName=${data.appName}, phone=${data.phone || '未提供'}, templateId=${data.templateId || '未提供'}`,
+      `请求参数: appName=${data.appName}, phone=${data.phone || '未提供'}, templateId=${data.templateId || '未提供'}, expiryDays=${data.expiryDays || '未提供'}`,
     );
 
     // 验证必填字段
@@ -133,12 +133,13 @@ export async function POST(request: NextRequest) {
 
     // 创建卡链接
     console.log(
-      `尝试创建卡密链接: 用户=${username}, 应用=${templateName || data.appName}, 手机号=${phone || '无'}`,
+      `尝试创建卡密链接: 用户=${username}, 应用=${templateName || data.appName}, 手机号=${phone || '无'}, 过期天数=${data.expiryDays || '无'}`,
     );
     const cardLink = await createCardLink(username, {
       appName: templateName || data.appName,
       phone: phone || undefined,
       templateId: data.templateId,
+      expiryDays: data.expiryDays,
     });
     console.log(`卡密链接创建成功: cardKey=${cardLink.cardKey}, url=${cardLink.url}`);
 

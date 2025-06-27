@@ -36,6 +36,7 @@ export interface CreateCardLinkDTO {
   appName: string;
   phone?: string;
   templateId?: string;
+  expiryDays?: number;
 }
 
 /**
@@ -51,4 +52,5 @@ export interface CardLinkResponseDTO {
   firstUsedAt: string | null;
   url: string;
   templateId?: string;
+  expiryDays?: number;
 }

@@ -41,6 +41,7 @@ export default function CardLinksPage() {
     const [phones, setPhones] = useState(['']);
     const [groupCountInput, setGroupCountInput] = useState('1');
     const [groupCount, setGroupCount] = useState(1);
+    const [expiryDays, setExpiryDays] = useState('');
     const [error, setError] = useState('');
     const [cardLinks, setCardLinks] = useState([]);
     const [filteredCardLinks, setFilteredCardLinks] = useState([]);
@@ -244,7 +245,8 @@ export default function CardLinksPage() {
                 userApi.post('/api/user/cardlinks', {
                     appName: templateName,
                     phone,
-                    templateId: selectedTemplate
+                    templateId: selectedTemplate,
+                    expiryDays: expiryDays.trim() || undefined
                 })
             );
 
@@ -492,6 +494,24 @@ export default function CardLinksPage() {
                                 </FormControl>
                             </Box>
 
+                            {/* 过期天数设置 */}
+                            <Box>
+                                <Typography variant="subtitle2" mb={1}>
+                                    过期天数（可选）
+                                </Typography>
+                                <TextField
+                                    type="number"
+                                    value={expiryDays}
+                                    onChange={(e) => setExpiryDays(e.target.value)}
+                                    placeholder="留空表示永不过期"
+                                    inputProps={{ min: 1 }}
+                                    fullWidth
+                                    size="small"
+                                    disabled={isLoading}
+                                    helperText="设置链接的有效期天数，留空表示永不过期"
+                                />
+                            </Box>
+
                             {/* 生成按钮 */}
                             <Button
                                 onClick={generateCardLink}
@@ -641,6 +661,11 @@ export default function CardLinksPage() {
                                         <Typography variant="body2" color="text.secondary">
                                             创建时间：{new Date(Number(cardLink.createdAt)).toLocaleString()}
                                         </Typography>
+                                        {cardLink.expiryDays && (
+                                            <Typography variant="body2" color="warning.main">
+                                                过期天数：{cardLink.expiryDays} 天
+                                            </Typography>
+                                        )}
                                         {statusFilter !== 'unused' && cardLink.firstUsedAt && (
                                             <Typography variant="body2" color="success.main">
                                                 首次使用：{new Date(Number(cardLink.firstUsedAt)).toLocaleString()}

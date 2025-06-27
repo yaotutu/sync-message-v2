@@ -33,13 +33,15 @@ export function generateCardLinkUrl(key, appName, phone) {
  * @param {string} data.appName
  * @param {string} [data.phone]
  * @param {string} [data.templateId]
- * @returns {Promise<{id: string, cardKey: string, username: string, appName: string, phone: string|null, createdAt: number, url: string, templateId: string|null}>}
+ * @param {number} [data.expiryDays]
+ * @returns {Promise<{id: string, cardKey: string, username: string, appName: string, phone: string|null, createdAt: number, url: string, templateId: string|null, expiryDays: number|null}>}
  */
 export async function createCardLink(username, data) {
   return dbCreateCardLink(username, {
     appName: data.appName,
     phone: data.phone,
     templateId: data.templateId,
+    expiryDays: data.expiryDays,
   });
 }
 

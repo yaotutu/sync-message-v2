@@ -45,6 +45,7 @@ export function generateCardLinkUrl(cardKey, appName, phone) {
  * @param {string} data.appName
  * @param {string} [data.phone]
  * @param {string} [data.templateId]
+ * @param {number|string} [data.expiryDays]
  * @returns {Promise<Object>}
  */
 export async function createCardLink(username, data) {
@@ -54,6 +55,15 @@ export async function createCardLink(username, data) {
 
   const phone = data.phone || null;
   const url = generateCardLinkUrl(cardKey, data.appName, phone);
+
+  // 处理过期天数类型转换
+  let expiryDays = null;
+  if (data.expiryDays !== undefined && data.expiryDays !== null) {
+    const days = parseInt(data.expiryDays, 10);
+    if (!isNaN(days) && days > 0) {
+      expiryDays = days;
+    }
+  }
 
   await prisma.cardLink.create({
     data: {
@@ -66,6 +76,7 @@ export async function createCardLink(username, data) {
       url,
       templateId: data.templateId || null,
       firstUsedAt: null,
+      expiryDays,
     },
   });
 
@@ -78,6 +89,7 @@ export async function createCardLink(username, data) {
     createdAt: now,
     url,
     templateId: data.templateId,
+    expiryDays,
   };
 }
 
@@ -123,6 +135,7 @@ export async function getUserCardLinks(username, page = 1, pageSize = 10, status
         createdAt: true,
         firstUsedAt: true,
         url: true,
+        expiryDays: true,
       },
     }),
   ]);
@@ -156,6 +169,7 @@ export async function getUserCardLinks(username, page = 1, pageSize = 10, status
             ? new Date(link.firstUsedAt).toISOString()
             : link.firstUsedAt,
       url: link.url,
+      expiryDays: link.expiryDays,
     };
   });
 
@@ -180,6 +194,7 @@ export async function getCardLink(cardKey) {
       firstUsedAt: true,
       url: true,
       templateId: true,
+      expiryDays: true,
     },
   });
 
@@ -207,6 +222,7 @@ export async function getCardLink(cardKey) {
           : link.firstUsedAt,
     url: link.url,
     templateId: link.templateId,
+    expiryDays: link.expiryDays,
   };
 }
 
