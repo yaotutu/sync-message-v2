@@ -102,6 +102,8 @@ export async function GET(request) {
         }
 
         // 4. 查询用户消息 - 更新字段名以适配新的表结构
+        // 按 systemReceivedAt 升序（asc）排序，拿到的是 firstUsedAt 之后的最早一条消息（不是最新的）。
+        // 例如：有三条消息时间分别为 10:09、10:10、10:11，升序排列后顺序为 10:09、10:10、10:11，取第一条就是 10:09。
         console.log(`[public-messages] 开始查询用户消息 - username: ${cardLink.username}, firstUsedAt: ${firstUsedAt}, phone: ${decodedPhone}`);
         const messages = await prisma.message.findMany({
             where: {
@@ -111,7 +113,8 @@ export async function GET(request) {
                     contains: decodedPhone
                 }
             },
-            orderBy: { systemReceivedAt: 'desc' },
+            orderBy: { systemReceivedAt: 'asc' },
+            take: 1,
             select: {
                 id: true,
                 smsContent: true,
