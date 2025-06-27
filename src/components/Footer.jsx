@@ -7,7 +7,8 @@ export default function Footer() {
         wechat: process.env.NEXT_PUBLIC_CONTACT_WECHAT || '',
         qq: process.env.NEXT_PUBLIC_CONTACT_QQ || '',
         phone: process.env.NEXT_PUBLIC_CONTACT_PHONE || '',
-        website: process.env.NEXT_PUBLIC_CONTACT_WEBSITE || ''
+        website: process.env.NEXT_PUBLIC_CONTACT_WEBSITE || '',
+        copyright: process.env.NEXT_PUBLIC_CONTACT_COPYRIGHT || ''
     };
 
     // 构建联系信息文本
@@ -32,6 +33,10 @@ export default function Footer() {
 
         if (contactInfo.website && contactInfo.website.trim()) {
             parts.push(`网站：${contactInfo.website}`);
+        }
+
+        if (contactInfo.copyright && contactInfo.copyright.trim()) {
+            parts.push(`版权所有：${contactInfo.copyright}`);
         }
 
         // 如果没有配置任何联系信息，显示默认文本
