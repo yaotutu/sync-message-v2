@@ -221,6 +221,20 @@ function ViewPageContent() {
                                 首次使用时间：{formatFirstUsedTime(firstUsedAt)}
                             </Typography>
                         )}
+                        {data && data.rawMessage && data.rawMessage.systemReceivedAt && (
+                            <Typography
+                                variant="body1"
+                                color="primary"
+                                sx={{
+                                    mt: 1,
+                                    fontWeight: 'bold',
+                                    fontSize: { xs: '1rem', sm: '1.1rem' },
+                                    letterSpacing: 1,
+                                }}
+                            >
+                                验证码到达时间：{formatFirstUsedTime(data.rawMessage.systemReceivedAt)}
+                            </Typography>
+                        )}
                     </CardContent>
                 </Card>
 

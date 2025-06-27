@@ -60,7 +60,6 @@ export async function GET(request) {
         if (cardLink.messageId) {
             const message = await prisma.message.findUnique({
                 where: { id: cardLink.messageId },
-                select: { smsContent: true },
             });
             console.log(`[public-messages] 通过已绑定messageId直接返回短信，messageId: ${cardLink.messageId}`);
             return NextResponse.json(
@@ -68,6 +67,7 @@ export async function GET(request) {
                     success: true,
                     message: message ? message.smsContent : '',
                     firstUsedAt: cardLink.firstUsedAt,
+                    rawMessage: message,
                 },
                 { headers: { 'Content-Type': 'application/json' } },
             );
@@ -152,6 +152,7 @@ export async function GET(request) {
             success: true,
             message: messageContent,
             firstUsedAt: firstUsedAt,
+            rawMessage: finalMessage,
         };
 
         const endTime = Date.now();
