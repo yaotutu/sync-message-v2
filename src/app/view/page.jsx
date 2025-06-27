@@ -21,6 +21,11 @@ import {
     DialogActions
 } from '@mui/material';
 import { copyToClipboard } from '@/lib/utils/clipboard';
+import {
+    calculateExpiryTime,
+    calculateRemainingDays,
+    formatTimestamp
+} from '@/lib/utils/type-conversion.js';
 import Footer from '@/components/Footer';
 
 /**
@@ -206,6 +211,36 @@ function ViewPageContent() {
         );
     }
 
+    // 检查卡密是否过期
+    if (data.isExpired) {
+        return (
+            <Box
+                sx={{
+                    height: '100%',
+                    bgcolor: 'grey.100',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    p: 2
+                }}
+            >
+                <Alert severity="warning" sx={{ maxWidth: '100%' }}>
+                    <Typography variant="h6" component="div" gutterBottom>
+                        卡密已过期
+                    </Typography>
+                    <Typography variant="body2">
+                        此卡密链接已超过有效期，无法继续使用。
+                    </Typography>
+                    {data.expiryDays && (
+                        <Typography variant="body2" sx={{ mt: 1 }}>
+                            有效期：{data.expiryDays} 天
+                        </Typography>
+                    )}
+                </Alert>
+            </Box>
+        );
+    }
+
     const { message, firstUsedAt } = data;
     const appName = searchParams.get('appName');
     const phone = searchParams.get('phone');
@@ -213,21 +248,6 @@ function ViewPageContent() {
     // 提取验证码
     const verificationCode = message ? extractVerificationCode(message) : null;
     const displayContent = verificationCode || message || '未找到验证码';
-
-    // 修复时间戳显示
-    const formatFirstUsedTime = (timestamp) => {
-        if (!timestamp) return '';
-        // 确保时间戳是数字
-        const time = typeof timestamp === 'string' ? parseInt(timestamp) : timestamp;
-        return new Date(time).toLocaleString('zh-CN', {
-            year: 'numeric',
-            month: '2-digit',
-            day: '2-digit',
-            hour: '2-digit',
-            minute: '2-digit',
-            second: '2-digit'
-        });
-    };
 
     return (
         <Box
@@ -256,7 +276,29 @@ function ViewPageContent() {
                                 color="text.secondary"
                                 sx={{ mt: 1, fontSize: { xs: '0.75rem', sm: '0.875rem' } }}
                             >
-                                首次使用时间：{formatFirstUsedTime(firstUsedAt)}
+                                首次使用时间：{formatTimestamp(firstUsedAt)}
+                            </Typography>
+                        )}
+                        {/* 显示有效期信息 */}
+                        {data.expiryDays && (
+                            <Typography
+                                variant="body2"
+                                color="info.main"
+                                sx={{ mt: 1, fontSize: { xs: '0.75rem', sm: '0.875rem' } }}
+                            >
+                                有效期：{data.expiryDays} 天
+                                {firstUsedAt && (
+                                    <>
+                                        <span style={{ marginLeft: '8px', color: 'text.secondary' }}>
+                                            (过期时间：{formatTimestamp(calculateExpiryTime(firstUsedAt, data.expiryDays))})
+                                        </span>
+                                        {!data.isExpired && (
+                                            <span style={{ marginLeft: '8px', color: 'success.main', fontWeight: 'bold' }}>
+                                                (剩余 {calculateRemainingDays(firstUsedAt, data.expiryDays)} 天)
+                                            </span>
+                                        )}
+                                    </>
+                                )}
                             </Typography>
                         )}
                         {data && data.rawMessage && data.rawMessage.systemReceivedAt && (
@@ -270,7 +312,17 @@ function ViewPageContent() {
                                     letterSpacing: 1,
                                 }}
                             >
-                                验证码到达时间：{formatFirstUsedTime(data.rawMessage.systemReceivedAt)}
+                                验证码到达时间：{formatTimestamp(data.rawMessage.systemReceivedAt)}
+                            </Typography>
+                        )}
+                        {/* 调试信息 - 开发环境显示 */}
+                        {process.env.NODE_ENV === 'development' && (
+                            <Typography
+                                variant="caption"
+                                color="text.secondary"
+                                sx={{ mt: 1, display: 'block', fontSize: { xs: '0.7rem', sm: '0.75rem' } }}
+                            >
+                                调试信息 - 过期状态: {data.isExpired ? '已过期' : '未过期'}
                             </Typography>
                         )}
                     </CardContent>

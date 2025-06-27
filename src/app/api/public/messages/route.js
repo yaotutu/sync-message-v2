@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
 import prisma from '@/lib/db';
 import { processMessagesWithRules } from '@/lib/services/messageProcessor.js';
-
+import { checkExpiration } from '@/lib/utils/type-conversion.js';
 
 export async function GET(request) {
     const startTime = Date.now();
@@ -46,6 +46,7 @@ export async function GET(request) {
                 firstUsedAt: true,
                 templateId: true,
                 messageId: true,
+                expiryDays: true,
             },
         });
 
@@ -62,12 +63,18 @@ export async function GET(request) {
                 where: { id: cardLink.messageId },
             });
             console.log(`[public-messages] 通过已绑定messageId直接返回短信，messageId: ${cardLink.messageId}`);
+
+            // 检查过期状态
+            const isExpired = checkExpiration(cardLink.firstUsedAt, cardLink.expiryDays);
+
             return NextResponse.json(
                 {
                     success: true,
                     message: message ? message.smsContent : '',
                     firstUsedAt: cardLink.firstUsedAt,
                     rawMessage: message,
+                    expiryDays: cardLink.expiryDays,
+                    isExpired: isExpired,
                 },
                 { headers: { 'Content-Type': 'application/json' } },
             );
@@ -153,6 +160,8 @@ export async function GET(request) {
             message: messageContent,
             firstUsedAt: firstUsedAt,
             rawMessage: finalMessage,
+            expiryDays: cardLink.expiryDays,
+            isExpired: checkExpiration(firstUsedAt, cardLink.expiryDays),
         };
 
         const endTime = Date.now();
