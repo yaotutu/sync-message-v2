@@ -44,12 +44,34 @@ export async function GET(request) {
             select: {
                 username: true,
                 firstUsedAt: true,
-                templateId: true
+                templateId: true,
+                messageId: true,
             },
         });
 
+        if (!cardLink) {
+            return NextResponse.json(
+                { success: false, error: '卡密链接不存在' },
+                { status: 404, headers: { 'Content-Type': 'application/json' } },
+            );
+        }
 
-        console.log(`[public-messages] 卡密链接查询成功 - username: ${cardLink.username}, templateId: ${cardLink.templateId}`);
+        // 新增：优先返回已绑定的短信内容
+        if (cardLink.messageId) {
+            const message = await prisma.message.findUnique({
+                where: { id: cardLink.messageId },
+            });
+            console.log(`[public-messages] 通过已绑定messageId直接返回短信，messageId: ${cardLink.messageId}`);
+            return NextResponse.json(
+                {
+                    success: true,
+                    message: message ? message.smsContent : '',
+                    firstUsedAt: cardLink.firstUsedAt,
+                    rawMessage: message,
+                },
+                { headers: { 'Content-Type': 'application/json' } },
+            );
+        }
 
         // 3. 处理firstUsedAt
         let firstUsedAt = cardLink.firstUsedAt;
@@ -110,6 +132,19 @@ export async function GET(request) {
         const finalMessage = processedMessages.length > 0 ? processedMessages[0] : null;
         const messageContent = finalMessage ? finalMessage.smsContent : '';
 
+        // 新增：将选中的短信id写入cardLink
+        if (finalMessage) {
+            await prisma.cardLink.update({
+                where: {
+                    cardKey: decodedCardKey,
+                    appName: decodedAppName,
+                    phone: decodedPhone
+                },
+                data: { messageId: finalMessage.id },
+            });
+            console.log(`[public-messages] 首次查找并绑定短信，messageId: ${finalMessage.id}`);
+        }
+
         console.log(`[public-messages] 最终结果 - 消息内容长度: ${messageContent.length}`);
 
         // 7. 返回响应
@@ -117,6 +152,7 @@ export async function GET(request) {
             success: true,
             message: messageContent,
             firstUsedAt: firstUsedAt,
+            rawMessage: finalMessage,
         };
 
         const endTime = Date.now();

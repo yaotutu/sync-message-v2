@@ -14,7 +14,11 @@ import {
     CircularProgress,
     Divider,
     useTheme,
-    useMediaQuery
+    useMediaQuery,
+    Dialog,
+    DialogTitle,
+    DialogContent,
+    DialogActions
 } from '@mui/material';
 import { copyToClipboard } from '@/lib/utils/clipboard';
 import Footer from '@/components/Footer';
@@ -38,12 +42,34 @@ function extractVerificationCode(content) {
     return null;
 }
 
+/**
+ * 获取验证码数据的工具函数
+ * @param {Object} param0
+ * @param {string} param0.cardKey
+ * @param {string} param0.appName
+ * @param {string} [param0.phone]
+ * @returns {Promise<Object>} 接口返回数据
+ */
+async function fetchMessageData({ cardKey, appName, phone }) {
+    const params = new URLSearchParams();
+    params.append('cardKey', cardKey);
+    params.append('appName', encodeURIComponent(appName));
+    if (phone) {
+        params.append('phone', phone);
+    }
+    const response = await fetch(`/api/public/messages?${params.toString()}`);
+    return await response.json();
+}
+
 function ViewPageContent() {
     const searchParams = useSearchParams();
     const [isLoading, setIsLoading] = useState(true);
     const [error, setError] = useState('');
     const [data, setData] = useState(null);
     const [copyStatus, setCopyStatus] = useState({ phone: '', code: '' });
+    const [codeDialogOpen, setCodeDialogOpen] = useState(false);
+    const [lastCode, setLastCode] = useState(null);
+    const [codeLoading, setCodeLoading] = useState(false);
 
     const theme = useTheme();
     const isMobile = useMediaQuery(theme.breakpoints.down('sm'));
@@ -52,42 +78,54 @@ function ViewPageContent() {
         const cardKey = searchParams.get('cardKey');
         const appName = searchParams.get('appName');
         const phone = searchParams.get('phone');
-
         if (!cardKey || !appName) {
             setError('无效的链接参数');
             setIsLoading(false);
             return;
         }
-
-        const loadData = async () => {
-            setIsLoading(true);
-            setError('');
-
-            try {
-                const params = new URLSearchParams();
-                params.append('cardKey', cardKey);
-                params.append('appName', encodeURIComponent(appName));
-                if (phone) {
-                    params.append('phone', phone);
-                }
-
-                const response = await fetch(`/api/public/messages?${params.toString()}`);
-                const result = await response.json();
-
-                if (result.success) {
-                    setData(result);
-                } else {
-                    setError(result.error || '加载失败');
-                }
-            } catch (error) {
-                setError('加载失败，请检查网络连接');
-            } finally {
-                setIsLoading(false);
-            }
-        };
-
-        loadData();
+        setIsLoading(true);
+        setError('');
+        fetchMessageData({ cardKey, appName, phone })
+            .then(result => {
+                if (result.success) setData(result);
+                else setError(result.error || '加载失败');
+            })
+            .catch(() => setError('加载失败，请检查网络连接'))
+            .finally(() => setIsLoading(false));
     }, [searchParams]);
+
+    // 轮询获取验证码逻辑
+    useEffect(() => {
+        let intervalId;
+        if (data && !data.message) {
+            setCodeLoading(true);
+            const cardKey = searchParams.get('cardKey');
+            const appName = searchParams.get('appName');
+            const phone = searchParams.get('phone');
+            intervalId = setInterval(async () => {
+                try {
+                    const result = await fetchMessageData({ cardKey, appName, phone });
+                    if (result.success) setData(result);
+                } catch { }
+            }, 5000);
+        } else {
+            setCodeLoading(false);
+        }
+        return () => {
+            if (intervalId) clearInterval(intervalId);
+        };
+    }, [data, searchParams]);
+
+    // 检测验证码获取到后弹窗
+    useEffect(() => {
+        if (data && data.message) {
+            const code = extractVerificationCode(data.message) || data.message;
+            if (code && code !== lastCode) {
+                setLastCode(code);
+                setCodeDialogOpen(true);
+            }
+        }
+    }, [data]);
 
     const handleCopy = async (text, type) => {
         await copyToClipboard(
@@ -221,6 +259,20 @@ function ViewPageContent() {
                                 首次使用时间：{formatFirstUsedTime(firstUsedAt)}
                             </Typography>
                         )}
+                        {data && data.rawMessage && data.rawMessage.systemReceivedAt && (
+                            <Typography
+                                variant="body1"
+                                color="primary"
+                                sx={{
+                                    mt: 1,
+                                    fontWeight: 'bold',
+                                    fontSize: { xs: '1rem', sm: '1.1rem' },
+                                    letterSpacing: 1,
+                                }}
+                            >
+                                验证码到达时间：{formatFirstUsedTime(data.rawMessage.systemReceivedAt)}
+                            </Typography>
+                        )}
                     </CardContent>
                 </Card>
 
@@ -308,7 +360,7 @@ function ViewPageContent() {
                                         variant="contained"
                                         color="success"
                                         onClick={() => displayContent && handleCopy(displayContent, 'code')}
-                                        disabled={!displayContent}
+                                        disabled={!displayContent || codeLoading}
                                         size={isMobile ? "large" : "medium"}
                                         sx={{
                                             minHeight: { xs: 48, sm: 36 },
@@ -316,7 +368,7 @@ function ViewPageContent() {
                                             px: { xs: 3, sm: 2 }
                                         }}
                                     >
-                                        {copyStatus.code || (verificationCode ? '复制验证码' : '复制内容')}
+                                        {codeLoading ? '正在获取...' : (copyStatus.code || (verificationCode ? '复制验证码' : '复制内容'))}
                                     </Button>
                                 </Box>
                                 <Paper
@@ -333,7 +385,7 @@ function ViewPageContent() {
                                         justifyContent: verificationCode ? 'center' : 'flex-start'
                                     }}
                                 >
-                                    {displayContent}
+                                    {codeLoading ? <CircularProgress size={24} /> : displayContent}
                                 </Paper>
                                 <Typography
                                     variant="caption"
@@ -344,13 +396,25 @@ function ViewPageContent() {
                                         fontSize: { xs: '0.75rem', sm: '0.75rem' }
                                     }}
                                 >
-                                    第二步：点击"复制{verificationCode ? '验证码' : '内容'}"按钮复制{verificationCode ? '验证码' : '短信内容'}
+                                    {codeLoading ? '正在获取验证码，请稍候...' : `第二步：点击"复制${verificationCode ? '验证码' : '内容'}"按钮复制${verificationCode ? '验证码' : '短信内容'}`}
                                 </Typography>
                             </Box>
                         </Box>
                     </CardContent>
                 </Card>
             </Container>
+            {/* 验证码弹窗 */}
+            <Dialog open={codeDialogOpen} onClose={() => setCodeDialogOpen(false)}>
+                <DialogTitle>验证码已获取</DialogTitle>
+                <DialogContent>
+                    <Typography variant="h5" align="center" sx={{ fontWeight: 'bold', letterSpacing: 2 }}>
+                        {lastCode}
+                    </Typography>
+                </DialogContent>
+                <DialogActions>
+                    <Button onClick={() => setCodeDialogOpen(false)} color="primary" variant="contained">知道了</Button>
+                </DialogActions>
+            </Dialog>
         </Box>
     );
 }

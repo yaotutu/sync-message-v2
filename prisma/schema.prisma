@@ -36,6 +36,7 @@ model Message {
   rawData          String? @map("raw_data")
   createdAt        BigInt  @map("created_at")
   user             User    @relation(fields: [username], references: [username])
+  cardLinks        CardLink[]
 
   @@map("messages")
 }
@@ -78,6 +79,8 @@ model CardLink {
   templateId  String?   @map("template_id")
   template    Template? @relation(fields: [templateId], references: [id])
   user        User      @relation(fields: [username], references: [username])
+  messageId   Int?      @map("message_id")
+  message     Message?  @relation(fields: [messageId], references: [id])
 
   @@map("cardLinks")
 }
