@@ -391,7 +391,7 @@ export default function CardLinksPage() {
             setIsLoading(true);
             setError('');
             setStatusFilter(newStatus);
-            // 使用新的状态筛选条件重新加载第一页数据
+            // 使用新的状态筛选条件重新加载第一页数据，保持其他筛选条件
             loadCardLinks({ page: 1, status: newStatus });
         }
     };
@@ -405,7 +405,7 @@ export default function CardLinksPage() {
             setIsLoading(true);
             setError('');
             setTagFilter(newTag);
-            // 使用新的标签筛选条件重新加载第一页数据
+            // 使用新的标签筛选条件重新加载第一页数据，保持其他筛选条件
             loadCardLinks({ page: 1, tag: newTag });
         }
     };
@@ -419,7 +419,7 @@ export default function CardLinksPage() {
             setIsLoading(true);
             setError('');
             setTemplateFilter(newTemplateId);
-            // 使用新的模板筛选条件重新加载第一页数据
+            // 使用新的模板筛选条件重新加载第一页数据，保持其他筛选条件
             loadCardLinks({ page: 1, templateId: newTemplateId });
         }
     };
