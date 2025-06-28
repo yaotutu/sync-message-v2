@@ -214,7 +214,7 @@ export default function TemplatesPage() {
   };
 
   return (
-    <Box sx={{ minHeight: '100vh', bgcolor: 'background.default', py: 4, px: 2 }}>
+    <Box sx={{ height: '100%', bgcolor: 'background.default', py: 4, px: 2 }}>
       <Box sx={{ maxWidth: '1536px', mx: 'auto' }}>
         <Card sx={{ p: 3 }}>
           <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 3 }}>

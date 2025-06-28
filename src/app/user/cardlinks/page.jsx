@@ -362,7 +362,7 @@ export default function CardLinksPage() {
     };
 
     return (
-        <Box sx={{ minHeight: '100vh', bgcolor: 'background.default', py: 4, px: 2 }}>
+        <Box sx={{ height: '100%', bgcolor: 'background.default', py: 4, px: 2 }}>
             <Box sx={{ maxWidth: 900, mx: 'auto' }}>
                 <Stack spacing={4}>
                     {/* 标题栏 */}

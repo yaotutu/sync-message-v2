@@ -26,7 +26,6 @@ import {
   Warning,
   Error
 } from '@mui/icons-material';
-import Footer from '@/components/Footer';
 
 export default function LoginPage() {
   const router = useRouter();
@@ -117,7 +116,7 @@ export default function LoginPage() {
   return (
     <Box
       sx={{
-        minHeight: '100vh',
+        height: '100%',
         background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
         display: 'flex',
         flexDirection: 'column'
@@ -303,7 +302,6 @@ export default function LoginPage() {
           )}
         </Container>
       </Box>
-      <Footer />
     </Box>
   );
 }

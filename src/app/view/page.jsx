@@ -14,7 +14,6 @@ import {
     ErrorState,
     EmptyState
 } from './components';
-import Footer from '@/components/Footer';
 
 function ViewPageContent() {
     const searchParams = useSearchParams();
@@ -186,7 +185,7 @@ function ViewPageContent() {
 export default function ViewPage() {
     return (
         <Box sx={{
-            height: '100vh',
+            height: '100%',
             display: 'flex',
             flexDirection: 'column',
             bgcolor: 'grey.100'
@@ -196,7 +195,6 @@ export default function ViewPage() {
                     <ViewPageContent />
                 </Suspense>
             </Box>
-            <Footer />
         </Box>
     );
 } 

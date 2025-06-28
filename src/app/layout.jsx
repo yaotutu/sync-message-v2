@@ -1,4 +1,5 @@
 import './globals.css';
+import Footer from '@/components/Footer';
 
 export const metadata = {
   title: '消息同步管理系统',
@@ -8,15 +9,16 @@ export const metadata = {
 export default function RootLayout({ children }) {
   return (
     <html lang="zh-CN" className="tongyi-design-pc">
-      <body className="min-h-screen bg-gray-50 dark:bg-gray-900 text-gray-900 dark:text-gray-100 antialiased">
+      <body className="h-screen bg-gray-50 dark:bg-gray-900 text-gray-900 dark:text-gray-100 antialiased overflow-hidden">
         <div style={{
           display: 'flex',
           flexDirection: 'column',
-          minHeight: '100vh'
+          height: '100vh'
         }}>
-          <main style={{ flex: 1 }}>
+          <main style={{ flex: 1, overflow: 'auto' }}>
             {children}
           </main>
+          <Footer />
         </div>
       </body>
     </html>

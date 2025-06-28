@@ -1,3 +1,5 @@
+'use client';
+
 import { Box, Typography } from '@mui/material';
 
 export default function Footer() {
@@ -9,6 +11,12 @@ export default function Footer() {
         phone: process.env.NEXT_PUBLIC_CONTACT_PHONE || '',
         website: process.env.NEXT_PUBLIC_CONTACT_WEBSITE || '',
         copyright: process.env.NEXT_PUBLIC_CONTACT_COPYRIGHT || ''
+    };
+
+    // 检查是否应该显示Footer
+    const shouldShowFooter = () => {
+        // 如果NEXT_PUBLIC_HIDE_FOOTER为true，则隐藏Footer
+        return process.env.NEXT_PUBLIC_HIDE_FOOTER !== 'true';
     };
 
     // 构建联系信息文本
@@ -46,6 +54,11 @@ export default function Footer() {
 
         return parts.join(' | ');
     };
+
+    // 如果不需要显示Footer，返回null
+    if (!shouldShowFooter()) {
+        return null;
+    }
 
     return (
         <Box
