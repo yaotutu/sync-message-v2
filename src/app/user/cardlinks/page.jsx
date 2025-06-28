@@ -604,11 +604,13 @@ export default function CardLinksPage() {
                     {/* 卡密链接列表 */}
                     <Paper elevation={3}>
                         <Box p={3} borderBottom={1} borderColor="divider">
+                            {/* 第一行：标题和搜索 */}
                             <Stack
                                 direction={{ xs: 'column', md: 'row' }}
                                 spacing={2}
                                 justifyContent="space-between"
                                 alignItems="center"
+                                mb={2}
                             >
                                 <Stack direction="row" alignItems="center" spacing={1}>
                                     <Typography variant="h6" fontWeight="bold">
@@ -657,43 +659,43 @@ export default function CardLinksPage() {
                                         </Button>
                                     </Box>
                                 </Box>
+                            </Stack>
 
-                                {/* 状态过滤按钮 */}
-                                <Stack direction="row" spacing={1}>
-                                    <Button
-                                        variant={statusFilter === 'all' ? 'contained' : 'outlined'}
-                                        onClick={() => handleStatusFilterChange('all')}
-                                        disabled={isLoading}
-                                        size="small"
-                                    >
-                                        全部
-                                    </Button>
-                                    <Button
-                                        variant={statusFilter === 'unused' ? 'contained' : 'outlined'}
-                                        onClick={() => handleStatusFilterChange('unused')}
-                                        disabled={isLoading}
-                                        size="small"
-                                    >
-                                        未使用
-                                    </Button>
-                                    <Button
-                                        variant={statusFilter === 'used' ? 'contained' : 'outlined'}
-                                        onClick={() => handleStatusFilterChange('used')}
-                                        disabled={isLoading}
-                                        size="small"
-                                    >
-                                        已使用
-                                    </Button>
-                                    <Button
-                                        variant="contained"
-                                        color="error"
-                                        onClick={deleteAllUnusedLinks}
-                                        disabled={isLoading}
-                                        size="small"
-                                    >
-                                        批量删除未使用
-                                    </Button>
-                                </Stack>
+                            {/* 第二行：状态过滤按钮 */}
+                            <Stack direction="row" spacing={1} flexWrap="wrap" useFlexGap>
+                                <Button
+                                    variant={statusFilter === 'all' ? 'contained' : 'outlined'}
+                                    onClick={() => handleStatusFilterChange('all')}
+                                    disabled={isLoading}
+                                    size="small"
+                                >
+                                    全部
+                                </Button>
+                                <Button
+                                    variant={statusFilter === 'unused' ? 'contained' : 'outlined'}
+                                    onClick={() => handleStatusFilterChange('unused')}
+                                    disabled={isLoading}
+                                    size="small"
+                                >
+                                    未使用
+                                </Button>
+                                <Button
+                                    variant={statusFilter === 'used' ? 'contained' : 'outlined'}
+                                    onClick={() => handleStatusFilterChange('used')}
+                                    disabled={isLoading}
+                                    size="small"
+                                >
+                                    已使用
+                                </Button>
+                                <Button
+                                    variant="contained"
+                                    color="error"
+                                    onClick={deleteAllUnusedLinks}
+                                    disabled={isLoading}
+                                    size="small"
+                                >
+                                    批量删除未使用
+                                </Button>
                             </Stack>
 
                             {/* 搜索结果统计 */}
@@ -753,7 +755,7 @@ export default function CardLinksPage() {
                                                 </Box>
                                             </Box>
                                         )}
-                                        {statusFilter !== 'unused' && cardLink.firstUsedAt && (
+                                        {(statusFilter !== 'unused') && cardLink.firstUsedAt && (
                                             <Typography variant="body2" color="success.main">
                                                 首次使用：{new Date(Number(cardLink.firstUsedAt)).toLocaleString()}
                                             </Typography>
