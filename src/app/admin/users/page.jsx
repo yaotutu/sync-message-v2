@@ -66,6 +66,8 @@ export default function UsersPage() {
 
   // 直接读取公共环境变量
   const showExpirationColumns = process.env.NEXT_PUBLIC_USER_EXPIRATION_ENABLED === 'true';
+  const showFooterColumns = process.env.NEXT_PUBLIC_USER_SHOW_FOOTER_ENABLED === 'true';
+  const showAdsColumns = process.env.NEXT_PUBLIC_USER_SHOW_ADS_ENABLED === 'true';
 
   useEffect(() => {
     loadUsers();
@@ -359,8 +361,8 @@ export default function UsersPage() {
                     <TableCell>用户名</TableCell>
                     <TableCell>Webhook密钥</TableCell>
                     <TableCell>模板管理</TableCell>
-                    <TableCell>显示底部</TableCell>
-                    <TableCell>显示广告</TableCell>
+                    {showFooterColumns && <TableCell>显示底部</TableCell>}
+                    {showAdsColumns && <TableCell>显示广告</TableCell>}
                     {showExpirationColumns && <TableCell>账号状态</TableCell>}
                     {showExpirationColumns && <TableCell>有效期</TableCell>}
                     <TableCell>创建时间</TableCell>
@@ -403,40 +405,44 @@ export default function UsersPage() {
                           label={user.canManageTemplates ? '已启用' : '已禁用'}
                         />
                       </TableCell>
-                      <TableCell>
-                        <FormControlLabel
-                          control={
-                            <Switch
-                              checked={user.showFooter}
-                              onChange={() =>
-                                toggleShowFooter(
-                                  user.username,
-                                  user.showFooter
-                                )
-                              }
-                              disabled={loading}
-                            />
-                          }
-                          label={user.showFooter ? '已启用' : '已禁用'}
-                        />
-                      </TableCell>
-                      <TableCell>
-                        <FormControlLabel
-                          control={
-                            <Switch
-                              checked={user.showAds}
-                              onChange={() =>
-                                toggleShowAds(
-                                  user.username,
-                                  user.showAds
-                                )
-                              }
-                              disabled={loading}
-                            />
-                          }
-                          label={user.showAds ? '已启用' : '已禁用'}
-                        />
-                      </TableCell>
+                      {showFooterColumns && (
+                        <TableCell>
+                          <FormControlLabel
+                            control={
+                              <Switch
+                                checked={user.showFooter}
+                                onChange={() =>
+                                  toggleShowFooter(
+                                    user.username,
+                                    user.showFooter
+                                  )
+                                }
+                                disabled={loading}
+                              />
+                            }
+                            label={user.showFooter ? '已启用' : '已禁用'}
+                          />
+                        </TableCell>
+                      )}
+                      {showAdsColumns && (
+                        <TableCell>
+                          <FormControlLabel
+                            control={
+                              <Switch
+                                checked={user.showAds}
+                                onChange={() =>
+                                  toggleShowAds(
+                                    user.username,
+                                    user.showAds
+                                  )
+                                }
+                                disabled={loading}
+                              />
+                            }
+                            label={user.showAds ? '已启用' : '已禁用'}
+                          />
+                        </TableCell>
+                      )}
                       {showExpirationColumns && (
                         <TableCell>
                           <Typography
