@@ -81,6 +81,7 @@ model CardLink {
   url         String
   templateId  String?   @map("template_id")
   expiryDays  Int?      @map("expiry_days")
+  tags        String?   @default("[]") @map("tags")
   template    Template? @relation(fields: [templateId], references: [id])
   user        User      @relation(fields: [username], references: [username])
   messageId   Int?      @map("message_id")

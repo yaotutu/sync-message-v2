@@ -37,6 +37,7 @@ export interface CreateCardLinkDTO {
   phone?: string;
   templateId?: string;
   expiryDays?: number;
+  tags?: string[];
 }
 
 /**
@@ -53,4 +54,5 @@ export interface CardLinkResponseDTO {
   url: string;
   templateId?: string;
   expiryDays?: number;
+  tags: string[];
 }

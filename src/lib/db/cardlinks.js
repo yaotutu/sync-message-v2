@@ -46,6 +46,7 @@ export function generateCardLinkUrl(cardKey, appName, phone) {
  * @param {string} [data.phone]
  * @param {string} [data.templateId]
  * @param {number|string} [data.expiryDays]
+ * @param {string[]} [data.tags]
  * @returns {Promise<Object>}
  */
 export async function createCardLink(username, data) {
@@ -65,6 +66,9 @@ export async function createCardLink(username, data) {
     }
   }
 
+  // 处理标签
+  const tags = Array.isArray(data.tags) ? JSON.stringify(data.tags) : '[]';
+
   await prisma.cardLink.create({
     data: {
       id,
@@ -77,6 +81,7 @@ export async function createCardLink(username, data) {
       templateId: data.templateId || null,
       firstUsedAt: null,
       expiryDays,
+      tags,
     },
   });
 
@@ -90,6 +95,7 @@ export async function createCardLink(username, data) {
     url,
     templateId: data.templateId,
     expiryDays,
+    tags: data.tags || [],
   };
 }
 
@@ -136,6 +142,7 @@ export async function getUserCardLinks(username, page = 1, pageSize = 10, status
         firstUsedAt: true,
         url: true,
         expiryDays: true,
+        tags: true,
       },
     }),
   ]);
@@ -170,6 +177,7 @@ export async function getUserCardLinks(username, page = 1, pageSize = 10, status
             : link.firstUsedAt,
       url: link.url,
       expiryDays: link.expiryDays,
+      tags: JSON.parse(link.tags || '[]'),
     };
   });
 
@@ -195,6 +203,7 @@ export async function getCardLink(cardKey) {
       url: true,
       templateId: true,
       expiryDays: true,
+      tags: true,
     },
   });
 
@@ -203,26 +212,8 @@ export async function getCardLink(cardKey) {
   }
 
   return {
-    id: link.id,
-    cardKey: link.cardKey,
-    username: link.username,
-    appName: link.appName,
-    phone: link.phone,
-    createdAt:
-      link.createdAt instanceof Date
-        ? link.createdAt.toISOString()
-        : typeof link.createdAt === 'number'
-          ? new Date(link.createdAt).toISOString()
-          : link.createdAt,
-    firstUsedAt:
-      link.firstUsedAt instanceof Date
-        ? link.firstUsedAt.toISOString()
-        : typeof link.firstUsedAt === 'number'
-          ? new Date(link.firstUsedAt).toISOString()
-          : link.firstUsedAt,
-    url: link.url,
-    templateId: link.templateId,
-    expiryDays: link.expiryDays,
+    ...link,
+    tags: JSON.parse(link.tags || '[]'),
   };
 }
 

@@ -47,7 +47,10 @@ export async function POST(request: NextRequest) {
                 username: user.username,
                 canManageTemplates: user.canManageTemplates,
                 expiryDate: user.expiryDate,
-                isAdmin: user.isAdmin
+                isAdmin: user.isAdmin,
+                cardLinkTags: user.cardLinkTags,
+                showFooter: user.showFooter,
+                showAds: user.showAds
             }
         });
     } catch (error) {

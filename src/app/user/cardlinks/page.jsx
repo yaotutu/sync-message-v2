@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 import { CardLink, Template as AppTemplate } from '@prisma/client';
 import { userApi } from '@/lib/utils/api-client';
 import { copyToClipboard } from '@/lib/utils/clipboard';
+import TagManagerDialog from '@/components/TagManagerDialog';
 import {
     Box,
     Button,
@@ -35,6 +36,7 @@ import RefreshIcon from '@mui/icons-material/Refresh';
 import DeleteIcon from '@mui/icons-material/Delete';
 import ContentCopyIcon from '@mui/icons-material/ContentCopy';
 import AddIcon from '@mui/icons-material/Add';
+import LabelIcon from '@mui/icons-material/Label';
 
 export default function CardLinksPage() {
     const [selectedTemplate, setSelectedTemplate] = useState('');
@@ -42,6 +44,9 @@ export default function CardLinksPage() {
     const [groupCountInput, setGroupCountInput] = useState('1');
     const [groupCount, setGroupCount] = useState(1);
     const [expiryDays, setExpiryDays] = useState('');
+    const [selectedTags, setSelectedTags] = useState([]);
+    const [userTags, setUserTags] = useState([]);
+    const [tagManagerOpen, setTagManagerOpen] = useState(false);
     const [error, setError] = useState('');
     const [cardLinks, setCardLinks] = useState([]);
     const [filteredCardLinks, setFilteredCardLinks] = useState([]);
@@ -96,6 +101,7 @@ export default function CardLinksPage() {
             } catch { }
         }
         loadTemplates();
+        loadUserTags();
         loadCardLinks(1);
     }, []);
 
@@ -129,6 +135,23 @@ export default function CardLinksPage() {
         } catch {
             setError('加载模板失败，请检查网络连接');
         }
+    };
+
+    // 加载用户标签
+    const loadUserTags = async () => {
+        try {
+            const data = await userApi.get('/api/user/profile');
+            if (data.success) {
+                setUserTags(data.data.cardLinkTags || []);
+            }
+        } catch {
+            console.error('加载用户标签失败');
+        }
+    };
+
+    // 处理标签更新
+    const handleTagsChange = (updatedTags) => {
+        setUserTags(updatedTags);
     };
 
     // 加载卡密链接
@@ -246,7 +269,8 @@ export default function CardLinksPage() {
                     appName: templateName,
                     phone,
                     templateId: selectedTemplate,
-                    expiryDays: expiryDays.trim() || undefined
+                    expiryDays: expiryDays.trim() || undefined,
+                    tags: selectedTags
                 })
             );
 
@@ -362,7 +386,7 @@ export default function CardLinksPage() {
     };
 
     return (
-        <Box sx={{ height: '100%', bgcolor: 'background.default', py: 4, px: 2 }}>
+        <Box sx={{ minHeight: '100vh', py: 4, px: 2 }}>
             <Box sx={{ maxWidth: 900, mx: 'auto' }}>
                 <Stack spacing={4}>
                     {/* 标题栏 */}
@@ -477,40 +501,74 @@ export default function CardLinksPage() {
                                 </Typography>
                             </Box>
 
-                            {/* 循环模式选择 */}
-                            <Box>
-                                <FormControl fullWidth sx={{ mt: 2 }}>
+                            {/* 其他设置（一行布局） */}
+                            <Box sx={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr 1fr', gap: 2 }}>
+                                {/* 循环模式选择 */}
+                                <FormControl size="small">
                                     <InputLabel id="loop-mode-label">循环模式</InputLabel>
                                     <Select
                                         labelId="loop-mode-label"
                                         value={loopMode}
                                         label="循环模式"
                                         onChange={(e) => setLoopMode(e.target.value)}
-                                        size="small"
                                     >
-                                        <MenuItem value="sequence">顺序循环（如ABCABCABC）</MenuItem>
-                                        <MenuItem value="group">分组循环（如AAABBBCCC）</MenuItem>
+                                        <MenuItem value="sequence">顺序循环</MenuItem>
+                                        <MenuItem value="group">分组循环</MenuItem>
                                     </Select>
                                 </FormControl>
-                            </Box>
 
-                            {/* 过期天数设置 */}
-                            <Box>
-                                <Typography variant="subtitle2" mb={1}>
-                                    过期天数（可选）
-                                </Typography>
+                                {/* 过期天数设置 */}
                                 <TextField
                                     type="number"
                                     value={expiryDays}
                                     onChange={(e) => setExpiryDays(e.target.value)}
-                                    placeholder="留空表示永不过期"
+                                    placeholder="过期天数"
                                     inputProps={{ min: 1 }}
-                                    fullWidth
                                     size="small"
                                     disabled={isLoading}
-                                    helperText="设置链接的有效期天数，留空表示永不过期"
+                                    label="过期天数"
                                 />
+
+                                {/* 标签选择 */}
+                                <FormControl size="small">
+                                    <InputLabel id="tags-label">选择标签</InputLabel>
+                                    <Select
+                                        labelId="tags-label"
+                                        multiple
+                                        value={selectedTags}
+                                        onChange={(e) => setSelectedTags(e.target.value)}
+                                        label="选择标签"
+                                        renderValue={(selected) =>
+                                            selected.length === 0
+                                                ? '未选择'
+                                                : selected.join(', ')
+                                        }
+                                    >
+                                        {userTags.map((tag) => (
+                                            <MenuItem key={tag} value={tag}>
+                                                {tag}
+                                            </MenuItem>
+                                        ))}
+                                    </Select>
+                                </FormControl>
+
+                                {/* 管理标签按钮 */}
+                                <Button
+                                    startIcon={<LabelIcon />}
+                                    onClick={() => setTagManagerOpen(true)}
+                                    variant="outlined"
+                                    size="small"
+                                    sx={{ height: '40px' }}
+                                >
+                                    管理标签
+                                </Button>
                             </Box>
+
+                            {userTags.length === 0 && (
+                                <Typography variant="caption" color="text.secondary" display="block" mt={1}>
+                                    暂无标签，点击"管理标签"添加
+                                </Typography>
+                            )}
 
                             {/* 生成按钮 */}
                             <Button
@@ -665,6 +723,24 @@ export default function CardLinksPage() {
                                             <Typography variant="body2" color="warning.main">
                                                 过期天数：{cardLink.expiryDays} 天
                                             </Typography>
+                                        )}
+                                        {cardLink.tags && cardLink.tags.length > 0 && (
+                                            <Box mt={1}>
+                                                <Typography variant="body2" color="text.secondary" mb={0.5}>
+                                                    标签：
+                                                </Typography>
+                                                <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.5 }}>
+                                                    {cardLink.tags.map((tag) => (
+                                                        <Chip
+                                                            key={tag}
+                                                            label={tag}
+                                                            size="small"
+                                                            variant="outlined"
+                                                            color="primary"
+                                                        />
+                                                    ))}
+                                                </Box>
+                                            </Box>
                                         )}
                                         {statusFilter !== 'unused' && cardLink.firstUsedAt && (
                                             <Typography variant="body2" color="success.main">
@@ -829,6 +905,13 @@ export default function CardLinksPage() {
                     </Button>
                 </DialogActions>
             </Dialog>
+
+            {/* 标签管理弹窗 */}
+            <TagManagerDialog
+                open={tagManagerOpen}
+                onClose={() => setTagManagerOpen(false)}
+                onTagsChange={handleTagsChange}
+            />
         </Box>
     );
 } 
