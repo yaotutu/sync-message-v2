@@ -1,5 +1,5 @@
 import './globals.css';
-import Footer from '@/components/Footer';
+import FooterController from '@/components/FooterController';
 
 export const metadata = {
   title: '消息同步管理系统',
@@ -18,7 +18,7 @@ export default function RootLayout({ children }) {
           <main style={{ flex: 1, overflow: 'auto' }}>
             {children}
           </main>
-          <Footer />
+          <FooterController />
         </div>
       </body>
     </html>

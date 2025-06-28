@@ -2,7 +2,7 @@
 
 import { Box, Typography } from '@mui/material';
 
-export default function Footer() {
+export default function Footer({ visible = true }) {
     // 从环境变量中读取联系信息
     const contactInfo = {
         email: process.env.NEXT_PUBLIC_CONTACT_EMAIL || '',
@@ -15,6 +15,10 @@ export default function Footer() {
 
     // 检查是否应该显示Footer
     const shouldShowFooter = () => {
+        // 如果visible为false，则隐藏Footer
+        if (!visible) {
+            return false;
+        }
         // 如果NEXT_PUBLIC_HIDE_FOOTER为true，则隐藏Footer
         return process.env.NEXT_PUBLIC_HIDE_FOOTER !== 'true';
     };
