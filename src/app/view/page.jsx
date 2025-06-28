@@ -2,64 +2,19 @@
 
 import { useState, useEffect, Suspense } from 'react';
 import { useSearchParams } from 'next/navigation';
-import {
-    Box,
-    Card,
-    CardContent,
-    Typography,
-    Button,
-    Paper,
-    Container,
-    Alert,
-    CircularProgress,
-    Divider,
-    useTheme,
-    useMediaQuery,
-    Dialog,
-    DialogTitle,
-    DialogContent,
-    DialogActions
-} from '@mui/material';
+import { Box, Container, useTheme, useMediaQuery } from '@mui/material';
 import { copyToClipboard } from '@/lib/utils/clipboard';
-import Footer from '@/components/Footer';
-
-/**
- * 提取短信中的验证码
- * @param {string} content - 短信内容
- * @returns {string|null} 验证码或null
- */
-function extractVerificationCode(content) {
-    if (!content) return null;
-
-    // 查找"验证码"后面的第一串数字
-    const pattern = /验证码[^0-9]*(\d{4,8})/;
-    const match = content.match(pattern);
-
-    if (match && match[1]) {
-        return match[1];
-    }
-
-    return null;
-}
-
-/**
- * 获取验证码数据的工具函数
- * @param {Object} param0
- * @param {string} param0.cardKey
- * @param {string} param0.appName
- * @param {string} [param0.phone]
- * @returns {Promise<Object>} 接口返回数据
- */
-async function fetchMessageData({ cardKey, appName, phone }) {
-    const params = new URLSearchParams();
-    params.append('cardKey', cardKey);
-    params.append('appName', encodeURIComponent(appName));
-    if (phone) {
-        params.append('phone', phone);
-    }
-    const response = await fetch(`/api/public/messages?${params.toString()}`);
-    return await response.json();
-}
+import { extractVerificationCode, fetchMessageData } from './utils/messageUtils';
+import {
+    AdvertisementSection,
+    HeaderCard,
+    HelpInfoCard,
+    MessageContent,
+    CodeDialog,
+    LoadingState,
+    ErrorState,
+    EmptyState
+} from './components';
 
 function ViewPageContent() {
     const searchParams = useSearchParams();
@@ -78,13 +33,16 @@ function ViewPageContent() {
         const cardKey = searchParams.get('cardKey');
         const appName = searchParams.get('appName');
         const phone = searchParams.get('phone');
+
         if (!cardKey || !appName) {
             setError('无效的链接参数');
             setIsLoading(false);
             return;
         }
+
         setIsLoading(true);
         setError('');
+
         fetchMessageData({ cardKey, appName, phone })
             .then(result => {
                 if (result.success) setData(result);
@@ -102,6 +60,7 @@ function ViewPageContent() {
             const cardKey = searchParams.get('cardKey');
             const appName = searchParams.get('appName');
             const phone = searchParams.get('phone');
+
             intervalId = setInterval(async () => {
                 try {
                     const result = await fetchMessageData({ cardKey, appName, phone });
@@ -111,6 +70,7 @@ function ViewPageContent() {
         } else {
             setCodeLoading(false);
         }
+
         return () => {
             if (intervalId) clearInterval(intervalId);
         };
@@ -125,7 +85,7 @@ function ViewPageContent() {
                 setCodeDialogOpen(true);
             }
         }
-    }, [data]);
+    }, [data, lastCode]);
 
     const handleCopy = async (text, type) => {
         await copyToClipboard(
@@ -151,59 +111,24 @@ function ViewPageContent() {
         );
     };
 
+    // 渲染不同状态
     if (isLoading) {
-        return (
-            <Box
-                sx={{
-                    height: '100%',
-                    bgcolor: 'grey.100',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    p: 2
-                }}
-            >
-                <CircularProgress size={isMobile ? 40 : 60} />
-            </Box>
-        );
+        return <LoadingState isMobile={isMobile} />;
     }
 
-    if (error) {
+    if (error || (data && data.isExpired)) {
         return (
-            <Box
-                sx={{
-                    height: '100%',
-                    bgcolor: 'grey.100',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    p: 2
-                }}
-            >
-                <Alert severity="error" sx={{ maxWidth: '100%' }}>
-                    {error}
-                </Alert>
-            </Box>
+            <ErrorState
+                error={error}
+                isExpired={data?.isExpired}
+                expiryDays={data?.expiryDays}
+                firstUsedAt={data?.firstUsedAt}
+            />
         );
     }
 
     if (!data) {
-        return (
-            <Box
-                sx={{
-                    height: '100%',
-                    bgcolor: 'grey.100',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    p: 2
-                }}
-            >
-                <Typography variant="body1" color="text.secondary" align="center">
-                    暂无数据
-                </Typography>
-            </Box>
-        );
+        return <EmptyState />;
     }
 
     const { message, firstUsedAt } = data;
@@ -213,21 +138,6 @@ function ViewPageContent() {
     // 提取验证码
     const verificationCode = message ? extractVerificationCode(message) : null;
     const displayContent = verificationCode || message || '未找到验证码';
-
-    // 修复时间戳显示
-    const formatFirstUsedTime = (timestamp) => {
-        if (!timestamp) return '';
-        // 确保时间戳是数字
-        const time = typeof timestamp === 'string' ? parseInt(timestamp) : timestamp;
-        return new Date(time).toLocaleString('zh-CN', {
-            year: 'numeric',
-            month: '2-digit',
-            day: '2-digit',
-            hour: '2-digit',
-            minute: '2-digit',
-            second: '2-digit'
-        });
-    };
 
     return (
         <Box
@@ -240,181 +150,38 @@ function ViewPageContent() {
         >
             <Container maxWidth="lg" sx={{ px: { xs: 1, sm: 2 } }}>
                 {/* 标题卡片 */}
-                <Card sx={{ mb: { xs: 2, sm: 3 } }}>
-                    <CardContent sx={{ p: { xs: 2, sm: 3 } }}>
-                        <Typography
-                            variant={isMobile ? "h6" : "h5"}
-                            component="h2"
-                            gutterBottom
-                            sx={{ wordBreak: 'break-word' }}
-                        >
-                            {appName} - 快速复制
-                        </Typography>
-                        {firstUsedAt && (
-                            <Typography
-                                variant="body2"
-                                color="text.secondary"
-                                sx={{ mt: 1, fontSize: { xs: '0.75rem', sm: '0.875rem' } }}
-                            >
-                                首次使用时间：{formatFirstUsedTime(firstUsedAt)}
-                            </Typography>
-                        )}
-                        {data && data.rawMessage && data.rawMessage.systemReceivedAt && (
-                            <Typography
-                                variant="body1"
-                                color="primary"
-                                sx={{
-                                    mt: 1,
-                                    fontWeight: 'bold',
-                                    fontSize: { xs: '1rem', sm: '1.1rem' },
-                                    letterSpacing: 1,
-                                }}
-                            >
-                                验证码到达时间：{formatFirstUsedTime(data.rawMessage.systemReceivedAt)}
-                            </Typography>
-                        )}
-                    </CardContent>
-                </Card>
+                <HeaderCard
+                    appName={appName}
+                    firstUsedAt={firstUsedAt}
+                    expiryDays={data.expiryDays}
+                    isExpired={data.isExpired}
+                    rawMessage={data.rawMessage}
+                />
+
+                {/* 帮助信息卡片 */}
+                <HelpInfoCard />
 
                 {/* 主要内容卡片 */}
-                <Card>
-                    <CardContent sx={{ p: { xs: 2, sm: 3 } }}>
-                        <Box sx={{ display: 'flex', flexDirection: 'column', gap: { xs: 3, sm: 4 } }}>
-                            {/* 手机号部分 */}
-                            <Box>
-                                <Box sx={{
-                                    display: 'flex',
-                                    flexDirection: { xs: 'column', sm: 'row' },
-                                    justifyContent: 'space-between',
-                                    alignItems: { xs: 'stretch', sm: 'center' },
-                                    mb: 2,
-                                    gap: { xs: 1, sm: 0 }
-                                }}>
-                                    <Typography
-                                        variant={isMobile ? "subtitle1" : "h6"}
-                                        component="h3"
-                                        sx={{ fontWeight: 'bold' }}
-                                    >
-                                        手机号
-                                    </Typography>
-                                    <Button
-                                        variant="contained"
-                                        color="primary"
-                                        onClick={() => phone && handleCopy(phone, 'phone')}
-                                        disabled={!phone}
-                                        size={isMobile ? "large" : "medium"}
-                                        sx={{
-                                            minHeight: { xs: 48, sm: 36 },
-                                            fontSize: { xs: '0.875rem', sm: '0.875rem' },
-                                            px: { xs: 3, sm: 2 }
-                                        }}
-                                    >
-                                        {copyStatus.phone || '复制账号'}
-                                    </Button>
-                                </Box>
-                                <Paper
-                                    sx={{
-                                        p: { xs: 2, sm: 2 },
-                                        bgcolor: 'grey.100',
-                                        fontFamily: 'monospace',
-                                        fontSize: { xs: '1rem', sm: '1.125rem' },
-                                        wordBreak: 'break-all',
-                                        minHeight: { xs: 48, sm: 56 }
-                                    }}
-                                >
-                                    {phone || '无手机号'}
-                                </Paper>
-                                <Typography
-                                    variant="caption"
-                                    color="text.secondary"
-                                    sx={{
-                                        mt: 1,
-                                        display: 'block',
-                                        fontSize: { xs: '0.75rem', sm: '0.75rem' }
-                                    }}
-                                >
-                                    第一步：点击"复制账号"按钮复制手机号
-                                </Typography>
-                            </Box>
+                <MessageContent
+                    phone={phone}
+                    displayContent={displayContent}
+                    verificationCode={verificationCode}
+                    copyStatus={copyStatus}
+                    onCopy={handleCopy}
+                    codeLoading={codeLoading}
+                    isMobile={isMobile}
+                />
 
-                            <Divider sx={{ my: { xs: 1, sm: 2 } }} />
-
-                            {/* 验证码部分 */}
-                            <Box>
-                                <Box sx={{
-                                    display: 'flex',
-                                    flexDirection: { xs: 'column', sm: 'row' },
-                                    justifyContent: 'space-between',
-                                    alignItems: { xs: 'stretch', sm: 'center' },
-                                    mb: 2,
-                                    gap: { xs: 1, sm: 0 }
-                                }}>
-                                    <Typography
-                                        variant={isMobile ? "subtitle1" : "h6"}
-                                        component="h3"
-                                        sx={{ fontWeight: 'bold' }}
-                                    >
-                                        {verificationCode ? '验证码' : '短信内容'}
-                                    </Typography>
-                                    <Button
-                                        variant="contained"
-                                        color="success"
-                                        onClick={() => displayContent && handleCopy(displayContent, 'code')}
-                                        disabled={!displayContent || codeLoading}
-                                        size={isMobile ? "large" : "medium"}
-                                        sx={{
-                                            minHeight: { xs: 48, sm: 36 },
-                                            fontSize: { xs: '0.875rem', sm: '0.875rem' },
-                                            px: { xs: 3, sm: 2 }
-                                        }}
-                                    >
-                                        {codeLoading ? '正在获取...' : (copyStatus.code || (verificationCode ? '复制验证码' : '复制内容'))}
-                                    </Button>
-                                </Box>
-                                <Paper
-                                    sx={{
-                                        p: { xs: 2, sm: 2 },
-                                        bgcolor: 'grey.100',
-                                        fontFamily: 'monospace',
-                                        fontSize: { xs: '1rem', sm: '1.125rem' },
-                                        textAlign: verificationCode ? 'center' : 'left',
-                                        wordBreak: 'break-all',
-                                        minHeight: { xs: 48, sm: 56 },
-                                        display: 'flex',
-                                        alignItems: verificationCode ? 'center' : 'flex-start',
-                                        justifyContent: verificationCode ? 'center' : 'flex-start'
-                                    }}
-                                >
-                                    {codeLoading ? <CircularProgress size={24} /> : displayContent}
-                                </Paper>
-                                <Typography
-                                    variant="caption"
-                                    color="text.secondary"
-                                    sx={{
-                                        mt: 1,
-                                        display: 'block',
-                                        fontSize: { xs: '0.75rem', sm: '0.75rem' }
-                                    }}
-                                >
-                                    {codeLoading ? '正在获取验证码，请稍候...' : `第二步：点击"复制${verificationCode ? '验证码' : '内容'}"按钮复制${verificationCode ? '验证码' : '短信内容'}`}
-                                </Typography>
-                            </Box>
-                        </Box>
-                    </CardContent>
-                </Card>
+                {/* 广告信息 */}
+                <AdvertisementSection cardKey={searchParams.get('cardKey')} />
             </Container>
+
             {/* 验证码弹窗 */}
-            <Dialog open={codeDialogOpen} onClose={() => setCodeDialogOpen(false)}>
-                <DialogTitle>验证码已获取</DialogTitle>
-                <DialogContent>
-                    <Typography variant="h5" align="center" sx={{ fontWeight: 'bold', letterSpacing: 2 }}>
-                        {lastCode}
-                    </Typography>
-                </DialogContent>
-                <DialogActions>
-                    <Button onClick={() => setCodeDialogOpen(false)} color="primary" variant="contained">知道了</Button>
-                </DialogActions>
-            </Dialog>
+            <CodeDialog
+                open={codeDialogOpen}
+                onClose={() => setCodeDialogOpen(false)}
+                code={lastCode}
+            />
         </Box>
     );
 }
@@ -422,30 +189,16 @@ function ViewPageContent() {
 export default function ViewPage() {
     return (
         <Box sx={{
-            height: '100vh',
+            height: '100%',
             display: 'flex',
             flexDirection: 'column',
             bgcolor: 'grey.100'
         }}>
             <Box sx={{ flex: 1, overflow: 'auto' }}>
-                <Suspense fallback={
-                    <Box
-                        sx={{
-                            height: '100%',
-                            bgcolor: 'grey.100',
-                            display: 'flex',
-                            alignItems: 'center',
-                            justifyContent: 'center',
-                            p: 2
-                        }}
-                    >
-                        <CircularProgress />
-                    </Box>
-                }>
+                <Suspense fallback={<LoadingState isMobile={false} />}>
                     <ViewPageContent />
                 </Suspense>
             </Box>
-            <Footer />
         </Box>
     );
 } 

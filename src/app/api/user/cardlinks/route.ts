@@ -37,14 +37,15 @@ export async function GET(request: NextRequest) {
     // 获取状态过滤参数
     const status = url.searchParams.get('status');
     const search = url.searchParams.get('search');
+    const tag = url.searchParams.get('tag');
+    const templateId = url.searchParams.get('templateId');
 
     console.log(
-      `分页参数: page=${page}, pageSize=${pageSize}, status=${status || '全部'}, search=${search || '无'
-      }`,
+      `分页参数: page=${page}, pageSize=${pageSize}, status=${status || '全部'}, search=${search || '无'}, tag=${tag || '无'}, templateId=${templateId || '无'}`,
     );
 
     // 获取用户的卡密链接
-    const { links, total } = await getUserCardLinks(username, page, pageSize, status, search);
+    const { links, total } = await getUserCardLinks(username, page, pageSize, status, search, tag, templateId);
     console.log(`成功获取用户 ${username} 的 ${links.length} 个卡密链接，总数: ${total}`);
 
     return NextResponse.json({
@@ -91,7 +92,7 @@ export async function POST(request: NextRequest) {
     // 解析请求体
     const data: CreateCardLinkDTO = await request.json();
     console.log(
-      `请求参数: appName=${data.appName}, phone=${data.phone || '未提供'}, templateId=${data.templateId || '未提供'}`,
+      `请求参数: appName=${data.appName}, phone=${data.phone || '未提供'}, templateId=${data.templateId || '未提供'}, expiryDays=${data.expiryDays || '未提供'}, tags=${data.tags ? JSON.stringify(data.tags) : '未提供'}`,
     );
 
     // 验证必填字段
@@ -118,6 +119,29 @@ export async function POST(request: NextRequest) {
       console.log('未提供手机号，将创建不带手机号的卡密链接');
     }
 
+    // 验证标签
+    let tags: string[] = [];
+    if (data.tags) {
+      if (!Array.isArray(data.tags)) {
+        console.log('错误: 标签必须是数组格式');
+        return NextResponse.json({ success: false, message: '标签必须是数组格式' }, { status: 400 });
+      }
+
+      // 验证标签内容
+      for (const tag of data.tags) {
+        if (typeof tag !== 'string' || tag.trim().length === 0) {
+          console.log('错误: 标签不能为空');
+          return NextResponse.json({ success: false, message: '标签不能为空' }, { status: 400 });
+        }
+        if (tag.length > 50) {
+          console.log('错误: 标签长度不能超过50个字符');
+          return NextResponse.json({ success: false, message: '标签长度不能超过50个字符' }, { status: 400 });
+        }
+      }
+      tags = data.tags;
+      console.log(`使用标签: ${JSON.stringify(tags)}`);
+    }
+
     // 如果提供了模板ID，获取模板信息
     let templateName = '';
     if (data.templateId) {
@@ -133,12 +157,14 @@ export async function POST(request: NextRequest) {
 
     // 创建卡链接
     console.log(
-      `尝试创建卡密链接: 用户=${username}, 应用=${templateName || data.appName}, 手机号=${phone || '无'}`,
+      `尝试创建卡密链接: 用户=${username}, 应用=${templateName || data.appName}, 手机号=${phone || '无'}, 过期天数=${data.expiryDays || '无'}, 标签=${JSON.stringify(tags)}`,
     );
     const cardLink = await createCardLink(username, {
       appName: templateName || data.appName,
       phone: phone || undefined,
       templateId: data.templateId,
+      expiryDays: data.expiryDays,
+      tags,
     });
     console.log(`卡密链接创建成功: cardKey=${cardLink.cardKey}, url=${cardLink.url}`);
 

@@ -189,7 +189,7 @@ export default function MessagesPage() {
     const { start, end } = getPaginationRange();
 
     return (
-        <Box sx={{ minHeight: '100vh', bgcolor: '#f5f5f5', py: 3 }}>
+        <Box sx={{ height: '100%', bgcolor: '#f5f5f5', py: 3 }}>
             <Box sx={{ maxWidth: '900px', mx: 'auto', px: 2 }}>
                 {/* 标题栏 */}
                 <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 3 }}>

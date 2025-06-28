@@ -26,7 +26,6 @@ import {
   Warning,
   Error
 } from '@mui/icons-material';
-import Footer from '@/components/Footer';
 
 export default function LoginPage() {
   const router = useRouter();
@@ -83,6 +82,10 @@ export default function LoginPage() {
       if (data.success) {
         const isAdmin = data.data.isAdmin || false;
         const canManageTemplates = data.data.canManageTemplates || false;
+        const cardLinkTags = data.data.cardLinkTags || [];
+        const showFooter = data.data.showFooter !== undefined ? data.data.showFooter : true;
+        const showAds = data.data.showAds !== undefined ? data.data.showAds : true;
+
         localStorage.setItem(
           'user_auth',
           JSON.stringify({
@@ -90,6 +93,9 @@ export default function LoginPage() {
             password,
             isAdmin,
             canManageTemplates,
+            cardLinkTags,
+            showFooter,
+            showAds,
           }),
         );
         if (isAdmin) {
@@ -117,7 +123,7 @@ export default function LoginPage() {
   return (
     <Box
       sx={{
-        minHeight: '100vh',
+        height: '100%',
         background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
         display: 'flex',
         flexDirection: 'column'
@@ -303,7 +309,6 @@ export default function LoginPage() {
           )}
         </Container>
       </Box>
-      <Footer />
     </Box>
   );
 }

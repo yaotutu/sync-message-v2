@@ -1,13 +1,16 @@
+'use client';
+
 import { Box, Typography } from '@mui/material';
 
-export default function Footer() {
+export default function Footer({ visible = true }) {
     // 从环境变量中读取联系信息
     const contactInfo = {
         email: process.env.NEXT_PUBLIC_CONTACT_EMAIL || '',
         wechat: process.env.NEXT_PUBLIC_CONTACT_WECHAT || '',
         qq: process.env.NEXT_PUBLIC_CONTACT_QQ || '',
         phone: process.env.NEXT_PUBLIC_CONTACT_PHONE || '',
-        website: process.env.NEXT_PUBLIC_CONTACT_WEBSITE || ''
+        website: process.env.NEXT_PUBLIC_CONTACT_WEBSITE || '',
+        copyright: process.env.NEXT_PUBLIC_CONTACT_COPYRIGHT || ''
     };
 
     // 构建联系信息文本
@@ -34,6 +37,10 @@ export default function Footer() {
             parts.push(`网站：${contactInfo.website}`);
         }
 
+        if (contactInfo.copyright && contactInfo.copyright.trim()) {
+            parts.push(`版权所有：${contactInfo.copyright}`);
+        }
+
         // 如果没有配置任何联系信息，显示默认文本
         if (parts.length === 0) {
             return '联系我们：support@example.com | 微信：sync-message | QQ：123456789';
@@ -41,6 +48,11 @@ export default function Footer() {
 
         return parts.join(' | ');
     };
+
+    // 如果不需要显示Footer，返回null
+    if (!visible) {
+        return null;
+    }
 
     return (
         <Box

@@ -45,6 +45,8 @@ export function generateCardLinkUrl(cardKey, appName, phone) {
  * @param {string} data.appName
  * @param {string} [data.phone]
  * @param {string} [data.templateId]
+ * @param {number|string} [data.expiryDays]
+ * @param {string[]} [data.tags]
  * @returns {Promise<Object>}
  */
 export async function createCardLink(username, data) {
@@ -54,6 +56,18 @@ export async function createCardLink(username, data) {
 
   const phone = data.phone || null;
   const url = generateCardLinkUrl(cardKey, data.appName, phone);
+
+  // 处理过期天数类型转换
+  let expiryDays = null;
+  if (data.expiryDays !== undefined && data.expiryDays !== null) {
+    const days = parseInt(data.expiryDays, 10);
+    if (!isNaN(days) && days > 0) {
+      expiryDays = days;
+    }
+  }
+
+  // 处理标签
+  const tags = Array.isArray(data.tags) ? JSON.stringify(data.tags) : '[]';
 
   await prisma.cardLink.create({
     data: {
@@ -66,6 +80,8 @@ export async function createCardLink(username, data) {
       url,
       templateId: data.templateId || null,
       firstUsedAt: null,
+      expiryDays,
+      tags,
     },
   });
 
@@ -78,6 +94,8 @@ export async function createCardLink(username, data) {
     createdAt: now,
     url,
     templateId: data.templateId,
+    expiryDays,
+    tags: data.tags || [],
   };
 }
 
@@ -87,9 +105,12 @@ export async function createCardLink(username, data) {
  * @param {number} [page=1]
  * @param {number} [pageSize=10]
  * @param {string|null} [status]
+ * @param {string|null} [search]
+ * @param {string|null} [tag]
+ * @param {string|null} [templateId]
  * @returns {Promise<{links: Array<Object>, total: number}>}
  */
-export async function getUserCardLinks(username, page = 1, pageSize = 10, status, search) {
+export async function getUserCardLinks(username, page = 1, pageSize = 10, status, search, tag, templateId) {
   const where = { username };
 
   if (status === 'used') {
@@ -105,6 +126,18 @@ export async function getUserCardLinks(username, page = 1, pageSize = 10, status
       { url: { contains: search } },
       { phone: { contains: search } },
     ];
+  }
+
+  // 添加标签筛选
+  if (tag) {
+    where.tags = {
+      contains: `"${tag}"`
+    };
+  }
+
+  // 添加模板筛选
+  if (templateId) {
+    where.templateId = templateId;
   }
 
   const [count, links] = await Promise.all([
@@ -123,6 +156,9 @@ export async function getUserCardLinks(username, page = 1, pageSize = 10, status
         createdAt: true,
         firstUsedAt: true,
         url: true,
+        expiryDays: true,
+        tags: true,
+        templateId: true,
       },
     }),
   ]);
@@ -156,6 +192,9 @@ export async function getUserCardLinks(username, page = 1, pageSize = 10, status
             ? new Date(link.firstUsedAt).toISOString()
             : link.firstUsedAt,
       url: link.url,
+      expiryDays: link.expiryDays,
+      tags: JSON.parse(link.tags || '[]'),
+      templateId: link.templateId,
     };
   });
 
@@ -180,6 +219,8 @@ export async function getCardLink(cardKey) {
       firstUsedAt: true,
       url: true,
       templateId: true,
+      expiryDays: true,
+      tags: true,
     },
   });
 
@@ -188,25 +229,8 @@ export async function getCardLink(cardKey) {
   }
 
   return {
-    id: link.id,
-    cardKey: link.cardKey,
-    username: link.username,
-    appName: link.appName,
-    phone: link.phone,
-    createdAt:
-      link.createdAt instanceof Date
-        ? link.createdAt.toISOString()
-        : typeof link.createdAt === 'number'
-          ? new Date(link.createdAt).toISOString()
-          : link.createdAt,
-    firstUsedAt:
-      link.firstUsedAt instanceof Date
-        ? link.firstUsedAt.toISOString()
-        : typeof link.firstUsedAt === 'number'
-          ? new Date(link.firstUsedAt).toISOString()
-          : link.firstUsedAt,
-    url: link.url,
-    templateId: link.templateId,
+    ...link,
+    tags: JSON.parse(link.tags || '[]'),
   };
 }
 
@@ -272,4 +296,32 @@ export async function deleteCardLink(username, cardKey) {
     console.error('删除卡密链接失败:', error);
     return false;
   }
+}
+
+/**
+ * 根据卡密链接key获取用户信息
+ * @param {string} cardKey
+ * @returns {Promise<Object|null>}
+ */
+export async function getUserByCardKey(cardKey) {
+  const cardLink = await prisma.cardLink.findUnique({
+    where: { cardKey },
+    select: {
+      username: true,
+      user: {
+        select: {
+          id: true,
+          username: true,
+          showAds: true,
+          showFooter: true,
+        }
+      }
+    },
+  });
+
+  if (!cardLink) {
+    return null;
+  }
+
+  return cardLink.user;
 }

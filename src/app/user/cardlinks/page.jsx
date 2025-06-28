@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 import { CardLink, Template as AppTemplate } from '@prisma/client';
 import { userApi } from '@/lib/utils/api-client';
 import { copyToClipboard } from '@/lib/utils/clipboard';
+import TagManagerDialog from '@/components/TagManagerDialog';
 import {
     Box,
     Button,
@@ -35,23 +36,30 @@ import RefreshIcon from '@mui/icons-material/Refresh';
 import DeleteIcon from '@mui/icons-material/Delete';
 import ContentCopyIcon from '@mui/icons-material/ContentCopy';
 import AddIcon from '@mui/icons-material/Add';
+import LabelIcon from '@mui/icons-material/Label';
 
 export default function CardLinksPage() {
     const [selectedTemplate, setSelectedTemplate] = useState('');
     const [phones, setPhones] = useState(['']);
     const [groupCountInput, setGroupCountInput] = useState('1');
     const [groupCount, setGroupCount] = useState(1);
+    const [expiryDays, setExpiryDays] = useState('');
+    const [selectedTags, setSelectedTags] = useState([]);
+    const [userTags, setUserTags] = useState([]);
+    const [tagManagerOpen, setTagManagerOpen] = useState(false);
     const [error, setError] = useState('');
     const [cardLinks, setCardLinks] = useState([]);
     const [filteredCardLinks, setFilteredCardLinks] = useState([]);
     const [searchQuery, setSearchQuery] = useState('');
     const [statusFilter, setStatusFilter] = useState('unused');
+    const [tagFilter, setTagFilter] = useState('');
     const [isLoading, setIsLoading] = useState(false);
     const [isLoadingMore, setIsLoadingMore] = useState(false);
     const [pagination, setPagination] = useState({ totalPages: 0, page: 1, pageSize: 10, total: 0 });
     const [templates, setTemplates] = useState([]);
     const [isSearching, setIsSearching] = useState(false);
     const [loopMode, setLoopMode] = useState('sequence');
+    const [templateFilter, setTemplateFilter] = useState('');
 
     // Dialog states
     const [confirmDialog, setConfirmDialog] = useState({ open: false, title: '', message: '', onConfirm: null });
@@ -95,7 +103,9 @@ export default function CardLinksPage() {
             } catch { }
         }
         loadTemplates();
-        loadCardLinks(1);
+        loadUserTags();
+        // 初始加载卡密链接列表
+        loadCardLinks();
     }, []);
 
     useEffect(() => {
@@ -130,44 +140,137 @@ export default function CardLinksPage() {
         }
     };
 
-    // 加载卡密链接
-    const loadCardLinks = async (page = 1, append = false, overrideStatus, search) => {
+    // 加载用户标签
+    const loadUserTags = async () => {
         try {
+            const data = await userApi.get('/api/user/profile');
+            if (data.success) {
+                setUserTags(data.data.cardLinkTags || []);
+            }
+        } catch {
+            console.error('加载用户标签失败');
+        }
+    };
+
+    // 处理标签更新
+    const handleTagsChange = (updatedTags) => {
+        setUserTags(updatedTags);
+    };
+
+    /**
+     * 加载卡密链接列表
+     * @param {Object} options - 加载选项
+     * @param {number} options.page - 页码，默认为1
+     * @param {boolean} options.append - 是否追加到现有列表，默认为false（替换现有列表）
+     * @param {string} options.status - 状态筛选：'all' | 'used' | 'unused'，默认使用当前状态筛选
+     * @param {string} options.search - 搜索关键词，默认使用当前搜索条件
+     * @param {string} options.tag - 标签筛选，默认使用当前标签筛选
+     * @param {string} options.templateId - 模板筛选，默认使用当前模板筛选
+     */
+    const loadCardLinks = async (options = {}) => {
+        // 解构参数，设置默认值
+        const {
+            page = 1,
+            append = false,
+            status = statusFilter,
+            search = searchQuery,
+            tag = tagFilter,
+            templateId = templateFilter
+        } = options;
+
+        try {
+            // 设置加载状态
             setIsLoading(true);
             setIsLoadingMore(append);
             setError('');
-            let currentStatus = overrideStatus || statusFilter;
-            if (!['all', 'used', 'unused'].includes(currentStatus)) currentStatus = 'unused';
-            const apiUrl = `/api/user/cardlinks?page=${page}&pageSize=${pagination.pageSize}${currentStatus !== 'all' ? `&status=${currentStatus}` : ''}${searchQuery ? `&search=${encodeURIComponent(searchQuery)}` : ''}&_t=${Date.now()}`;
+
+            // 验证状态参数的有效性
+            const validStatus = ['all', 'used', 'unused'].includes(status) ? status : 'unused';
+
+            // 构建API请求URL
+            const queryParams = new URLSearchParams();
+            queryParams.append('page', page.toString());
+            queryParams.append('pageSize', pagination.pageSize.toString());
+
+            // 添加状态筛选参数（排除'all'状态）
+            if (validStatus !== 'all') {
+                queryParams.append('status', validStatus);
+            }
+
+            // 添加搜索参数
+            if (search && search.trim()) {
+                queryParams.append('search', search.trim());
+            }
+
+            // 添加标签筛选参数
+            if (tag && tag.trim()) {
+                queryParams.append('tag', tag.trim());
+            }
+
+            // 添加模板筛选参数
+            if (templateId && templateId.trim()) {
+                queryParams.append('templateId', templateId.trim());
+            }
+
+            // 添加时间戳防止缓存
+            queryParams.append('_t', Date.now().toString());
+
+            const apiUrl = `/api/user/cardlinks?${queryParams.toString()}`;
+
+            // 发送API请求
             const data = await userApi.get(apiUrl);
+
             if (data.success) {
-                if (append) setCardLinks((prev) => [...prev, ...data.data]);
-                else setCardLinks(data.data || []);
-                if (data.pagination) setPagination(data.pagination);
-            } else setError(data.message || '加载卡密链接失败');
-        } catch {
+                // 处理返回的数据
+                if (append) {
+                    // 追加模式：将新数据添加到现有列表末尾
+                    setCardLinks(prevCardLinks => [...prevCardLinks, ...data.data]);
+                } else {
+                    // 替换模式：用新数据替换现有列表
+                    setCardLinks(data.data || []);
+                }
+
+                // 更新分页信息
+                if (data.pagination) {
+                    setPagination(data.pagination);
+                }
+            } else {
+                // API返回错误
+                setError(data.message || '加载卡密链接失败');
+            }
+        } catch (error) {
+            // 网络错误或其他异常
+            console.error('加载卡密链接时发生错误:', error);
             setError('加载卡密链接失败，请检查网络连接');
         } finally {
+            // 清理加载状态
             setIsLoading(false);
             setIsLoadingMore(false);
         }
     };
 
-    // 搜索
+    /**
+     * 搜索卡密链接
+     * @param {Event} e - 表单提交事件
+     */
     const handleSearch = (e) => {
         e.preventDefault();
         setIsSearching(true);
-        loadCardLinks(1, false, statusFilter, searchQuery).finally(() => setIsSearching(false));
+        // 使用当前搜索条件重新加载第一页数据
+        loadCardLinks({ page: 1, search: searchQuery }).finally(() => setIsSearching(false));
     };
 
     const clearSearch = () => {
         setSearchQuery('');
     };
 
-    // 切换页码
+    /**
+     * 切换页码
+     * @param {number} newPage - 新的页码
+     */
     const changePage = (newPage) => {
         if (newPage >= 1 && newPage <= pagination.totalPages) {
-            loadCardLinks(newPage, false, statusFilter, searchQuery);
+            loadCardLinks({ page: newPage });
         }
     };
 
@@ -244,7 +347,9 @@ export default function CardLinksPage() {
                 userApi.post('/api/user/cardlinks', {
                     appName: templateName,
                     phone,
-                    templateId: selectedTemplate
+                    templateId: selectedTemplate,
+                    expiryDays: expiryDays.trim() || undefined,
+                    tags: selectedTags
                 })
             );
 
@@ -268,7 +373,7 @@ export default function CardLinksPage() {
                     showAlertDialog('提示', '链接生成成功，但复制到剪贴板失败，请手动复制。', 'warning');
                 }
                 setSelectedTemplate('');
-                await loadCardLinks(1);
+                await loadCardLinks({ page: 1 });
             }
         } catch {
             setError('生成卡密链接失败，请检查网络连接');
@@ -277,20 +382,55 @@ export default function CardLinksPage() {
         }
     };
 
-    // 状态过滤
+    /**
+     * 状态筛选处理
+     * @param {string} newStatus - 新的状态筛选条件
+     */
     const handleStatusFilterChange = (newStatus) => {
         if (statusFilter !== newStatus) {
             setIsLoading(true);
             setError('');
             setStatusFilter(newStatus);
-            loadCardLinks(1, false, newStatus, searchQuery);
+            // 使用新的状态筛选条件重新加载第一页数据，保持其他筛选条件
+            loadCardLinks({ page: 1, status: newStatus });
         }
     };
 
-    // 刷新
+    /**
+     * 标签筛选处理
+     * @param {string} newTag - 新的标签筛选条件
+     */
+    const handleTagFilterChange = (newTag) => {
+        if (tagFilter !== newTag) {
+            setIsLoading(true);
+            setError('');
+            setTagFilter(newTag);
+            // 使用新的标签筛选条件重新加载第一页数据，保持其他筛选条件
+            loadCardLinks({ page: 1, tag: newTag });
+        }
+    };
+
+    /**
+     * 模板筛选处理
+     * @param {string} newTemplateId - 新的模板筛选条件
+     */
+    const handleTemplateFilterChange = (newTemplateId) => {
+        if (templateFilter !== newTemplateId) {
+            setIsLoading(true);
+            setError('');
+            setTemplateFilter(newTemplateId);
+            // 使用新的模板筛选条件重新加载第一页数据，保持其他筛选条件
+            loadCardLinks({ page: 1, templateId: newTemplateId });
+        }
+    };
+
+    /**
+     * 刷新卡密链接数据
+     */
     const refreshData = () => {
         setError('');
-        loadCardLinks(1, false, statusFilter, searchQuery);
+        // 使用当前筛选条件重新加载第一页数据
+        loadCardLinks({ page: 1 });
     };
 
     // 删除卡密
@@ -310,7 +450,8 @@ export default function CardLinksPage() {
                 const data = await userApi.post('/api/user/cardlinks/delete', { keys });
                 if (data.success) {
                     showAlertDialog('成功', data.message || `成功删除 ${keys.length} 个卡密链接`, 'success');
-                    await loadCardLinks(1, false, statusFilter, searchQuery);
+                    // 删除成功后刷新卡密链接列表
+                    await loadCardLinks({ page: 1 });
                 } else {
                     setError(data.message || '删除失败');
                 }
@@ -334,7 +475,8 @@ export default function CardLinksPage() {
                 const response = await userApi.post('/api/user/cardlinks/delete-unused', {});
                 if (response.success) {
                     showAlertDialog('成功', `成功删除 ${response.data?.deletedCount || 0} 个未使用卡密链接`, 'success');
-                    await loadCardLinks(1, false, statusFilter, searchQuery);
+                    // 删除成功后刷新卡密链接列表
+                    await loadCardLinks({ page: 1 });
                 } else {
                     setError(response.message || '删除未使用卡密链接失败');
                 }
@@ -360,7 +502,7 @@ export default function CardLinksPage() {
     };
 
     return (
-        <Box sx={{ minHeight: '100vh', bgcolor: 'background.default', py: 4, px: 2 }}>
+        <Box sx={{ minHeight: '100vh', py: 4, px: 2 }}>
             <Box sx={{ maxWidth: 900, mx: 'auto' }}>
                 <Stack spacing={4}>
                     {/* 标题栏 */}
@@ -447,50 +589,113 @@ export default function CardLinksPage() {
                                 </Typography>
                             </Box>
 
-                            {/* 生成组数 */}
-                            <Box>
-                                <Typography variant="subtitle2" mb={1}>
-                                    生成组数 *
-                                </Typography>
-                                <TextField
-                                    type="number"
-                                    value={groupCountInput}
-                                    onChange={(e) => setGroupCountInput(e.target.value)}
-                                    onBlur={() => {
-                                        const count = parseInt(groupCountInput, 10);
-                                        if (!isNaN(count) && count > 0) {
-                                            setGroupCount(count);
-                                        } else {
-                                            setGroupCount(1);
-                                            setGroupCountInput('1');
-                                        }
-                                    }}
-                                    inputProps={{ min: 1 }}
-                                    fullWidth
-                                    size="small"
-                                    disabled={isLoading}
-                                />
-                                <Typography variant="caption" color="text.secondary" display="block" mt={1}>
-                                    生成组数 × 有效手机号数量 = 实际生成链接数
-                                </Typography>
+                            {/* 循环模式和生成组数（一行布局） */}
+                            <Box sx={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 2 }}>
+                                {/* 循环模式选择 */}
+                                <Box>
+                                    <Typography variant="subtitle2" mb={1}>
+                                        循环模式
+                                    </Typography>
+                                    <FormControl fullWidth size="small">
+                                        <InputLabel id="loop-mode-label">循环模式</InputLabel>
+                                        <Select
+                                            labelId="loop-mode-label"
+                                            value={loopMode}
+                                            label="循环模式"
+                                            onChange={(e) => setLoopMode(e.target.value)}
+                                        >
+                                            <MenuItem value="sequence">顺序循环</MenuItem>
+                                            <MenuItem value="group">分组循环</MenuItem>
+                                        </Select>
+                                    </FormControl>
+                                    <Typography variant="caption" color="text.secondary" display="block" mt={1}>
+                                        顺序循环：ABCABCABC | 分组循环：AAABBBCCC
+                                    </Typography>
+                                </Box>
+
+                                {/* 生成组数 */}
+                                <Box>
+                                    <Typography variant="subtitle2" mb={1}>
+                                        生成组数 *
+                                    </Typography>
+                                    <TextField
+                                        type="number"
+                                        value={groupCountInput}
+                                        onChange={(e) => setGroupCountInput(e.target.value)}
+                                        onBlur={() => {
+                                            const count = parseInt(groupCountInput, 10);
+                                            if (!isNaN(count) && count > 0) {
+                                                setGroupCount(count);
+                                            } else {
+                                                setGroupCount(1);
+                                                setGroupCountInput('1');
+                                            }
+                                        }}
+                                        inputProps={{ min: 1 }}
+                                        fullWidth
+                                        size="small"
+                                        disabled={isLoading}
+                                    />
+                                    <Typography variant="caption" color="text.secondary" display="block" mt={1}>
+                                        生成组数 × 有效手机号数量 = 实际生成链接数
+                                    </Typography>
+                                </Box>
                             </Box>
 
-                            {/* 循环模式选择 */}
-                            <Box>
-                                <FormControl fullWidth sx={{ mt: 2 }}>
-                                    <InputLabel id="loop-mode-label">循环模式</InputLabel>
+                            {/* 其他设置（一行布局） */}
+                            <Box sx={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 2 }}>
+                                {/* 过期天数设置 */}
+                                <TextField
+                                    type="number"
+                                    value={expiryDays}
+                                    onChange={(e) => setExpiryDays(e.target.value)}
+                                    placeholder="过期天数"
+                                    inputProps={{ min: 1 }}
+                                    size="small"
+                                    disabled={isLoading}
+                                    label="过期天数"
+                                />
+
+                                {/* 标签选择 */}
+                                <FormControl size="small">
+                                    <InputLabel id="tags-label">选择标签</InputLabel>
                                     <Select
-                                        labelId="loop-mode-label"
-                                        value={loopMode}
-                                        label="循环模式"
-                                        onChange={(e) => setLoopMode(e.target.value)}
-                                        size="small"
+                                        labelId="tags-label"
+                                        multiple
+                                        value={selectedTags}
+                                        onChange={(e) => setSelectedTags(e.target.value)}
+                                        label="选择标签"
+                                        renderValue={(selected) =>
+                                            selected.length === 0
+                                                ? '未选择'
+                                                : selected.join(', ')
+                                        }
                                     >
-                                        <MenuItem value="sequence">顺序循环（如ABCABCABC）</MenuItem>
-                                        <MenuItem value="group">分组循环（如AAABBBCCC）</MenuItem>
+                                        {userTags.map((tag) => (
+                                            <MenuItem key={tag} value={tag}>
+                                                {tag}
+                                            </MenuItem>
+                                        ))}
                                     </Select>
                                 </FormControl>
+
+                                {/* 管理标签按钮 */}
+                                <Button
+                                    startIcon={<LabelIcon />}
+                                    onClick={() => setTagManagerOpen(true)}
+                                    variant="outlined"
+                                    size="small"
+                                    sx={{ height: '40px' }}
+                                >
+                                    管理标签
+                                </Button>
                             </Box>
+
+                            {userTags.length === 0 && (
+                                <Typography variant="caption" color="text.secondary" display="block" mt={1}>
+                                    暂无标签，点击"管理标签"添加
+                                </Typography>
+                            )}
 
                             {/* 生成按钮 */}
                             <Button
@@ -515,11 +720,13 @@ export default function CardLinksPage() {
                     {/* 卡密链接列表 */}
                     <Paper elevation={3}>
                         <Box p={3} borderBottom={1} borderColor="divider">
+                            {/* 第一行：标题和搜索 */}
                             <Stack
                                 direction={{ xs: 'column', md: 'row' }}
                                 spacing={2}
                                 justifyContent="space-between"
                                 alignItems="center"
+                                mb={2}
                             >
                                 <Stack direction="row" alignItems="center" spacing={1}>
                                     <Typography variant="h6" fontWeight="bold">
@@ -568,33 +775,100 @@ export default function CardLinksPage() {
                                         </Button>
                                     </Box>
                                 </Box>
+                            </Stack>
 
-                                {/* 状态过滤按钮 */}
+                            {/* 第二行：筛选和功能按钮 */}
+                            <Stack direction="row" spacing={1} justifyContent="space-between" alignItems="center">
+                                {/* 左侧：筛选按钮 */}
+                                <Stack direction="row" spacing={1} flexWrap="wrap" useFlexGap>
+                                    {/* 状态筛选按钮组 */}
+                                    <Stack direction="row" spacing={1} alignItems="center">
+                                        <Typography variant="caption" color="text.secondary" sx={{ mr: 1 }}>
+                                            状态：
+                                        </Typography>
+                                        <Button
+                                            variant={statusFilter === 'all' ? 'contained' : 'outlined'}
+                                            onClick={() => handleStatusFilterChange('all')}
+                                            disabled={isLoading}
+                                            size="small"
+                                        >
+                                            全部
+                                        </Button>
+                                        <Button
+                                            variant={statusFilter === 'unused' ? 'contained' : 'outlined'}
+                                            onClick={() => handleStatusFilterChange('unused')}
+                                            disabled={isLoading}
+                                            size="small"
+                                        >
+                                            未使用
+                                        </Button>
+                                        <Button
+                                            variant={statusFilter === 'used' ? 'contained' : 'outlined'}
+                                            onClick={() => handleStatusFilterChange('used')}
+                                            disabled={isLoading}
+                                            size="small"
+                                        >
+                                            已使用
+                                        </Button>
+                                    </Stack>
+
+                                    {/* 标签筛选下拉框 */}
+                                    {userTags.length > 0 && (
+                                        <Stack direction="row" spacing={1} alignItems="center">
+                                            <Typography variant="caption" color="text.secondary" sx={{ mr: 1 }}>
+                                                标签：
+                                            </Typography>
+                                            <FormControl size="small" sx={{ minWidth: 120 }}>
+                                                <Select
+                                                    value={tagFilter}
+                                                    onChange={(e) => handleTagFilterChange(e.target.value)}
+                                                    displayEmpty
+                                                    disabled={isLoading}
+                                                    sx={{ height: '32px' }}
+                                                >
+                                                    <MenuItem value="">
+                                                        <em>选择标签</em>
+                                                    </MenuItem>
+                                                    {userTags.map((tag) => (
+                                                        <MenuItem key={tag} value={tag}>
+                                                            {tag}
+                                                        </MenuItem>
+                                                    ))}
+                                                </Select>
+                                            </FormControl>
+                                        </Stack>
+                                    )}
+
+                                    {/* 模板筛选下拉框 */}
+                                    {templates.length > 0 && (
+                                        <Stack direction="row" spacing={1} alignItems="center">
+                                            <Typography variant="caption" color="text.secondary" sx={{ mr: 1 }}>
+                                                模板：
+                                            </Typography>
+                                            <FormControl size="small" sx={{ minWidth: 150 }}>
+                                                <Select
+                                                    value={templateFilter}
+                                                    onChange={(e) => handleTemplateFilterChange(e.target.value)}
+                                                    displayEmpty
+                                                    disabled={isLoading}
+                                                    sx={{ height: '32px' }}
+                                                >
+                                                    <MenuItem value="">
+                                                        <em>选择模板</em>
+                                                    </MenuItem>
+                                                    {templates.map((template) => (
+                                                        <MenuItem key={template.id} value={template.id}>
+                                                            {template.name}
+                                                        </MenuItem>
+                                                    ))}
+                                                </Select>
+                                            </FormControl>
+                                        </Stack>
+                                    )}
+                                </Stack>
+
+                                {/* 右侧：功能按钮 */}
                                 <Stack direction="row" spacing={1}>
-                                    <Button
-                                        variant={statusFilter === 'all' ? 'contained' : 'outlined'}
-                                        onClick={() => handleStatusFilterChange('all')}
-                                        disabled={isLoading}
-                                        size="small"
-                                    >
-                                        全部
-                                    </Button>
-                                    <Button
-                                        variant={statusFilter === 'unused' ? 'contained' : 'outlined'}
-                                        onClick={() => handleStatusFilterChange('unused')}
-                                        disabled={isLoading}
-                                        size="small"
-                                    >
-                                        未使用
-                                    </Button>
-                                    <Button
-                                        variant={statusFilter === 'used' ? 'contained' : 'outlined'}
-                                        onClick={() => handleStatusFilterChange('used')}
-                                        disabled={isLoading}
-                                        size="small"
-                                    >
-                                        已使用
-                                    </Button>
                                     <Button
                                         variant="contained"
                                         color="error"
@@ -608,10 +882,31 @@ export default function CardLinksPage() {
                             </Stack>
 
                             {/* 搜索结果统计 */}
-                            {searchQuery && (
-                                <Typography variant="caption" color="text.secondary" mt={1}>
-                                    搜索 "{searchQuery}" 找到 {filteredCardLinks.length} 个结果
-                                </Typography>
+                            {(searchQuery || tagFilter || templateFilter) && (
+                                <Box mt={1} p={1} bgcolor="action.hover" borderRadius={1}>
+                                    <Typography variant="caption" color="text.secondary">
+                                        {searchQuery && (
+                                            <span>
+                                                🔍 搜索关键词：<strong>"{searchQuery}"</strong>
+                                            </span>
+                                        )}
+                                        {searchQuery && (tagFilter || templateFilter) && <span> | </span>}
+                                        {tagFilter && (
+                                            <span>
+                                                🏷️ 标签筛选：<strong>{tagFilter}</strong>
+                                            </span>
+                                        )}
+                                        {tagFilter && templateFilter && <span> | </span>}
+                                        {templateFilter && (
+                                            <span>
+                                                📱 模板筛选：<strong>{templates.find(t => t.id === templateFilter)?.name || templateFilter}</strong>
+                                            </span>
+                                        )}
+                                        <span style={{ marginLeft: '8px' }}>
+                                            共找到 <strong>{filteredCardLinks.length}</strong> 个结果
+                                        </span>
+                                    </Typography>
+                                </Box>
                             )}
                         </Box>
 
@@ -641,7 +936,30 @@ export default function CardLinksPage() {
                                         <Typography variant="body2" color="text.secondary">
                                             创建时间：{new Date(Number(cardLink.createdAt)).toLocaleString()}
                                         </Typography>
-                                        {statusFilter !== 'unused' && cardLink.firstUsedAt && (
+                                        {cardLink.expiryDays && (
+                                            <Typography variant="body2" color="warning.main">
+                                                过期天数：{cardLink.expiryDays} 天
+                                            </Typography>
+                                        )}
+                                        {cardLink.tags && cardLink.tags.length > 0 && (
+                                            <Box mt={1}>
+                                                <Typography variant="body2" color="text.secondary" mb={0.5}>
+                                                    标签：
+                                                </Typography>
+                                                <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.5 }}>
+                                                    {cardLink.tags.map((tag) => (
+                                                        <Chip
+                                                            key={tag}
+                                                            label={tag}
+                                                            size="small"
+                                                            variant="outlined"
+                                                            color="primary"
+                                                        />
+                                                    ))}
+                                                </Box>
+                                            </Box>
+                                        )}
+                                        {(statusFilter !== 'unused') && cardLink.firstUsedAt && (
                                             <Typography variant="body2" color="success.main">
                                                 首次使用：{new Date(Number(cardLink.firstUsedAt)).toLocaleString()}
                                             </Typography>
@@ -804,6 +1122,13 @@ export default function CardLinksPage() {
                     </Button>
                 </DialogActions>
             </Dialog>
+
+            {/* 标签管理弹窗 */}
+            <TagManagerDialog
+                open={tagManagerOpen}
+                onClose={() => setTagManagerOpen(false)}
+                onTagsChange={handleTagsChange}
+            />
         </Box>
     );
 } 

@@ -11,12 +11,21 @@ import {
 } from '../db/users.js';
 import { randomUUID } from 'crypto';
 
-async function createUser(username, password, canManageTemplates = false) {
+/**
+ * 创建用户
+ * @param {string} username
+ * @param {string} password
+ * @param {boolean} canManageTemplates
+ * @param {boolean} showFooter 是否显示底部
+ * @param {boolean} showAds 是否显示广告
+ */
+async function createUser(username, password, canManageTemplates = false, showFooter = true, showAds = true) {
   try {
     const webhookKey = randomUUID();
     const now = Date.now();
+    const cardLinkTags = []; // 新用户默认空标签数组，由用户自己维护
 
-    const result = await createUserDb(username, password, webhookKey, now, canManageTemplates);
+    const result = await createUserDb(username, password, webhookKey, now, canManageTemplates, cardLinkTags, showFooter, showAds);
     if (result.error) {
       return { success: false, message: result.error };
     }
@@ -30,6 +39,9 @@ async function createUser(username, password, canManageTemplates = false) {
         id: result.lastID,
         username,
         webhookKey,
+        cardLinkTags,
+        showFooter,
+        showAds,
       },
     };
   } catch (error) {
@@ -101,9 +113,16 @@ async function getUserByUsername(username) {
   }
 }
 
+/**
+ * 更新用户信息
+ * @param {string} username
+ * @param {object} updates 更新字段对象
+ */
 async function updateUser(username, updates) {
   try {
     const validUpdates = {};
+
+    // 现有字段验证
     if ('canManageTemplates' in updates) {
       validUpdates.canManageTemplates = updates.canManageTemplates;
     }
@@ -115,6 +134,21 @@ async function updateUser(username, updates) {
         return { success: false, message: '有效期格式应为YYYYMMDD' };
       }
       validUpdates.expiryDate = updates.expiryDate || null;
+    }
+
+    // 管理员控制的字段验证
+    if ('showFooter' in updates) {
+      if (typeof updates.showFooter !== 'boolean') {
+        return { success: false, message: 'showFooter必须是布尔值' };
+      }
+      validUpdates.showFooter = updates.showFooter;
+    }
+
+    if ('showAds' in updates) {
+      if (typeof updates.showAds !== 'boolean') {
+        return { success: false, message: 'showAds必须是布尔值' };
+      }
+      validUpdates.showAds = updates.showAds;
     }
 
     if (Object.keys(validUpdates).length === 0) {
@@ -167,6 +201,44 @@ async function canManageTemplates(username, password) {
   }
 }
 
+/**
+ * 更新用户个人设置（用户自己调用）
+ * @param {string} username
+ * @param {object} updates 更新字段对象
+ */
+async function updateUserProfile(username, updates) {
+  try {
+    const validUpdates = {};
+
+    // 只允许用户更新cardLinkTags字段
+    if ('cardLinkTags' in updates) {
+      if (!Array.isArray(updates.cardLinkTags)) {
+        return { success: false, message: '卡密链接标签必须是数组格式' };
+      }
+      // 验证标签内容
+      for (const tag of updates.cardLinkTags) {
+        if (typeof tag !== 'string' || tag.trim().length === 0) {
+          return { success: false, message: '卡密链接标签不能为空' };
+        }
+        if (tag.length > 50) {
+          return { success: false, message: '卡密链接标签长度不能超过50个字符' };
+        }
+      }
+      validUpdates.cardLinkTags = updates.cardLinkTags;
+    }
+
+    if (Object.keys(validUpdates).length === 0) {
+      return { success: false, message: '没有有效的更新字段' };
+    }
+
+    await updateUserDb(username, validUpdates);
+    return { success: true };
+  } catch (error) {
+    console.error('更新用户设置失败:', error);
+    return { success: false, message: '更新用户设置失败，请稍后重试' };
+  }
+}
+
 export {
   createUser,
   getUser,
@@ -177,4 +249,5 @@ export {
   updateUser,
   isAdmin,
   canManageTemplates,
+  updateUserProfile,
 };

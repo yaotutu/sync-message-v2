@@ -21,6 +21,9 @@ async function main() {
       createdAt: BigInt(Date.now()),
       isAdmin: true,
       canManageTemplates: true,
+      cardLinkTags: JSON.stringify(['向日葵', '3天']),
+      showFooter: true,
+      showAds: true,
     },
   });
 
@@ -36,6 +39,9 @@ async function main() {
       createdAt: BigInt(Date.now()),
       isAdmin: false,
       canManageTemplates: true,
+      cardLinkTags: JSON.stringify(['爱奇艺', '10天']),
+      showFooter: true,
+      showAds: true,
     },
   });
 
