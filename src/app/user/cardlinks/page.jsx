@@ -473,50 +473,61 @@ export default function CardLinksPage() {
                                 </Typography>
                             </Box>
 
-                            {/* 生成组数 */}
-                            <Box>
-                                <Typography variant="subtitle2" mb={1}>
-                                    生成组数 *
-                                </Typography>
-                                <TextField
-                                    type="number"
-                                    value={groupCountInput}
-                                    onChange={(e) => setGroupCountInput(e.target.value)}
-                                    onBlur={() => {
-                                        const count = parseInt(groupCountInput, 10);
-                                        if (!isNaN(count) && count > 0) {
-                                            setGroupCount(count);
-                                        } else {
-                                            setGroupCount(1);
-                                            setGroupCountInput('1');
-                                        }
-                                    }}
-                                    inputProps={{ min: 1 }}
-                                    fullWidth
-                                    size="small"
-                                    disabled={isLoading}
-                                />
-                                <Typography variant="caption" color="text.secondary" display="block" mt={1}>
-                                    生成组数 × 有效手机号数量 = 实际生成链接数
-                                </Typography>
+                            {/* 循环模式和生成组数（一行布局） */}
+                            <Box sx={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 2 }}>
+                                {/* 循环模式选择 */}
+                                <Box>
+                                    <Typography variant="subtitle2" mb={1}>
+                                        循环模式
+                                    </Typography>
+                                    <FormControl fullWidth size="small">
+                                        <InputLabel id="loop-mode-label">循环模式</InputLabel>
+                                        <Select
+                                            labelId="loop-mode-label"
+                                            value={loopMode}
+                                            label="循环模式"
+                                            onChange={(e) => setLoopMode(e.target.value)}
+                                        >
+                                            <MenuItem value="sequence">顺序循环</MenuItem>
+                                            <MenuItem value="group">分组循环</MenuItem>
+                                        </Select>
+                                    </FormControl>
+                                    <Typography variant="caption" color="text.secondary" display="block" mt={1}>
+                                        顺序循环：ABCABCABC | 分组循环：AAABBBCCC
+                                    </Typography>
+                                </Box>
+
+                                {/* 生成组数 */}
+                                <Box>
+                                    <Typography variant="subtitle2" mb={1}>
+                                        生成组数 *
+                                    </Typography>
+                                    <TextField
+                                        type="number"
+                                        value={groupCountInput}
+                                        onChange={(e) => setGroupCountInput(e.target.value)}
+                                        onBlur={() => {
+                                            const count = parseInt(groupCountInput, 10);
+                                            if (!isNaN(count) && count > 0) {
+                                                setGroupCount(count);
+                                            } else {
+                                                setGroupCount(1);
+                                                setGroupCountInput('1');
+                                            }
+                                        }}
+                                        inputProps={{ min: 1 }}
+                                        fullWidth
+                                        size="small"
+                                        disabled={isLoading}
+                                    />
+                                    <Typography variant="caption" color="text.secondary" display="block" mt={1}>
+                                        生成组数 × 有效手机号数量 = 实际生成链接数
+                                    </Typography>
+                                </Box>
                             </Box>
 
                             {/* 其他设置（一行布局） */}
-                            <Box sx={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr 1fr', gap: 2 }}>
-                                {/* 循环模式选择 */}
-                                <FormControl size="small">
-                                    <InputLabel id="loop-mode-label">循环模式</InputLabel>
-                                    <Select
-                                        labelId="loop-mode-label"
-                                        value={loopMode}
-                                        label="循环模式"
-                                        onChange={(e) => setLoopMode(e.target.value)}
-                                    >
-                                        <MenuItem value="sequence">顺序循环</MenuItem>
-                                        <MenuItem value="group">分组循环</MenuItem>
-                                    </Select>
-                                </FormControl>
-
+                            <Box sx={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 2 }}>
                                 {/* 过期天数设置 */}
                                 <TextField
                                     type="number"
