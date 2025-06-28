@@ -13,16 +13,6 @@ export default function Footer({ visible = true }) {
         copyright: process.env.NEXT_PUBLIC_CONTACT_COPYRIGHT || ''
     };
 
-    // 检查是否应该显示Footer
-    const shouldShowFooter = () => {
-        // 如果visible为false，则隐藏Footer
-        if (!visible) {
-            return false;
-        }
-        // 如果NEXT_PUBLIC_HIDE_FOOTER为true，则隐藏Footer
-        return process.env.NEXT_PUBLIC_HIDE_FOOTER !== 'true';
-    };
-
     // 构建联系信息文本
     const buildContactText = () => {
         const parts = [];
@@ -60,7 +50,7 @@ export default function Footer({ visible = true }) {
     };
 
     // 如果不需要显示Footer，返回null
-    if (!shouldShowFooter()) {
+    if (!visible) {
         return null;
     }
 
