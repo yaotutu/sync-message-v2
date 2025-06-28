@@ -17,7 +17,7 @@ export default function HeaderCard({ appName, firstUsedAt, expiryDays, isExpired
                     gutterBottom
                     sx={{ wordBreak: 'break-word' }}
                 >
-                    {appName} - 快速复制
+                    {appName}
                 </Typography>
 
                 {firstUsedAt && (

@@ -18,7 +18,7 @@ export default function CodeSection({
                 flexDirection: { xs: 'column', sm: 'row' },
                 justifyContent: 'space-between',
                 alignItems: { xs: 'stretch', sm: 'center' },
-                mb: 2,
+                mb: 1.5,
                 gap: { xs: 1, sm: 0 }
             }}>
                 <Typography
@@ -35,9 +35,9 @@ export default function CodeSection({
                     disabled={!displayContent || codeLoading}
                     size={isMobile ? "large" : "medium"}
                     sx={{
-                        minHeight: { xs: 48, sm: 36 },
+                        minHeight: { xs: 40, sm: 32 },
                         fontSize: { xs: '0.875rem', sm: '0.875rem' },
-                        px: { xs: 3, sm: 2 }
+                        px: { xs: 2.5, sm: 2 }
                     }}
                 >
                     {codeLoading ? '正在获取...' : (copyStatus.code || (verificationCode ? '复制验证码' : '复制内容'))}
@@ -45,25 +45,25 @@ export default function CodeSection({
             </Box>
             <Paper
                 sx={{
-                    p: { xs: 2, sm: 2 },
+                    p: { xs: 1.5, sm: 1.5 },
                     bgcolor: 'grey.100',
                     fontFamily: 'monospace',
                     fontSize: { xs: '1rem', sm: '1.125rem' },
                     textAlign: verificationCode ? 'center' : 'left',
                     wordBreak: 'break-all',
-                    minHeight: { xs: 48, sm: 56 },
+                    minHeight: { xs: 40, sm: 48 },
                     display: 'flex',
                     alignItems: verificationCode ? 'center' : 'flex-start',
                     justifyContent: verificationCode ? 'center' : 'flex-start'
                 }}
             >
-                {codeLoading ? <CircularProgress size={24} /> : displayContent}
+                {codeLoading ? <CircularProgress size={20} /> : displayContent}
             </Paper>
             <Typography
                 variant="caption"
                 color="text.secondary"
                 sx={{
-                    mt: 1,
+                    mt: 0.5,
                     display: 'block',
                     fontSize: { xs: '0.75rem', sm: '0.75rem' }
                 }}

@@ -8,6 +8,7 @@ import { extractVerificationCode, fetchMessageData } from './utils/messageUtils'
 import {
     AdvertisementSection,
     HeaderCard,
+    HelpInfoCard,
     MessageContent,
     CodeDialog,
     LoadingState,
@@ -156,6 +157,9 @@ function ViewPageContent() {
                     isExpired={data.isExpired}
                     rawMessage={data.rawMessage}
                 />
+
+                {/* 帮助信息卡片 */}
+                <HelpInfoCard />
 
                 {/* 主要内容卡片 */}
                 <MessageContent

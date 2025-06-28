@@ -16,8 +16,8 @@ export default function MessageContent({
 }) {
     return (
         <Card>
-            <CardContent sx={{ p: { xs: 2, sm: 3 } }}>
-                <Box sx={{ display: 'flex', flexDirection: 'column', gap: { xs: 3, sm: 4 } }}>
+            <CardContent sx={{ p: { xs: 1.5, sm: 2 } }}>
+                <Box sx={{ display: 'flex', flexDirection: 'column', gap: { xs: 2, sm: 2.5 } }}>
                     {/* 手机号部分 */}
                     <PhoneSection
                         phone={phone}
@@ -26,7 +26,7 @@ export default function MessageContent({
                         isMobile={isMobile}
                     />
 
-                    <Divider sx={{ my: { xs: 1, sm: 2 } }} />
+                    <Divider sx={{ my: { xs: 0.5, sm: 1 } }} />
 
                     {/* 验证码部分 */}
                     <CodeSection

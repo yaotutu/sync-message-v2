@@ -11,7 +11,7 @@ export default function PhoneSection({ phone, copyStatus, onCopy, isMobile }) {
                 flexDirection: { xs: 'column', sm: 'row' },
                 justifyContent: 'space-between',
                 alignItems: { xs: 'stretch', sm: 'center' },
-                mb: 2,
+                mb: 1.5,
                 gap: { xs: 1, sm: 0 }
             }}>
                 <Typography
@@ -28,9 +28,9 @@ export default function PhoneSection({ phone, copyStatus, onCopy, isMobile }) {
                     disabled={!phone}
                     size={isMobile ? "large" : "medium"}
                     sx={{
-                        minHeight: { xs: 48, sm: 36 },
+                        minHeight: { xs: 40, sm: 32 },
                         fontSize: { xs: '0.875rem', sm: '0.875rem' },
-                        px: { xs: 3, sm: 2 }
+                        px: { xs: 2.5, sm: 2 }
                     }}
                 >
                     {copyStatus.phone || '复制账号'}
@@ -38,12 +38,12 @@ export default function PhoneSection({ phone, copyStatus, onCopy, isMobile }) {
             </Box>
             <Paper
                 sx={{
-                    p: { xs: 2, sm: 2 },
+                    p: { xs: 1.5, sm: 1.5 },
                     bgcolor: 'grey.100',
                     fontFamily: 'monospace',
                     fontSize: { xs: '1rem', sm: '1.125rem' },
                     wordBreak: 'break-all',
-                    minHeight: { xs: 48, sm: 56 }
+                    minHeight: { xs: 40, sm: 48 }
                 }}
             >
                 {phone || '无手机号'}
@@ -52,12 +52,12 @@ export default function PhoneSection({ phone, copyStatus, onCopy, isMobile }) {
                 variant="caption"
                 color="text.secondary"
                 sx={{
-                    mt: 1,
+                    mt: 0.5,
                     display: 'block',
                     fontSize: { xs: '0.75rem', sm: '0.75rem' }
                 }}
             >
-                第一步：点击"复制账号"按钮复制手机号
+                {/* 第一步：点击"复制账号"按钮复制手机号 */}
             </Typography>
         </Box>
     );
