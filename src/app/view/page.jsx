@@ -169,7 +169,7 @@ function ViewPageContent() {
                 />
 
                 {/* 广告信息 */}
-                <AdvertisementSection />
+                <AdvertisementSection cardKey={searchParams.get('cardKey')} />
             </Container>
 
             {/* 验证码弹窗 */}

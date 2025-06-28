@@ -4,6 +4,7 @@ import {
   createCardLink as dbCreateCardLink,
   getUserCardLinks as dbGetUserCardLinks,
   getCardLink as dbGetCardLink,
+  getUserByCardKey as dbGetUserByCardKey,
 } from '../db/cardlinks.js';
 import { randomUUID } from 'crypto';
 
@@ -77,6 +78,30 @@ export async function getCardLink(key) {
     return cardLink;
   } catch (error) {
     console.error(`[services/cardlinks] 获取卡密链接失败:`, error);
+    return null;
+  }
+}
+
+/**
+ * 根据卡密链接key获取用户信息
+ * @param {string} cardKey
+ * @returns {Promise<Object|null>}
+ */
+export async function getUserByCardKey(cardKey) {
+  console.log(`[services/cardlinks] 尝试获取用户信息: ${cardKey}`);
+
+  try {
+    const user = await dbGetUserByCardKey(cardKey);
+
+    if (!user) {
+      console.log(`[services/cardlinks] 未找到用户信息: ${cardKey}`);
+      return null;
+    }
+
+    console.log(`[services/cardlinks] 成功获取用户信息: ${JSON.stringify(user)}`);
+    return user;
+  } catch (error) {
+    console.error(`[services/cardlinks] 获取用户信息失败:`, error);
     return null;
   }
 }

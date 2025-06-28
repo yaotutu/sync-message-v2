@@ -297,3 +297,31 @@ export async function deleteCardLink(username, cardKey) {
     return false;
   }
 }
+
+/**
+ * 根据卡密链接key获取用户信息
+ * @param {string} cardKey
+ * @returns {Promise<Object|null>}
+ */
+export async function getUserByCardKey(cardKey) {
+  const cardLink = await prisma.cardLink.findUnique({
+    where: { cardKey },
+    select: {
+      username: true,
+      user: {
+        select: {
+          id: true,
+          username: true,
+          showAds: true,
+          showFooter: true,
+        }
+      }
+    },
+  });
+
+  if (!cardLink) {
+    return null;
+  }
+
+  return cardLink.user;
+}
