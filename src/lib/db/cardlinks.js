@@ -105,9 +105,12 @@ export async function createCardLink(username, data) {
  * @param {number} [page=1]
  * @param {number} [pageSize=10]
  * @param {string|null} [status]
+ * @param {string|null} [search]
+ * @param {string|null} [tag]
+ * @param {string|null} [templateId]
  * @returns {Promise<{links: Array<Object>, total: number}>}
  */
-export async function getUserCardLinks(username, page = 1, pageSize = 10, status, search) {
+export async function getUserCardLinks(username, page = 1, pageSize = 10, status, search, tag, templateId) {
   const where = { username };
 
   if (status === 'used') {
@@ -123,6 +126,18 @@ export async function getUserCardLinks(username, page = 1, pageSize = 10, status
       { url: { contains: search } },
       { phone: { contains: search } },
     ];
+  }
+
+  // 添加标签筛选
+  if (tag) {
+    where.tags = {
+      contains: `"${tag}"`
+    };
+  }
+
+  // 添加模板筛选
+  if (templateId) {
+    where.templateId = templateId;
   }
 
   const [count, links] = await Promise.all([
@@ -143,6 +158,7 @@ export async function getUserCardLinks(username, page = 1, pageSize = 10, status
         url: true,
         expiryDays: true,
         tags: true,
+        templateId: true,
       },
     }),
   ]);
@@ -178,6 +194,7 @@ export async function getUserCardLinks(username, page = 1, pageSize = 10, status
       url: link.url,
       expiryDays: link.expiryDays,
       tags: JSON.parse(link.tags || '[]'),
+      templateId: link.templateId,
     };
   });
 

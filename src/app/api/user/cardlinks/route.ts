@@ -37,14 +37,15 @@ export async function GET(request: NextRequest) {
     // 获取状态过滤参数
     const status = url.searchParams.get('status');
     const search = url.searchParams.get('search');
+    const tag = url.searchParams.get('tag');
+    const templateId = url.searchParams.get('templateId');
 
     console.log(
-      `分页参数: page=${page}, pageSize=${pageSize}, status=${status || '全部'}, search=${search || '无'
-      }`,
+      `分页参数: page=${page}, pageSize=${pageSize}, status=${status || '全部'}, search=${search || '无'}, tag=${tag || '无'}, templateId=${templateId || '无'}`,
     );
 
     // 获取用户的卡密链接
-    const { links, total } = await getUserCardLinks(username, page, pageSize, status, search);
+    const { links, total } = await getUserCardLinks(username, page, pageSize, status, search, tag, templateId);
     console.log(`成功获取用户 ${username} 的 ${links.length} 个卡密链接，总数: ${total}`);
 
     return NextResponse.json({

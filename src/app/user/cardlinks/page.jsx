@@ -52,12 +52,14 @@ export default function CardLinksPage() {
     const [filteredCardLinks, setFilteredCardLinks] = useState([]);
     const [searchQuery, setSearchQuery] = useState('');
     const [statusFilter, setStatusFilter] = useState('unused');
+    const [tagFilter, setTagFilter] = useState('');
     const [isLoading, setIsLoading] = useState(false);
     const [isLoadingMore, setIsLoadingMore] = useState(false);
     const [pagination, setPagination] = useState({ totalPages: 0, page: 1, pageSize: 10, total: 0 });
     const [templates, setTemplates] = useState([]);
     const [isSearching, setIsSearching] = useState(false);
     const [loopMode, setLoopMode] = useState('sequence');
+    const [templateFilter, setTemplateFilter] = useState('');
 
     // Dialog states
     const [confirmDialog, setConfirmDialog] = useState({ open: false, title: '', message: '', onConfirm: null });
@@ -102,7 +104,8 @@ export default function CardLinksPage() {
         }
         loadTemplates();
         loadUserTags();
-        loadCardLinks(1);
+        // 初始加载卡密链接列表
+        loadCardLinks();
     }, []);
 
     useEffect(() => {
@@ -154,44 +157,120 @@ export default function CardLinksPage() {
         setUserTags(updatedTags);
     };
 
-    // 加载卡密链接
-    const loadCardLinks = async (page = 1, append = false, overrideStatus, search) => {
+    /**
+     * 加载卡密链接列表
+     * @param {Object} options - 加载选项
+     * @param {number} options.page - 页码，默认为1
+     * @param {boolean} options.append - 是否追加到现有列表，默认为false（替换现有列表）
+     * @param {string} options.status - 状态筛选：'all' | 'used' | 'unused'，默认使用当前状态筛选
+     * @param {string} options.search - 搜索关键词，默认使用当前搜索条件
+     * @param {string} options.tag - 标签筛选，默认使用当前标签筛选
+     * @param {string} options.templateId - 模板筛选，默认使用当前模板筛选
+     */
+    const loadCardLinks = async (options = {}) => {
+        // 解构参数，设置默认值
+        const {
+            page = 1,
+            append = false,
+            status = statusFilter,
+            search = searchQuery,
+            tag = tagFilter,
+            templateId = templateFilter
+        } = options;
+
         try {
+            // 设置加载状态
             setIsLoading(true);
             setIsLoadingMore(append);
             setError('');
-            let currentStatus = overrideStatus || statusFilter;
-            if (!['all', 'used', 'unused'].includes(currentStatus)) currentStatus = 'unused';
-            const apiUrl = `/api/user/cardlinks?page=${page}&pageSize=${pagination.pageSize}${currentStatus !== 'all' ? `&status=${currentStatus}` : ''}${searchQuery ? `&search=${encodeURIComponent(searchQuery)}` : ''}&_t=${Date.now()}`;
+
+            // 验证状态参数的有效性
+            const validStatus = ['all', 'used', 'unused'].includes(status) ? status : 'unused';
+
+            // 构建API请求URL
+            const queryParams = new URLSearchParams();
+            queryParams.append('page', page.toString());
+            queryParams.append('pageSize', pagination.pageSize.toString());
+
+            // 添加状态筛选参数（排除'all'状态）
+            if (validStatus !== 'all') {
+                queryParams.append('status', validStatus);
+            }
+
+            // 添加搜索参数
+            if (search && search.trim()) {
+                queryParams.append('search', search.trim());
+            }
+
+            // 添加标签筛选参数
+            if (tag && tag.trim()) {
+                queryParams.append('tag', tag.trim());
+            }
+
+            // 添加模板筛选参数
+            if (templateId && templateId.trim()) {
+                queryParams.append('templateId', templateId.trim());
+            }
+
+            // 添加时间戳防止缓存
+            queryParams.append('_t', Date.now().toString());
+
+            const apiUrl = `/api/user/cardlinks?${queryParams.toString()}`;
+
+            // 发送API请求
             const data = await userApi.get(apiUrl);
+
             if (data.success) {
-                if (append) setCardLinks((prev) => [...prev, ...data.data]);
-                else setCardLinks(data.data || []);
-                if (data.pagination) setPagination(data.pagination);
-            } else setError(data.message || '加载卡密链接失败');
-        } catch {
+                // 处理返回的数据
+                if (append) {
+                    // 追加模式：将新数据添加到现有列表末尾
+                    setCardLinks(prevCardLinks => [...prevCardLinks, ...data.data]);
+                } else {
+                    // 替换模式：用新数据替换现有列表
+                    setCardLinks(data.data || []);
+                }
+
+                // 更新分页信息
+                if (data.pagination) {
+                    setPagination(data.pagination);
+                }
+            } else {
+                // API返回错误
+                setError(data.message || '加载卡密链接失败');
+            }
+        } catch (error) {
+            // 网络错误或其他异常
+            console.error('加载卡密链接时发生错误:', error);
             setError('加载卡密链接失败，请检查网络连接');
         } finally {
+            // 清理加载状态
             setIsLoading(false);
             setIsLoadingMore(false);
         }
     };
 
-    // 搜索
+    /**
+     * 搜索卡密链接
+     * @param {Event} e - 表单提交事件
+     */
     const handleSearch = (e) => {
         e.preventDefault();
         setIsSearching(true);
-        loadCardLinks(1, false, statusFilter, searchQuery).finally(() => setIsSearching(false));
+        // 使用当前搜索条件重新加载第一页数据
+        loadCardLinks({ page: 1, search: searchQuery }).finally(() => setIsSearching(false));
     };
 
     const clearSearch = () => {
         setSearchQuery('');
     };
 
-    // 切换页码
+    /**
+     * 切换页码
+     * @param {number} newPage - 新的页码
+     */
     const changePage = (newPage) => {
         if (newPage >= 1 && newPage <= pagination.totalPages) {
-            loadCardLinks(newPage, false, statusFilter, searchQuery);
+            loadCardLinks({ page: newPage });
         }
     };
 
@@ -294,7 +373,7 @@ export default function CardLinksPage() {
                     showAlertDialog('提示', '链接生成成功，但复制到剪贴板失败，请手动复制。', 'warning');
                 }
                 setSelectedTemplate('');
-                await loadCardLinks(1);
+                await loadCardLinks({ page: 1 });
             }
         } catch {
             setError('生成卡密链接失败，请检查网络连接');
@@ -303,20 +382,55 @@ export default function CardLinksPage() {
         }
     };
 
-    // 状态过滤
+    /**
+     * 状态筛选处理
+     * @param {string} newStatus - 新的状态筛选条件
+     */
     const handleStatusFilterChange = (newStatus) => {
         if (statusFilter !== newStatus) {
             setIsLoading(true);
             setError('');
             setStatusFilter(newStatus);
-            loadCardLinks(1, false, newStatus, searchQuery);
+            // 使用新的状态筛选条件重新加载第一页数据
+            loadCardLinks({ page: 1, status: newStatus });
         }
     };
 
-    // 刷新
+    /**
+     * 标签筛选处理
+     * @param {string} newTag - 新的标签筛选条件
+     */
+    const handleTagFilterChange = (newTag) => {
+        if (tagFilter !== newTag) {
+            setIsLoading(true);
+            setError('');
+            setTagFilter(newTag);
+            // 使用新的标签筛选条件重新加载第一页数据
+            loadCardLinks({ page: 1, tag: newTag });
+        }
+    };
+
+    /**
+     * 模板筛选处理
+     * @param {string} newTemplateId - 新的模板筛选条件
+     */
+    const handleTemplateFilterChange = (newTemplateId) => {
+        if (templateFilter !== newTemplateId) {
+            setIsLoading(true);
+            setError('');
+            setTemplateFilter(newTemplateId);
+            // 使用新的模板筛选条件重新加载第一页数据
+            loadCardLinks({ page: 1, templateId: newTemplateId });
+        }
+    };
+
+    /**
+     * 刷新卡密链接数据
+     */
     const refreshData = () => {
         setError('');
-        loadCardLinks(1, false, statusFilter, searchQuery);
+        // 使用当前筛选条件重新加载第一页数据
+        loadCardLinks({ page: 1 });
     };
 
     // 删除卡密
@@ -336,7 +450,8 @@ export default function CardLinksPage() {
                 const data = await userApi.post('/api/user/cardlinks/delete', { keys });
                 if (data.success) {
                     showAlertDialog('成功', data.message || `成功删除 ${keys.length} 个卡密链接`, 'success');
-                    await loadCardLinks(1, false, statusFilter, searchQuery);
+                    // 删除成功后刷新卡密链接列表
+                    await loadCardLinks({ page: 1 });
                 } else {
                     setError(data.message || '删除失败');
                 }
@@ -360,7 +475,8 @@ export default function CardLinksPage() {
                 const response = await userApi.post('/api/user/cardlinks/delete-unused', {});
                 if (response.success) {
                     showAlertDialog('成功', `成功删除 ${response.data?.deletedCount || 0} 个未使用卡密链接`, 'success');
-                    await loadCardLinks(1, false, statusFilter, searchQuery);
+                    // 删除成功后刷新卡密链接列表
+                    await loadCardLinks({ page: 1 });
                 } else {
                     setError(response.message || '删除未使用卡密链接失败');
                 }
@@ -661,48 +777,136 @@ export default function CardLinksPage() {
                                 </Box>
                             </Stack>
 
-                            {/* 第二行：状态过滤按钮 */}
-                            <Stack direction="row" spacing={1} flexWrap="wrap" useFlexGap>
-                                <Button
-                                    variant={statusFilter === 'all' ? 'contained' : 'outlined'}
-                                    onClick={() => handleStatusFilterChange('all')}
-                                    disabled={isLoading}
-                                    size="small"
-                                >
-                                    全部
-                                </Button>
-                                <Button
-                                    variant={statusFilter === 'unused' ? 'contained' : 'outlined'}
-                                    onClick={() => handleStatusFilterChange('unused')}
-                                    disabled={isLoading}
-                                    size="small"
-                                >
-                                    未使用
-                                </Button>
-                                <Button
-                                    variant={statusFilter === 'used' ? 'contained' : 'outlined'}
-                                    onClick={() => handleStatusFilterChange('used')}
-                                    disabled={isLoading}
-                                    size="small"
-                                >
-                                    已使用
-                                </Button>
-                                <Button
-                                    variant="contained"
-                                    color="error"
-                                    onClick={deleteAllUnusedLinks}
-                                    disabled={isLoading}
-                                    size="small"
-                                >
-                                    批量删除未使用
-                                </Button>
+                            {/* 第二行：筛选和功能按钮 */}
+                            <Stack direction="row" spacing={1} justifyContent="space-between" alignItems="center">
+                                {/* 左侧：筛选按钮 */}
+                                <Stack direction="row" spacing={1} flexWrap="wrap" useFlexGap>
+                                    {/* 状态筛选按钮组 */}
+                                    <Stack direction="row" spacing={1} alignItems="center">
+                                        <Typography variant="caption" color="text.secondary" sx={{ mr: 1 }}>
+                                            状态：
+                                        </Typography>
+                                        <Button
+                                            variant={statusFilter === 'all' ? 'contained' : 'outlined'}
+                                            onClick={() => handleStatusFilterChange('all')}
+                                            disabled={isLoading}
+                                            size="small"
+                                        >
+                                            全部
+                                        </Button>
+                                        <Button
+                                            variant={statusFilter === 'unused' ? 'contained' : 'outlined'}
+                                            onClick={() => handleStatusFilterChange('unused')}
+                                            disabled={isLoading}
+                                            size="small"
+                                        >
+                                            未使用
+                                        </Button>
+                                        <Button
+                                            variant={statusFilter === 'used' ? 'contained' : 'outlined'}
+                                            onClick={() => handleStatusFilterChange('used')}
+                                            disabled={isLoading}
+                                            size="small"
+                                        >
+                                            已使用
+                                        </Button>
+                                    </Stack>
+
+                                    {/* 标签筛选下拉框 */}
+                                    {userTags.length > 0 && (
+                                        <Stack direction="row" spacing={1} alignItems="center">
+                                            <Typography variant="caption" color="text.secondary" sx={{ mr: 1 }}>
+                                                标签：
+                                            </Typography>
+                                            <FormControl size="small" sx={{ minWidth: 120 }}>
+                                                <Select
+                                                    value={tagFilter}
+                                                    onChange={(e) => handleTagFilterChange(e.target.value)}
+                                                    displayEmpty
+                                                    disabled={isLoading}
+                                                    sx={{ height: '32px' }}
+                                                >
+                                                    <MenuItem value="">
+                                                        <em>选择标签</em>
+                                                    </MenuItem>
+                                                    {userTags.map((tag) => (
+                                                        <MenuItem key={tag} value={tag}>
+                                                            {tag}
+                                                        </MenuItem>
+                                                    ))}
+                                                </Select>
+                                            </FormControl>
+                                        </Stack>
+                                    )}
+
+                                    {/* 模板筛选下拉框 */}
+                                    {templates.length > 0 && (
+                                        <Stack direction="row" spacing={1} alignItems="center">
+                                            <Typography variant="caption" color="text.secondary" sx={{ mr: 1 }}>
+                                                模板：
+                                            </Typography>
+                                            <FormControl size="small" sx={{ minWidth: 150 }}>
+                                                <Select
+                                                    value={templateFilter}
+                                                    onChange={(e) => handleTemplateFilterChange(e.target.value)}
+                                                    displayEmpty
+                                                    disabled={isLoading}
+                                                    sx={{ height: '32px' }}
+                                                >
+                                                    <MenuItem value="">
+                                                        <em>选择模板</em>
+                                                    </MenuItem>
+                                                    {templates.map((template) => (
+                                                        <MenuItem key={template.id} value={template.id}>
+                                                            {template.name}
+                                                        </MenuItem>
+                                                    ))}
+                                                </Select>
+                                            </FormControl>
+                                        </Stack>
+                                    )}
+                                </Stack>
+
+                                {/* 右侧：功能按钮 */}
+                                <Stack direction="row" spacing={1}>
+                                    <Button
+                                        variant="contained"
+                                        color="error"
+                                        onClick={deleteAllUnusedLinks}
+                                        disabled={isLoading}
+                                        size="small"
+                                    >
+                                        批量删除未使用
+                                    </Button>
+                                </Stack>
                             </Stack>
 
                             {/* 搜索结果统计 */}
-                            {searchQuery && (
-                                <Typography variant="caption" color="text.secondary" mt={1}>
-                                    搜索 "{searchQuery}" 找到 {filteredCardLinks.length} 个结果
-                                </Typography>
+                            {(searchQuery || tagFilter || templateFilter) && (
+                                <Box mt={1} p={1} bgcolor="action.hover" borderRadius={1}>
+                                    <Typography variant="caption" color="text.secondary">
+                                        {searchQuery && (
+                                            <span>
+                                                🔍 搜索关键词：<strong>"{searchQuery}"</strong>
+                                            </span>
+                                        )}
+                                        {searchQuery && (tagFilter || templateFilter) && <span> | </span>}
+                                        {tagFilter && (
+                                            <span>
+                                                🏷️ 标签筛选：<strong>{tagFilter}</strong>
+                                            </span>
+                                        )}
+                                        {tagFilter && templateFilter && <span> | </span>}
+                                        {templateFilter && (
+                                            <span>
+                                                📱 模板筛选：<strong>{templates.find(t => t.id === templateFilter)?.name || templateFilter}</strong>
+                                            </span>
+                                        )}
+                                        <span style={{ marginLeft: '8px' }}>
+                                            共找到 <strong>{filteredCardLinks.length}</strong> 个结果
+                                        </span>
+                                    </Typography>
+                                </Box>
                             )}
                         </Box>
 
