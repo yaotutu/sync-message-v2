@@ -7,6 +7,10 @@ import { getPermanentExpiryDate } from '../utils/account.js';
  * @param {string} password
  * @param {string} webhookKey
  * @param {number} createdAt
+ * @param {boolean} canManageTemplates
+ * @param {string[]} cardLinkTags 卡密链接标签数组
+ * @param {boolean} showFooter 是否显示底部
+ * @param {boolean} showAds 是否显示广告
  * @returns {Promise<{lastID?: number, changes?: number, error?: string}>}
  */
 export async function createUserDb(
@@ -15,6 +19,9 @@ export async function createUserDb(
   webhookKey,
   createdAt,
   canManageTemplates = false,
+  cardLinkTags = [],
+  showFooter = true,
+  showAds = true,
 ) {
   try {
     // 先检查用户是否已存在
@@ -34,6 +41,9 @@ export async function createUserDb(
         createdAt,
         canManageTemplates,
         expiryDate: getPermanentExpiryDate(), // 使用统一永久有效日期
+        cardLinkTags: JSON.stringify(cardLinkTags), // 将标签数组转换为JSON字符串
+        showFooter,
+        showAds,
       },
     });
     return { lastID: result.id, changes: 1 };
@@ -51,7 +61,7 @@ export async function createUserDb(
  * @returns {Promise<User | undefined>}
  */
 export async function getUserByIdDb(userId) {
-  return await prisma.user.findUnique({
+  const user = await prisma.user.findUnique({
     where: { id: userId },
     select: {
       id: true,
@@ -60,8 +70,18 @@ export async function getUserByIdDb(userId) {
       createdAt: true,
       canManageTemplates: true,
       expiryDate: true,
+      cardLinkTags: true,
+      showFooter: true,
+      showAds: true,
     },
   });
+
+  if (user) {
+    // 将JSON字符串转换回数组
+    user.cardLinkTags = JSON.parse(user.cardLinkTags || '[]');
+  }
+
+  return user;
 }
 
 /**
@@ -95,7 +115,7 @@ export async function deleteUserDb(username) {
  * @returns {Promise<User[]>}
  */
 export async function getAllUsersDb() {
-  return await prisma.user.findMany({
+  const users = await prisma.user.findMany({
     orderBy: { createdAt: 'desc' },
     select: {
       id: true,
@@ -104,8 +124,17 @@ export async function getAllUsersDb() {
       createdAt: true,
       canManageTemplates: true,
       expiryDate: true,
+      cardLinkTags: true,
+      showFooter: true,
+      showAds: true,
     },
   });
+
+  // 将每个用户的标签JSON字符串转换回数组
+  return users.map(user => ({
+    ...user,
+    cardLinkTags: JSON.parse(user.cardLinkTags || '[]')
+  }));
 }
 
 /**
@@ -115,7 +144,7 @@ export async function getAllUsersDb() {
  * @returns {Promise<User | undefined>}
  */
 export async function validateUserDb(username, password) {
-  return await prisma.user.findFirst({
+  const user = await prisma.user.findFirst({
     where: {
       username,
       password,
@@ -128,8 +157,18 @@ export async function validateUserDb(username, password) {
       canManageTemplates: true,
       expiryDate: true,
       createdAt: true,
+      cardLinkTags: true,
+      showFooter: true,
+      showAds: true,
     },
   });
+
+  if (user) {
+    // 将JSON字符串转换回数组
+    user.cardLinkTags = JSON.parse(user.cardLinkTags || '[]');
+  }
+
+  return user;
 }
 
 /**
@@ -139,9 +178,15 @@ export async function validateUserDb(username, password) {
  * @returns {Promise<void>}
  */
 export async function updateUserDb(username, updates) {
+  // 如果更新包含cardLinkTags字段，需要转换为JSON字符串
+  const dataToUpdate = { ...updates };
+  if (dataToUpdate.cardLinkTags && Array.isArray(dataToUpdate.cardLinkTags)) {
+    dataToUpdate.cardLinkTags = JSON.stringify(dataToUpdate.cardLinkTags);
+  }
+
   await prisma.user.update({
     where: { username },
-    data: updates,
+    data: dataToUpdate,
   });
 }
 
@@ -151,7 +196,7 @@ export async function updateUserDb(username, updates) {
  * @returns {Promise<User | undefined>}
  */
 export async function getUserByUsernameDb(username) {
-  return await prisma.user.findUnique({
+  const user = await prisma.user.findUnique({
     where: { username },
     select: {
       id: true,
@@ -160,6 +205,16 @@ export async function getUserByUsernameDb(username) {
       createdAt: true,
       canManageTemplates: true,
       expiryDate: true,
+      cardLinkTags: true,
+      showFooter: true,
+      showAds: true,
     },
   });
+
+  if (user) {
+    // 将JSON字符串转换回数组
+    user.cardLinkTags = JSON.parse(user.cardLinkTags || '[]');
+  }
+
+  return user;
 }

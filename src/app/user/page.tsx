@@ -16,6 +16,9 @@ interface User {
   createdAt?: string;
   canManageTemplates?: boolean;
   expiryDate?: string;
+  cardLinkTags?: string[];
+  showFooter?: boolean;
+  showAds?: boolean;
 }
 
 export default function UserPage() {

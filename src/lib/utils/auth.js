@@ -4,7 +4,10 @@
  *   isAuthenticated: boolean,
  *   isAdmin: boolean,
  *   username: string | null
- *   canManageTemplates: boolean
+ *   canManageTemplates: boolean,
+ *   cardLinkTags: string[],
+ *   showFooter: boolean,
+ *   showAds: boolean
  * }} 认证状态对象
  */
 export function getAuthStatus() {
@@ -17,6 +20,9 @@ export function getAuthStatus() {
         isAdmin: false,
         username: null,
         canManageTemplates: false,
+        cardLinkTags: [],
+        showFooter: true,
+        showAds: true,
       };
     }
 
@@ -26,6 +32,9 @@ export function getAuthStatus() {
       isAdmin: !!auth.isAdmin,
       username: auth.username || null,
       canManageTemplates: auth.canManageTemplates || false,
+      cardLinkTags: auth.cardLinkTags || [],
+      showFooter: auth.showFooter !== undefined ? auth.showFooter : true,
+      showAds: auth.showAds !== undefined ? auth.showAds : true,
     };
   } catch (err) {
     console.error('解析存储的用户信息失败:', err);
@@ -35,6 +44,9 @@ export function getAuthStatus() {
       isAdmin: false,
       username: null,
       canManageTemplates: false,
+      cardLinkTags: [],
+      showFooter: true,
+      showAds: true,
     };
   }
 }

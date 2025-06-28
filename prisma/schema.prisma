@@ -16,6 +16,9 @@ model User {
   isAdmin            Boolean    @default(false)
   canManageTemplates Boolean    @default(false)
   expiryDate         String?    @default("20991231") @map("expiry_date")
+  cardLinkTags       String?    @default("[]") @map("card_link_tags")
+  showFooter         Boolean    @default(true) @map("show_footer")
+  showAds            Boolean    @default(true) @map("show_ads")
   templates          Template[]
   cardLinks          CardLink[]
   messages           Message[]

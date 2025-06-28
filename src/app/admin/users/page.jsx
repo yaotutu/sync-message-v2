@@ -47,6 +47,9 @@ import {
  * @property {boolean} canManageTemplates
  * @property {string|null} expiryDate
  * @property {boolean} isAdmin
+ * @property {string[]} cardLinkTags
+ * @property {boolean} showFooter
+ * @property {boolean} showAds
  */
 
 export default function UsersPage() {
@@ -103,7 +106,9 @@ export default function UsersPage() {
       const data = await userApi.post('/api/admin/users', {
         username: newUsername.trim(),
         password: newPassword.trim(),
-        isAdmin: false, // 新用户默认不是管理员
+        canManageTemplates: false, // 新用户默认没有模板管理权限
+        showFooter: true, // 新用户默认显示底部
+        showAds: true, // 新用户默认显示广告
       });
 
       if (data.success) {
@@ -174,6 +179,50 @@ export default function UsersPage() {
     } catch (err) {
       console.error('更新模板权限错误:', err);
       setError('更新模板权限失败，请检查网络连接');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const toggleShowFooter = async (username, currentValue) => {
+    setLoading(true);
+    setError('');
+
+    try {
+      const data = await userApi.patch(`/api/admin/users/${username}`, {
+        showFooter: !currentValue,
+      });
+
+      if (data.success) {
+        loadUsers();
+      } else {
+        setError(data.message || '更新显示底部设置失败');
+      }
+    } catch (err) {
+      console.error('更新显示底部设置错误:', err);
+      setError('更新显示底部设置失败，请检查网络连接');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const toggleShowAds = async (username, currentValue) => {
+    setLoading(true);
+    setError('');
+
+    try {
+      const data = await userApi.patch(`/api/admin/users/${username}`, {
+        showAds: !currentValue,
+      });
+
+      if (data.success) {
+        loadUsers();
+      } else {
+        setError(data.message || '更新显示广告设置失败');
+      }
+    } catch (err) {
+      console.error('更新显示广告设置错误:', err);
+      setError('更新显示广告设置失败，请检查网络连接');
     } finally {
       setLoading(false);
     }
@@ -310,6 +359,8 @@ export default function UsersPage() {
                     <TableCell>用户名</TableCell>
                     <TableCell>Webhook密钥</TableCell>
                     <TableCell>模板管理</TableCell>
+                    <TableCell>显示底部</TableCell>
+                    <TableCell>显示广告</TableCell>
                     {showExpirationColumns && <TableCell>账号状态</TableCell>}
                     {showExpirationColumns && <TableCell>有效期</TableCell>}
                     <TableCell>创建时间</TableCell>
@@ -350,6 +401,40 @@ export default function UsersPage() {
                             />
                           }
                           label={user.canManageTemplates ? '已启用' : '已禁用'}
+                        />
+                      </TableCell>
+                      <TableCell>
+                        <FormControlLabel
+                          control={
+                            <Switch
+                              checked={user.showFooter}
+                              onChange={() =>
+                                toggleShowFooter(
+                                  user.username,
+                                  user.showFooter
+                                )
+                              }
+                              disabled={loading}
+                            />
+                          }
+                          label={user.showFooter ? '已启用' : '已禁用'}
+                        />
+                      </TableCell>
+                      <TableCell>
+                        <FormControlLabel
+                          control={
+                            <Switch
+                              checked={user.showAds}
+                              onChange={() =>
+                                toggleShowAds(
+                                  user.username,
+                                  user.showAds
+                                )
+                              }
+                              disabled={loading}
+                            />
+                          }
+                          label={user.showAds ? '已启用' : '已禁用'}
                         />
                       </TableCell>
                       {showExpirationColumns && (

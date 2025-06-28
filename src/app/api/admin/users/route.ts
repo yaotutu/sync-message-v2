@@ -40,13 +40,13 @@ export async function POST(request: Request) {
       );
     }
 
-    const { username, password, canManageTemplates } = await request.json();
+    const { username, password, canManageTemplates, showFooter, showAds } = await request.json();
     if (!username || !password) {
       return NextResponse.json({ success: false, error: '用户名和密码不能为空' }, { status: 400 });
     }
 
     console.log(`尝试创建用户: ${username}`);
-    const result = await createUser(username, password, canManageTemplates);
+    const result = await createUser(username, password, canManageTemplates, showFooter, showAds);
 
     if (!result.success) {
       return NextResponse.json({ success: false, error: result.message }, { status: 400 });
