@@ -7,7 +7,7 @@ import { randomUUID } from 'crypto';
 export async function getAllTemplatesFromDb(username) {
   return await prisma.template.findMany({
     where: {
-      OR: [{ isPublic: true }, { username }],
+      username: username,  // 只获取用户自己的模板
     },
     orderBy: { name: 'asc' },
     select: {
