@@ -18,7 +18,7 @@ import {
     AccordionDetails,
     Divider
 } from '@mui/material';
-import { ContentCopy, Close, ExpandMore } from '@mui/icons-material';
+import { ContentCopy, Close, ExpandMore, Download } from '@mui/icons-material';
 import { copyToClipboard } from '@/lib/utils/clipboard';
 import { userApi } from '@/lib/utils/api-client';
 
@@ -33,6 +33,12 @@ export default function ConfigDialog({ open, onClose }) {
     const getWebhookServerUrl = () => {
         const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:3000';
         return `${baseUrl}/api/webhook`;
+    };
+
+    // 获取APK下载地址
+    const getApkDownloadUrl = () => {
+        const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:3000';
+        return `${baseUrl}/sms-forwarder.apk`;
     };
 
     // 加载配置数据
@@ -95,6 +101,18 @@ export default function ConfigDialog({ open, onClose }) {
         );
     };
 
+    // 处理APK下载
+    const handleDownloadApk = () => {
+        const downloadUrl = getApkDownloadUrl();
+        const link = document.createElement('a');
+        link.href = downloadUrl;
+        link.download = 'sms-forwarder.apk';
+        link.target = '_blank';
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+    };
+
     return (
         <>
             <Dialog
@@ -125,10 +143,53 @@ export default function ConfigDialog({ open, onClose }) {
                         <>
                             <Box sx={{ mb: 3 }}>
                                 <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
-                                    请将以下配置文件复制到您的短信转发器设备中：
+                                    请按照以下步骤配置您的短信转发器：
                                 </Typography>
 
-                                {/* Webhook Server信息 */}
+                                {/* 短信转发器下载 - 第一步 */}
+                                <Paper
+                                    variant="outlined"
+                                    sx={{
+                                        p: 2,
+                                        backgroundColor: 'green.50',
+                                        borderColor: 'green.200',
+                                        mb: 2
+                                    }}
+                                >
+                                    <Box display="flex" justifyContent="space-between" alignItems="center" sx={{ mb: 1 }}>
+                                        <Typography variant="subtitle2" color="success.main" sx={{ fontWeight: 'bold' }}>
+                                            第一步：下载短信转发器应用
+                                        </Typography>
+                                        <Button
+                                            variant="contained"
+                                            color="success"
+                                            size="small"
+                                            startIcon={<Download />}
+                                            onClick={handleDownloadApk}
+                                        >
+                                            下载APK
+                                        </Button>
+                                    </Box>
+                                    <Typography variant="body2" color="text.secondary" sx={{ mb: 1 }}>
+                                        如果您还没有安装短信转发器应用，请先下载并安装：
+                                    </Typography>
+                                    <Typography variant="body2" sx={{
+                                        fontFamily: 'monospace',
+                                        backgroundColor: 'background.paper',
+                                        p: 1,
+                                        borderRadius: 1,
+                                        border: '1px solid',
+                                        borderColor: 'divider',
+                                        fontSize: '0.875rem'
+                                    }}>
+                                        {getApkDownloadUrl()}
+                                    </Typography>
+                                    <Typography variant="caption" color="text.secondary" sx={{ mt: 1, display: 'block' }}>
+                                        安装说明：下载完成后，在Android设备上点击APK文件进行安装，需要允许"未知来源"应用安装权限
+                                    </Typography>
+                                </Paper>
+
+                                {/* Webhook Server信息 - 第二步 */}
                                 <Paper
                                     variant="outlined"
                                     sx={{
@@ -140,7 +201,7 @@ export default function ConfigDialog({ open, onClose }) {
                                 >
                                     <Box display="flex" justifyContent="space-between" alignItems="center" sx={{ mb: 1 }}>
                                         <Typography variant="subtitle2" color="primary" sx={{ fontWeight: 'bold' }}>
-                                            Webhook Server
+                                            第二步：配置Webhook Server
                                         </Typography>
                                         <IconButton
                                             onClick={handleCopyWebhookUrl}
@@ -162,7 +223,7 @@ export default function ConfigDialog({ open, onClose }) {
                                     </Typography>
                                 </Paper>
 
-                                {/* 配置文件JSON */}
+                                {/* 配置文件JSON - 第三步 */}
                                 <Paper
                                     variant="outlined"
                                     sx={{
@@ -173,7 +234,7 @@ export default function ConfigDialog({ open, onClose }) {
                                 >
                                     <Box display="flex" justifyContent="space-between" alignItems="center" sx={{ mb: 1 }}>
                                         <Typography variant="subtitle2" color="text.secondary">
-                                            完整配置文件
+                                            第三步：复制配置文件到应用
                                         </Typography>
                                         <IconButton
                                             onClick={handleCopyConfig}
