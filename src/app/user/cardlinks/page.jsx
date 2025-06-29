@@ -751,7 +751,7 @@ export default function CardLinksPage() {
                                         <TextField
                                             value={searchQuery}
                                             onChange={(e) => setSearchQuery(e.target.value)}
-                                            placeholder="搜索链接、卡密、应用或手机号"
+                                            placeholder="搜索链接、卡密或手机号"
                                             size="small"
                                             fullWidth
                                         />

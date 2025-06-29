@@ -29,6 +29,15 @@ import { useState, useEffect } from 'react';
  *   className="custom-class"
  * />
  * 
+ * // 禁用状态
+ * <NavigationCard
+ *   href="/templates"
+ *   title="应用模版"
+ *   description="请联系管理员开通该权限"
+ *   colorTheme="purple"
+ *   disabled={true}
+ * />
+ * 
  * 支持的颜色主题：'blue', 'green', 'purple', 'orange', 'pink', 'indigo', 'teal', 'yellow'
  */
 
@@ -85,6 +94,7 @@ const colorThemes = [
  * @param {string} props.colorTheme - 自定义颜色主题 ('blue', 'green', 'purple', 'orange', 'pink', 'indigo', 'teal', 'yellow')
  * @param {boolean} props.randomColor - 是否使用随机颜色
  * @param {string} props.className - 额外的CSS类名
+ * @param {boolean} props.disabled - 是否禁用卡片
  */
 export default function NavigationCard({
     href,
@@ -92,7 +102,8 @@ export default function NavigationCard({
     description,
     colorTheme,
     randomColor = false,
-    className = ''
+    className = '',
+    disabled = false
 }) {
     const [selectedTheme, setSelectedTheme] = useState(null);
 
@@ -124,10 +135,19 @@ export default function NavigationCard({
         return null;
     }
 
+    // 构建CSS类名
+    const baseClasses = `block p-4 ${selectedTheme.bg} transition-all ${className}`;
+    const hoverClasses = disabled ? '' : selectedTheme.hover;
+    const disabledClasses = disabled ? 'opacity-50 cursor-not-allowed pointer-events-none' : '';
+    const finalClasses = `${baseClasses} ${hoverClasses} ${disabledClasses}`.trim();
+
+    // 禁用时使用#作为链接
+    const finalHref = disabled ? '#' : href;
+
     return (
         <Link
-            href={href}
-            className={`block p-4 ${selectedTheme.bg} ${selectedTheme.hover} transition-all ${className}`}
+            href={finalHref}
+            className={finalClasses}
         >
             <h4 className={`text-lg font-medium ${selectedTheme.text} mb-2`}>
                 {title}
