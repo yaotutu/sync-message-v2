@@ -130,7 +130,7 @@ export default function CardLinksPage() {
                 const templates = data.data || [];
                 setTemplates(templates);
                 if (templates.length === 0) {
-                    setError('暂无应用模版，请联系管理员创建模版');
+                    setError('暂无应用模版，请回到上级页面创建模版或者联系管理员创建模版');
                 }
             } else {
                 setError(data.message || '加载模板失败');
@@ -543,7 +543,7 @@ export default function CardLinksPage() {
                                 </Select>
                                 {templates.length === 0 && (
                                     <Typography variant="caption" color="error" sx={{ mt: 1, display: 'block' }}>
-                                        暂无应用模版，请联系管理员创建模版
+                                        {error || '暂无应用模版'}
                                     </Typography>
                                 )}
                             </FormControl>
@@ -751,7 +751,7 @@ export default function CardLinksPage() {
                                         <TextField
                                             value={searchQuery}
                                             onChange={(e) => setSearchQuery(e.target.value)}
-                                            placeholder="搜索链接、卡密、应用或手机号"
+                                            placeholder="搜索链接、卡密或手机号"
                                             size="small"
                                             fullWidth
                                         />

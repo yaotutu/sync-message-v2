@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { verifyTemplateAccess } from '@/lib/services/auth';
+import { verifyTemplateAccess, verifyUserAuth } from '@/lib/services/auth';
 import {
   getAllTemplates,
   createTemplate,
@@ -14,8 +14,8 @@ import { CreateTemplateDTO, UpdateTemplateDTO } from '@/types/index';
  */
 export async function GET(request: NextRequest) {
   try {
-    // 验证权限
-    const authResult = await verifyTemplateAccess(request);
+    // 验证用户身份（所有用户都可以读取模板）
+    const authResult = await verifyUserAuth(request);
     if (!authResult.success) {
       return NextResponse.json({ success: false, message: '未授权访问' }, { status: 401 });
     }

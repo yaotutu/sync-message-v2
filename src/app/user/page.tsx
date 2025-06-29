@@ -199,6 +199,7 @@ export default function UserPage() {
                 colorTheme="blue"
                 randomColor={false}
                 className=""
+                disabled={false}
               />
               <NavigationCard
                 href="/user/messages"
@@ -207,17 +208,20 @@ export default function UserPage() {
                 colorTheme="green"
                 randomColor={false}
                 className=""
+                disabled={false}
               />
-              {user?.canManageTemplates && (
-                <NavigationCard
-                  href="/templates"
-                  title="应用模版"
-                  description="查看和管理应用模版"
-                  colorTheme="purple"
-                  randomColor={false}
-                  className=""
-                />
-              )}
+              <NavigationCard
+                href="/templates"
+                title="应用模版"
+                description={user?.canManageTemplates
+                  ? "查看和管理应用模版"
+                  : "请联系管理员开通该权限"
+                }
+                colorTheme="purple"
+                randomColor={false}
+                className=""
+                disabled={!user?.canManageTemplates}
+              />
             </div>
           </div>
         </div>
