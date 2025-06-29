@@ -8,6 +8,33 @@ import { validateUser } from '@/lib/services/users';
  */
 
 /**
+ * 验证用户身份（不检查特殊权限）
+ * @param {Request} req - 请求对象
+ * @returns {Promise<AuthResult>} 验证结果
+ */
+export async function verifyUserAuth(req) {
+  const username = req.headers.get('x-username');
+  const password = req.headers.get('x-password');
+
+  if (!username || !password) {
+    return { success: false, message: '需要用户认证' };
+  }
+
+  try {
+    // 验证用户名密码
+    const validation = await validateUser(username, password);
+    if (!validation.success) {
+      return { success: false, message: validation.message };
+    }
+
+    return { success: true, message: '', username };
+  } catch (error) {
+    console.error('验证用户身份失败:', error);
+    return { success: false, message: '验证用户身份失败，请稍后重试' };
+  }
+}
+
+/**
  * 验证管理员权限
  * @param {Request} req - 请求对象
  * @returns {Promise<AuthResult>} 验证结果
