@@ -18,15 +18,15 @@ export default function Footer({ visible = true }) {
         const parts = [];
 
         if (contactInfo.email && contactInfo.email.trim()) {
-            parts.push(`邮箱：${contactInfo.email}`);
+            parts.push(`联系我们📮：${contactInfo.email}`);
         }
 
         if (contactInfo.wechat && contactInfo.wechat.trim()) {
-            parts.push(`自助系统购买/代理申请👉V：${contactInfo.wechat}`);
+            parts.push(`🛰微信：${contactInfo.wechat}`);
         }
 
         if (contactInfo.qq && contactInfo.qq.trim()) {
-            parts.push(`QQ：${contactInfo.qq}`);
+            parts.push(`🐧QQ：${contactInfo.qq}`);
         }
 
         if (contactInfo.phone && contactInfo.phone.trim()) {
@@ -43,10 +43,16 @@ export default function Footer({ visible = true }) {
 
         // 如果没有配置任何联系信息，显示默认文本
         if (parts.length === 0) {
-            return '联系我们：support@example.com | 微信：sync-message | QQ：123456789';
+            return [
+                <span key="default-email" style={{ margin: '0 8px' }}>联系我们：support@example.com</span>,
+                <span key="default-wechat" style={{ margin: '0 8px' }}>微信：sync-message</span>,
+                <span key="default-qq" style={{ margin: '0 8px' }}>QQ：123456789</span>
+            ];
         }
 
-        return parts.join(' | ');
+        return parts.map((text, idx) => (
+            <span key={idx} style={{ margin: '0 12px' }}>{text}</span>
+        ));
     };
 
     // 如果不需要显示Footer，返回null

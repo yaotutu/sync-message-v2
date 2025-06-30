@@ -36,7 +36,7 @@ export default function HelpInfoCard() {
                         color="info.main"
                         sx={{ fontWeight: 'bold' }}
                     >
-                        使用帮助
+                        使用教程（必看）
                     </Typography>
                 </Box>
 
@@ -106,6 +106,20 @@ export default function HelpInfoCard() {
                     }}
                 >
                     💡 提示：请确保网络连接正常，验证码会在30秒内自动获取并显示
+                </Typography>
+                <Typography
+                    variant="h5"
+                    color="error"
+                    sx={{
+                        mt: 3,
+                        fontWeight: 'bold',
+                        fontSize: { xs: '1.1rem', sm: '1.3rem', md: '1.5rem' },
+                        textAlign: 'center',
+                        letterSpacing: 1.5,
+                        lineHeight: 1.3
+                    }}
+                >
+                    ⚠️注意：必须保持屏幕点亮，不能切后台或锁屏，否则必失败不售后！
                 </Typography>
             </CardContent>
         </Card>

@@ -14,5 +14,5 @@ export default function FooterController() {
     // 综合判断：路由控制 + 全局状态控制
     const shouldShow = routeShouldShow && visible;
 
-    return <Footer visible={shouldShow} />;
+    return <Footer visible={true} />;
 } 

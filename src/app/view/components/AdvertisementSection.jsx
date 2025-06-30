@@ -20,7 +20,7 @@ export default function AdvertisementSection({ cardKey }) {
 
     // 从环境变量读取广告信息
     const adContent = process.env.NEXT_PUBLIC_AD_CONTENT || '《顽童科技》👉资深专业团队、方案咨询DIY定制、小程序/编程/脚本开发、快速交付！';
-    const adUrl = process.env.NEXT_PUBLIC_AD_URL || 'https://example.com';
+    const adUrl = "https://pqy513oupi3.feishu.cn/docx/A9jpdvi1oo6Ws5xpn5ncniWFnDb"
 
     // 查询用户showAds设置
     useEffect(() => {
@@ -74,13 +74,15 @@ export default function AdvertisementSection({ cardKey }) {
             >
                 <CardContent sx={{
                     p: { xs: 2, sm: 3 },
-                    textAlign: 'center'
+                    textAlign: 'center',
+                    border: '2px solid #d32f2f',
+                    borderRadius: 2
                 }}>
                     <Typography
                         variant={isMobile ? "body1" : "h6"}
                         sx={{
                             fontWeight: 'bold',
-                            color: 'primary.main',
+                            color: '#FFD600',
                             transition: 'color 0.3s ease',
                             wordBreak: 'break-word',
                             lineHeight: 1.4
@@ -89,12 +91,17 @@ export default function AdvertisementSection({ cardKey }) {
                         {adContent}
                     </Typography>
                     <Typography
-                        variant="caption"
-                        color="text.secondary"
+                        variant="h6"
                         sx={{
-                            mt: 1,
-                            display: 'block',
-                            fontSize: { xs: '0.75rem', sm: '0.875rem' }
+                            fontWeight: 700,
+                            bgcolor: '#8D6E63',
+                            color: '#FFD600',
+                            borderRadius: 2,
+                            px: 2,
+                            py: 0.5,
+                            mt: 2,
+                            display: 'inline-block',
+                            fontSize: { xs: '1rem', sm: '1.25rem' }
                         }}
                     >
                         点击了解更多 →
