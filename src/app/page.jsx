@@ -300,7 +300,7 @@ export default function LoginPage() {
                   {/* 系统信息 */}
                   <Box sx={{ mt: 3, pt: 3, borderTop: '1px solid', borderColor: 'divider' }}>
                     <Typography variant="body2" color="text.secondary" align="center">
-                      消息同步管理系统 v2.0
+                      【 v5.85最新版（终极补丁加强）】
                     </Typography>
                   </Box>
                 </Box>
