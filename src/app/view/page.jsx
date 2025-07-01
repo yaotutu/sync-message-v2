@@ -176,6 +176,9 @@ function ViewPageContent() {
                 <AdvertisementSection cardKey={searchParams.get('cardKey')} />
             </Container>
 
+            {/* 底部空白防止广告遮挡 */}
+            <Box sx={{ height: '100px' }} />
+
             {/* 验证码弹窗 */}
             <CodeDialog
                 open={codeDialogOpen}
