@@ -589,8 +589,8 @@ export default function CardLinksPage() {
                                 </Typography>
                             </Box>
 
-                            {/* 循环模式和生成组数（一行布局） */}
-                            <Box sx={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 2 }}>
+                            {/* 循环模式、生成组数、过期天数（三项同排） */}
+                            <Box sx={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 2 }}>
                                 {/* 循环模式选择 */}
                                 <Box>
                                     <Typography variant="subtitle2" mb={1}>
@@ -640,23 +640,29 @@ export default function CardLinksPage() {
                                         生成组数 × 有效手机号数量 = 实际生成链接数
                                     </Typography>
                                 </Box>
+
+                                {/* 过期天数设置 */}
+                                <Box>
+                                    <Typography variant="subtitle2" mb={1}>
+                                        过期天数
+                                    </Typography>
+                                    <TextField
+                                        type="number"
+                                        value={expiryDays}
+                                        onChange={(e) => setExpiryDays(e.target.value)}
+                                        placeholder="过期天数"
+                                        inputProps={{ min: 1 }}
+                                        size="small"
+                                        disabled={isLoading}
+                                        label="过期天数"
+                                        fullWidth
+                                    />
+                                </Box>
                             </Box>
 
-                            {/* 其他设置（一行布局） */}
+                            {/* 标签选择和管理按钮（隐藏，仅保留逻辑） */}
+                            {/*
                             <Box sx={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 2 }}>
-                                {/* 过期天数设置 */}
-                                <TextField
-                                    type="number"
-                                    value={expiryDays}
-                                    onChange={(e) => setExpiryDays(e.target.value)}
-                                    placeholder="过期天数"
-                                    inputProps={{ min: 1 }}
-                                    size="small"
-                                    disabled={isLoading}
-                                    label="过期天数"
-                                />
-
-                                {/* 标签选择 */}
                                 <FormControl size="small">
                                     <InputLabel id="tags-label">选择标签</InputLabel>
                                     <Select
@@ -678,8 +684,6 @@ export default function CardLinksPage() {
                                         ))}
                                     </Select>
                                 </FormControl>
-
-                                {/* 管理标签按钮 */}
                                 <Button
                                     startIcon={<LabelIcon />}
                                     onClick={() => setTagManagerOpen(true)}
@@ -690,12 +694,12 @@ export default function CardLinksPage() {
                                     管理标签
                                 </Button>
                             </Box>
-
                             {userTags.length === 0 && (
                                 <Typography variant="caption" color="text.secondary" display="block" mt={1}>
                                     暂无标签，点击"管理标签"添加
                                 </Typography>
                             )}
+                            */}
 
                             {/* 生成按钮 */}
                             <Button
@@ -812,7 +816,8 @@ export default function CardLinksPage() {
                                         </Button>
                                     </Stack>
 
-                                    {/* 标签筛选下拉框 */}
+                                    {/* 标签筛选下拉框（隐藏，仅保留逻辑） */}
+                                    {/*
                                     {userTags.length > 0 && (
                                         <Stack direction="row" spacing={1} alignItems="center">
                                             <Typography variant="caption" color="text.secondary" sx={{ mr: 1 }}>
@@ -838,6 +843,7 @@ export default function CardLinksPage() {
                                             </FormControl>
                                         </Stack>
                                     )}
+                                    */}
 
                                     {/* 模板筛选下拉框 */}
                                     {templates.length > 0 && (
