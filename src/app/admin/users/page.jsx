@@ -65,9 +65,8 @@ export default function UsersPage() {
   const [userToDelete, setUserToDelete] = useState(null);
 
   // 直接读取公共环境变量
-  const showExpirationColumns = process.env.NEXT_PUBLIC_USER_EXPIRATION_ENABLED === 'true';
+  const showExpirationColumns = true
   const showFooterColumns = process.env.NEXT_PUBLIC_USER_SHOW_FOOTER_ENABLED === 'true';
-  const showAdsColumns = process.env.NEXT_PUBLIC_USER_SHOW_ADS_ENABLED === 'true';
 
   useEffect(() => {
     loadUsers();
@@ -110,7 +109,6 @@ export default function UsersPage() {
         password: newPassword.trim(),
         canManageTemplates: false, // 新用户默认没有模板管理权限
         showFooter: true, // 新用户默认显示底部
-        showAds: true, // 新用户默认显示广告
       });
 
       if (data.success) {
@@ -203,28 +201,6 @@ export default function UsersPage() {
     } catch (err) {
       console.error('更新显示底部设置错误:', err);
       setError('更新显示底部设置失败，请检查网络连接');
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const toggleShowAds = async (username, currentValue) => {
-    setLoading(true);
-    setError('');
-
-    try {
-      const data = await userApi.patch(`/api/admin/users/${username}`, {
-        showAds: !currentValue,
-      });
-
-      if (data.success) {
-        loadUsers();
-      } else {
-        setError(data.message || '更新显示广告设置失败');
-      }
-    } catch (err) {
-      console.error('更新显示广告设置错误:', err);
-      setError('更新显示广告设置失败，请检查网络连接');
     } finally {
       setLoading(false);
     }
@@ -362,7 +338,6 @@ export default function UsersPage() {
                     <TableCell>Webhook密钥</TableCell>
                     <TableCell>模板管理</TableCell>
                     {showFooterColumns && <TableCell>显示底部</TableCell>}
-                    {showAdsColumns && <TableCell>显示广告</TableCell>}
                     {showExpirationColumns && <TableCell>账号状态</TableCell>}
                     {showExpirationColumns && <TableCell>有效期</TableCell>}
                     <TableCell>创建时间</TableCell>
@@ -421,25 +396,6 @@ export default function UsersPage() {
                               />
                             }
                             label={user.showFooter ? '已启用' : '已禁用'}
-                          />
-                        </TableCell>
-                      )}
-                      {showAdsColumns && (
-                        <TableCell>
-                          <FormControlLabel
-                            control={
-                              <Switch
-                                checked={user.showAds}
-                                onChange={() =>
-                                  toggleShowAds(
-                                    user.username,
-                                    user.showAds
-                                  )
-                                }
-                                disabled={loading}
-                              />
-                            }
-                            label={user.showAds ? '已启用' : '已禁用'}
                           />
                         </TableCell>
                       )}
