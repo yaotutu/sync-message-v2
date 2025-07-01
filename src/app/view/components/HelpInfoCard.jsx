@@ -65,7 +65,7 @@ export default function HelpInfoCard() {
                         }}>
                             1
                         </Box>
-                        点右侧“复制账号”进入APP切换手机验证码登录发送验证码～
+                        点下面“复制账号”进入APP切换手机验证码登录发送验证码～
                     </Typography>
 
                     <Typography
