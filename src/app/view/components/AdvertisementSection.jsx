@@ -1,12 +1,18 @@
 import { Box, Paper, useMediaQuery, useTheme } from '@mui/material';
 
 /**
- * 右下角浮动广告图片组件（电脑端更大）
+ * 右下角浮动广告图片组件（电脑端更大，点击跳转链接）
  */
 export default function AdvertisementSection() {
     const theme = useTheme();
     const isMobile = useMediaQuery(theme.breakpoints.down('sm'));
     const width = isMobile ? 220 : 420;
+    const adUrl = 'https://pqy513oupi3.feishu.cn/docx/A9jpdvi1oo6Ws5xpn5ncniWFnDb';
+
+    const handleClick = () => {
+        window.open(adUrl, '_blank', 'noopener,noreferrer');
+    };
+
     return (
         <Box
             sx={{
@@ -38,6 +44,7 @@ export default function AdvertisementSection() {
                 <img
                     src="/ad.png"
                     alt="广告"
+                    onClick={handleClick}
                     style={{
                         width: '100%',
                         height: 'auto',
