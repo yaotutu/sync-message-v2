@@ -272,7 +272,7 @@ export default function TemplatesPage() {
                       onChange={(e) => setFormData({ ...formData, description: e.target.value })}
                       placeholder="输入模板描述"
                     />
-                    <FormControlLabel
+                    {/* <FormControlLabel
                       control={
                         <Switch
                           checked={formData.isPublic}
@@ -280,7 +280,7 @@ export default function TemplatesPage() {
                         />
                       }
                       label="公开模板"
-                    />
+                    /> */}
 
                     <Box>
                       <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 2 }}>

@@ -55,7 +55,7 @@ export default function HelpInfoCard() {
                             width: '20px',
                             height: '20px',
                             borderRadius: '50%',
-                            bgcolor: 'info.main',
+                            bgcolor: 'secondary.main',
                             color: 'white',
                             textAlign: 'center',
                             lineHeight: '20px',
@@ -65,7 +65,7 @@ export default function HelpInfoCard() {
                         }}>
                             1
                         </Box>
-                        点右侧"复制账号"进入APP切换手机验证码登录粘贴上去～
+                        点右侧“复制账号”进入APP切换手机验证码登录发送验证码～
                     </Typography>
 
                     <Typography
@@ -81,7 +81,7 @@ export default function HelpInfoCard() {
                             width: '20px',
                             height: '20px',
                             borderRadius: '50%',
-                            bgcolor: 'info.main',
+                            bgcolor: 'secondary.main',
                             color: 'white',
                             textAlign: 'center',
                             lineHeight: '20px',
@@ -91,18 +91,18 @@ export default function HelpInfoCard() {
                         }}>
                             2
                         </Box>
-                        返回本网页等待30秒内获取验证码登录即可～
+                        返回本网页等待30秒内获取验证码秒登录～
                     </Typography>
                 </Box>
 
                 <Typography
-                    variant="caption"
+                    variant="body2"
                     color="info.main"
                     sx={{
                         mt: 2,
                         display: 'block',
                         fontStyle: 'italic',
-                        fontSize: { xs: '0.75rem', sm: '0.8rem' }
+                        fontSize: { xs: '1rem', sm: '1.1rem' }
                     }}
                 >
                     💡 提示：请确保网络连接正常，验证码会在30秒内自动获取并显示
