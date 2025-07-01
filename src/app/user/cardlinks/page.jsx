@@ -509,7 +509,7 @@ export default function CardLinksPage() {
                     <Paper elevation={3} sx={{ p: 4 }}>
                         <Stack direction="row" justifyContent="space-between" alignItems="center" mb={2}>
                             <Typography variant="h5" fontWeight="bold">
-                                带链接卡密管理
+                                系统管理后台
                             </Typography>
                             <Button
                                 href="/user"
