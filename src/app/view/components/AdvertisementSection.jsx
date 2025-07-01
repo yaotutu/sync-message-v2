@@ -75,7 +75,7 @@ export default function AdvertisementSection({ cardKey }) {
                 <CardContent sx={{
                     p: { xs: 2, sm: 3 },
                     textAlign: 'center',
-                    border: '2px solid #d32f2f',
+                    // border: '2px solid #d32f2f',
                     borderRadius: 2
                 }}>
                     <Typography
@@ -90,7 +90,7 @@ export default function AdvertisementSection({ cardKey }) {
                     >
                         {adContent}
                     </Typography>
-                    <Typography
+                    {/* <Typography
                         variant="h6"
                         sx={{
                             fontWeight: 700,
@@ -105,7 +105,7 @@ export default function AdvertisementSection({ cardKey }) {
                         }}
                     >
                         点击了解更多 →
-                    </Typography>
+                    </Typography> */}
                 </CardContent>
             </Card>
         </Box>

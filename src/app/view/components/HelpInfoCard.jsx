@@ -65,7 +65,7 @@ export default function HelpInfoCard() {
                         }}>
                             1
                         </Box>
-                        点下面“复制账号”进入APP切换手机验证码登录发送验证码～
+                        点下面“复制账号”进入APP内切换手机号登录点发送验证码~
                     </Typography>
 
                     <Typography
@@ -91,7 +91,7 @@ export default function HelpInfoCard() {
                         }}>
                             2
                         </Box>
-                        返回本网页等待30秒内获取验证码秒登录～
+                        返回本网址等待30秒左右自助获取验证码~
                     </Typography>
                 </Box>
 
@@ -119,7 +119,7 @@ export default function HelpInfoCard() {
                         lineHeight: 1.3
                     }}
                 >
-                    ⚠️注意：必须保持屏幕点亮，不能切后台或锁屏，否则必失败不售后！
+                    ⚠️注意：必须保持屏幕点亮，停留在本页面不锁屏，否则必失败不售后！
                 </Typography>
             </CardContent>
         </Card>
