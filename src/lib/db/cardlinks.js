@@ -110,7 +110,15 @@ export async function createCardLink(username, data) {
  * @param {string|null} [templateId]
  * @returns {Promise<{links: Array<Object>, total: number}>}
  */
-export async function getUserCardLinks(username, page = 1, pageSize = 10, status, search, tag, templateId) {
+export async function getUserCardLinks(
+  username,
+  page = 1,
+  pageSize = 10,
+  status,
+  search,
+  tag,
+  templateId,
+) {
   const where = { username };
 
   if (status === 'used') {
@@ -131,7 +139,7 @@ export async function getUserCardLinks(username, page = 1, pageSize = 10, status
   // 添加标签筛选
   if (tag) {
     where.tags = {
-      contains: `"${tag}"`
+      contains: `"${tag}"`,
     };
   }
 
@@ -183,14 +191,14 @@ export async function getUserCardLinks(username, page = 1, pageSize = 10, status
         link.createdAt instanceof Date
           ? link.createdAt.toISOString()
           : typeof link.createdAt === 'number'
-            ? new Date(link.createdAt).toISOString()
-            : link.createdAt,
+          ? new Date(link.createdAt).toISOString()
+          : link.createdAt,
       firstUsedAt:
         link.firstUsedAt instanceof Date
           ? link.firstUsedAt.toISOString()
           : typeof link.firstUsedAt === 'number'
-            ? new Date(link.firstUsedAt).toISOString()
-            : link.firstUsedAt,
+          ? new Date(link.firstUsedAt).toISOString()
+          : link.firstUsedAt,
       url: link.url,
       expiryDays: link.expiryDays,
       tags: JSON.parse(link.tags || '[]'),
@@ -264,14 +272,14 @@ export async function getAllCardLinks() {
         link.createdAt instanceof Date
           ? link.createdAt.toISOString()
           : typeof link.createdAt === 'number'
-            ? new Date(link.createdAt).toISOString()
-            : link.createdAt,
+          ? new Date(link.createdAt).toISOString()
+          : link.createdAt,
       firstUsedAt:
         link.firstUsedAt instanceof Date
           ? link.firstUsedAt.toISOString()
           : typeof link.firstUsedAt === 'number'
-            ? new Date(link.firstUsedAt).toISOString()
-            : link.firstUsedAt,
+          ? new Date(link.firstUsedAt).toISOString()
+          : link.firstUsedAt,
       url: link.url,
     };
   });
@@ -299,6 +307,42 @@ export async function deleteCardLink(username, cardKey) {
 }
 
 /**
+ * 删除用户最近N条卡密链接
+ * @param {string} username 用户名
+ * @param {number} count 要删除的数量
+ * @returns {Promise<{deletedCount: number}>}
+ */
+export async function deleteRecentCardLinks(username, count) {
+  if (count <= 0) {
+    return { deletedCount: 0 };
+  }
+
+  // 获取用户最近的N条卡密链接ID
+  const recentLinks = await prisma.cardLink.findMany({
+    where: { username },
+    orderBy: { createdAt: 'desc' },
+    take: count,
+    select: { cardKey: true },
+  });
+
+  if (recentLinks.length === 0) {
+    return { deletedCount: 0 };
+  }
+
+  // 删除这些卡密链接
+  const { count: deletedCount } = await prisma.cardLink.deleteMany({
+    where: {
+      username,
+      cardKey: {
+        in: recentLinks.map((link) => link.cardKey),
+      },
+    },
+  });
+
+  return { deletedCount };
+}
+
+/**
  * 根据卡密链接key获取用户信息
  * @param {string} cardKey
  * @returns {Promise<Object|null>}
@@ -314,8 +358,8 @@ export async function getUserByCardKey(cardKey) {
           username: true,
           showAds: true,
           showFooter: true,
-        }
-      }
+        },
+      },
     },
   });
 

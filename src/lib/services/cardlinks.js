@@ -4,6 +4,8 @@ import {
   createCardLink as dbCreateCardLink,
   getUserCardLinks as dbGetUserCardLinks,
   getCardLink as dbGetCardLink,
+  deleteCardLink as dbDeleteCardLink,
+  deleteRecentCardLinks as dbDeleteRecentCardLinks,
   getUserByCardKey as dbGetUserByCardKey,
 } from '../db/cardlinks.js';
 import { randomUUID } from 'crypto';
@@ -79,6 +81,48 @@ export async function getCardLink(key) {
   } catch (error) {
     console.error(`[services/cardlinks] 获取卡密链接失败:`, error);
     return null;
+  }
+}
+
+/**
+ * 删除卡密链接
+ * @param {string} username
+ * @param {string} key
+ * @returns {Promise<boolean>}
+ */
+export async function deleteCardLink(username, key) {
+  console.log(`[services/cardlinks] 尝试删除卡密链接: ${key}`);
+
+  try {
+    const result = await dbDeleteCardLink(username, key);
+    if (result) {
+      console.log(`[services/cardlinks] 成功删除卡密链接: ${key}`);
+    } else {
+      console.log(`[services/cardlinks] 删除卡密链接失败: ${key}`);
+    }
+    return result;
+  } catch (error) {
+    console.error(`[services/cardlinks] 删除卡密链接失败:`, error);
+    return false;
+  }
+}
+
+/**
+ * 删除用户最近N条卡密链接
+ * @param {string} username 用户名
+ * @param {number} count 要删除的数量
+ * @returns {Promise<{deletedCount: number}>}
+ */
+export async function deleteRecentCardLinks(username, count) {
+  console.log(`[services/cardlinks] 尝试删除用户 ${username} 最近 ${count} 条卡密链接`);
+
+  try {
+    const result = await dbDeleteRecentCardLinks(username, count);
+    console.log(`[services/cardlinks] 成功删除 ${result.deletedCount} 条卡密链接`);
+    return result;
+  } catch (error) {
+    console.error(`[services/cardlinks] 删除最近卡密链接失败:`, error);
+    return { deletedCount: 0 };
   }
 }
 

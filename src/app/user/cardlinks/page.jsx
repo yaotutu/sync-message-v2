@@ -488,6 +488,27 @@ export default function CardLinksPage() {
         });
     };
 
+    // 删除最近N条卡密链接
+    const deleteRecentLinks = async (count) => {
+        showConfirmDialog('确认删除', `确定要删除最近的 ${count} 条卡密链接吗？此操作不可恢复！`, async () => {
+            try {
+                setIsLoading(true);
+                const response = await userApi.post('/api/user/cardlinks/delete-recent', { count });
+                if (response.success) {
+                    showAlertDialog('成功', `成功删除 ${response.data?.deletedCount || 0} 条卡密链接`, 'success');
+                    // 删除成功后刷新卡密链接列表
+                    await loadCardLinks({ page: 1 });
+                } else {
+                    setError(response.message || '删除卡密链接失败');
+                }
+            } catch {
+                setError('删除卡密链接失败，请检查网络连接');
+            } finally {
+                setIsLoading(false);
+            }
+        });
+    };
+
     // 复制全部链接
     const copyLinksToClipboard = async (links) => {
         const linksText = links.map((link) => link.url).join('\n');
@@ -875,15 +896,43 @@ export default function CardLinksPage() {
 
                                 {/* 右侧：功能按钮 */}
                                 <Stack direction="row" spacing={1}>
-                                    <Button
-                                        variant="contained"
-                                        color="error"
-                                        onClick={deleteAllUnusedLinks}
-                                        disabled={isLoading}
-                                        size="small"
-                                    >
-                                        批量删除未使用
-                                    </Button>
+                                    <Stack direction="row" spacing={1} alignItems="center">
+
+                                        <TextField
+                                            id="delete-recent-count"
+                                            label="删除数量"
+                                            type="number"
+                                            size="small"
+                                            inputProps={{ min: 1 }}
+                                            sx={{ width: 100 }}
+                                        />
+                                        <Button
+                                            variant="contained"
+                                            color="error"
+                                            onClick={() => {
+                                                const input = document.getElementById('delete-recent-count');
+                                                const count = parseInt(input.value);
+                                                if (count > 0) {
+                                                    deleteRecentLinks(count);
+                                                } else {
+                                                    showAlertDialog('错误', '请输入有效的删除数量', 'error');
+                                                }
+                                            }}
+                                            disabled={isLoading}
+                                            size="small"
+                                        >
+                                            删除最近N条
+                                        </Button>
+                                        <Button
+                                            variant="contained"
+                                            color="error"
+                                            onClick={deleteAllUnusedLinks}
+                                            disabled={isLoading}
+                                            size="small"
+                                        >
+                                            批量删除未使用
+                                        </Button>
+                                    </Stack>
                                 </Stack>
                             </Stack>
 
