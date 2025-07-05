@@ -101,6 +101,7 @@ export async function createCardLink(username, data) {
  * @param {string|null} [search]
  * @param {string|null} [tag]
  * @param {string|null} [templateId]
+ * @param {string|null} [type]
  * @returns {Promise<{links: Array<Object>, total: number}>}
  */
 export async function getUserCardLinks(
@@ -111,6 +112,7 @@ export async function getUserCardLinks(
   search,
   tag,
   templateId,
+  type,
 ) {
   const where = { username };
 
@@ -139,6 +141,11 @@ export async function getUserCardLinks(
   // 添加模板筛选
   if (templateId) {
     where.templateId = templateId;
+  }
+
+  // 添加类型筛选
+  if (type) {
+    where.type = type;
   }
 
   const [count, links] = await Promise.all([

@@ -210,6 +210,7 @@ export default function CardLinksPage() {
       search = searchQuery,
       tag = tagFilter,
       templateId = templateFilter,
+      type: typeParam = type,
     } = options;
 
     try {
@@ -244,6 +245,11 @@ export default function CardLinksPage() {
       // 添加模板筛选参数
       if (templateId && templateId.trim()) {
         queryParams.append('templateId', templateId.trim());
+      }
+
+      // 添加类型筛选参数
+      if (typeParam && typeParam.trim()) {
+        queryParams.append('type', typeParam.trim());
       }
 
       // 添加时间戳防止缓存

@@ -39,6 +39,7 @@ export async function GET(request: NextRequest) {
     const search = url.searchParams.get('search');
     const tag = url.searchParams.get('tag');
     const templateId = url.searchParams.get('templateId');
+    const type = url.searchParams.get('type');
 
     console.log(
       `分页参数: page=${page}, pageSize=${pageSize}, status=${status || '全部'}, search=${
@@ -55,6 +56,7 @@ export async function GET(request: NextRequest) {
       search,
       tag,
       templateId,
+      type,
     );
     console.log(`成功获取用户 ${username} 的 ${links.length} 个卡密链接，总数: ${total}`);
 
