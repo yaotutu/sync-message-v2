@@ -166,7 +166,11 @@ export const userApi = {
   /**
    * 发送DELETE请求
    */
-  async delete<T = any>(url: string, options: Omit<RequestOptions, 'method'> = {}): Promise<T> {
+  async delete<T = any>(
+    url: string,
+    body: any,
+    options: Omit<RequestOptions, 'method' | 'body'> = {},
+  ): Promise<T> {
     const auth = getUserAuth();
     const headers = {
       ...options.headers,
@@ -180,6 +184,7 @@ export const userApi = {
     return apiRequest<T>(url, {
       ...options,
       method: 'DELETE',
+      body,
       headers,
     });
   },
