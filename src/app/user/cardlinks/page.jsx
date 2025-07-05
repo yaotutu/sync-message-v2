@@ -294,8 +294,8 @@ export default function CardLinksPage() {
         savePhonesToCache(newPhones);
     };
 
-    // 生成卡密链接
-    const generateCardLink = async () => {
+    // 生成手机卡密链接
+    const generatePhoneCardLink = async () => {
         if (!selectedTemplate) {
             setError('请选择应用模板');
             return;
@@ -353,6 +353,97 @@ export default function CardLinksPage() {
                     expiryDays: expiryDays.trim() || undefined,
                     tags: selectedTags,
                     type: type
+                })
+            );
+
+            const results = await Promise.all(creationPromises);
+            const failedResults = results.filter((result) => !result.success);
+
+            if (failedResults.length > 0) {
+                setError(`创建卡链接部分失败: ${failedResults[0].message}`);
+            } else {
+                const newLinks = results.map((result) => result.data.url).join('\n');
+                try {
+                    const success = await copyToClipboard(
+                        newLinks,
+                        () => showAlertDialog('成功', `已成功生成 ${results.length} 个链接并复制到剪贴板！`, 'success'),
+                        () => showAlertDialog('提示', '链接生成成功，但复制到剪贴板失败，请手动复制。', 'warning')
+                    );
+                    if (!success) {
+                        console.error('复制链接失败');
+                    }
+                } catch {
+                    showAlertDialog('提示', '链接生成成功，但复制到剪贴板失败，请手动复制。', 'warning');
+                }
+                setSelectedTemplate('');
+                await loadCardLinks({ page: 1 });
+            }
+        } catch {
+            setError('生成卡密链接失败，请检查网络连接');
+        } finally {
+            setIsLoading(false);
+        }
+    };
+
+    // 生成邮箱卡密链接
+    const generateEmailCardLink = async () => {
+        if (!selectedTemplate) {
+            setError('请选择应用模板');
+            return;
+        }
+
+        const validEmails = emails.filter((email) => email.trim() && isValidEmail(email));
+        const hasInvalidInput = emails.some((email) => email.trim() && !isValidEmail(email));
+
+        if (hasInvalidInput) {
+            setError('请检查输入的邮箱格式');
+            return;
+        }
+
+        if (validEmails.length === 0) {
+            setError('请至少输入一个有效邮箱');
+            return;
+        }
+
+        if (groupCount < 1) {
+            setError('组数必须大于0');
+            return;
+        }
+
+        setIsLoading(true);
+        setError('');
+
+        try {
+            const templateName = templates.find((t) => t.id === selectedTemplate)?.name;
+            if (!templateName) {
+                setError('无法获取所选模板的名称');
+                setIsLoading(false);
+                return;
+            }
+
+            let emailList = [];
+            if (loopMode === 'sequence') {
+                // 顺序循环：ABCABCABC
+                for (let i = 0; i < groupCount; i++) {
+                    emailList.push(...validEmails);
+                }
+            } else if (loopMode === 'group') {
+                // 分组循环：AAABBBCCC
+                for (let i = 0; i < validEmails.length; i++) {
+                    for (let j = 0; j < groupCount; j++) {
+                        emailList.push(validEmails[i]);
+                    }
+                }
+            }
+
+            const creationPromises = emailList.map(email =>
+                userApi.post('/api/user/cardlinks', {
+                    appName: templateName,
+                    email,
+                    templateId: selectedTemplate,
+                    expiryDays: expiryDays.trim() || undefined,
+                    tags: selectedTags,
+                    type: 'email'
                 })
             );
 
@@ -702,7 +793,7 @@ export default function CardLinksPage() {
 
                             {/* 生成按钮 */}
                             <Button
-                                onClick={generateCardLink}
+                                onClick={type === 'sms' ? generatePhoneCardLink : generateEmailCardLink}
                                 disabled={isLoading || templates.length === 0}
                                 variant="contained"
                                 color="primary"

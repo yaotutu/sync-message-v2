@@ -160,6 +160,7 @@ export async function getUserCardLinks(
         expiryDays: true,
         tags: true,
         templateId: true,
+        type: true, // 添加 type 字段
       },
     }),
   ]);
@@ -196,6 +197,7 @@ export async function getUserCardLinks(
       expiryDays: link.expiryDays,
       tags: JSON.parse(link.tags || '[]'),
       templateId: link.templateId,
+      type: link.type,
     };
   });
 
