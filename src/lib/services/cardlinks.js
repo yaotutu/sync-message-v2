@@ -36,6 +36,7 @@ export function generateCardLinkUrl(key, appName, phone) {
  * @param {string} [data.templateId]
  * @param {number} [data.expiryDays]
  * @param {string[]} [data.tags]
+ * @param {string} [data.type] - 类型，默认为 'sms'
  * @returns {Promise<{id: string, cardKey: string, username: string, appName: string, phone: string|null, createdAt: number, url: string, templateId: string|null, expiryDays: number|null, tags: string[]}>}
  */
 export async function createCardLink(username, data) {
@@ -45,6 +46,7 @@ export async function createCardLink(username, data) {
     templateId: data.templateId,
     expiryDays: data.expiryDays,
     tags: data.tags,
+    type: data.type || 'sms',
   });
 }
 

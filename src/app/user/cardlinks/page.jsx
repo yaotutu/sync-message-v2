@@ -38,7 +38,8 @@ import ContentCopyIcon from '@mui/icons-material/ContentCopy';
 import AddIcon from '@mui/icons-material/Add';
 import LabelIcon from '@mui/icons-material/Label';
 
-export default function CardLinksPage() {
+export default function CardLinksPage({ searchParams }) {
+    const type = searchParams?.type || 'sms';
     const [selectedTemplate, setSelectedTemplate] = useState('');
     const [phones, setPhones] = useState(['']);
     const [groupCountInput, setGroupCountInput] = useState('1');
@@ -349,7 +350,8 @@ export default function CardLinksPage() {
                     phone,
                     templateId: selectedTemplate,
                     expiryDays: expiryDays.trim() || undefined,
-                    tags: selectedTags
+                    tags: selectedTags,
+                    type: type
                 })
             );
 

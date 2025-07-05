@@ -69,7 +69,7 @@ export async function createCardLink(username, data) {
   // 处理标签
   const tags = Array.isArray(data.tags) ? JSON.stringify(data.tags) : '[]';
 
-  await prisma.cardLink.create({
+  const cardLink = await prisma.cardLink.create({
     data: {
       id,
       cardKey,
@@ -82,20 +82,13 @@ export async function createCardLink(username, data) {
       firstUsedAt: null,
       expiryDays,
       tags,
+      type: data.type || 'sms',
     },
   });
 
   return {
-    id,
-    cardKey,
-    username,
-    appName: data.appName,
-    phone,
-    createdAt: now,
-    url,
-    templateId: data.templateId,
-    expiryDays,
-    tags: data.tags || [],
+    ...cardLink,
+    tags: JSON.parse(cardLink.tags || '[]'),
   };
 }
 
@@ -110,7 +103,15 @@ export async function createCardLink(username, data) {
  * @param {string|null} [templateId]
  * @returns {Promise<{links: Array<Object>, total: number}>}
  */
-export async function getUserCardLinks(username, page = 1, pageSize = 10, status, search, tag, templateId) {
+export async function getUserCardLinks(
+  username,
+  page = 1,
+  pageSize = 10,
+  status,
+  search,
+  tag,
+  templateId,
+) {
   const where = { username };
 
   if (status === 'used') {
@@ -131,7 +132,7 @@ export async function getUserCardLinks(username, page = 1, pageSize = 10, status
   // 添加标签筛选
   if (tag) {
     where.tags = {
-      contains: `"${tag}"`
+      contains: `"${tag}"`,
     };
   }
 
@@ -183,14 +184,14 @@ export async function getUserCardLinks(username, page = 1, pageSize = 10, status
         link.createdAt instanceof Date
           ? link.createdAt.toISOString()
           : typeof link.createdAt === 'number'
-            ? new Date(link.createdAt).toISOString()
-            : link.createdAt,
+          ? new Date(link.createdAt).toISOString()
+          : link.createdAt,
       firstUsedAt:
         link.firstUsedAt instanceof Date
           ? link.firstUsedAt.toISOString()
           : typeof link.firstUsedAt === 'number'
-            ? new Date(link.firstUsedAt).toISOString()
-            : link.firstUsedAt,
+          ? new Date(link.firstUsedAt).toISOString()
+          : link.firstUsedAt,
       url: link.url,
       expiryDays: link.expiryDays,
       tags: JSON.parse(link.tags || '[]'),
@@ -264,14 +265,14 @@ export async function getAllCardLinks() {
         link.createdAt instanceof Date
           ? link.createdAt.toISOString()
           : typeof link.createdAt === 'number'
-            ? new Date(link.createdAt).toISOString()
-            : link.createdAt,
+          ? new Date(link.createdAt).toISOString()
+          : link.createdAt,
       firstUsedAt:
         link.firstUsedAt instanceof Date
           ? link.firstUsedAt.toISOString()
           : typeof link.firstUsedAt === 'number'
-            ? new Date(link.firstUsedAt).toISOString()
-            : link.firstUsedAt,
+          ? new Date(link.firstUsedAt).toISOString()
+          : link.firstUsedAt,
       url: link.url,
     };
   });
@@ -314,8 +315,8 @@ export async function getUserByCardKey(cardKey) {
           username: true,
           showAds: true,
           showFooter: true,
-        }
-      }
+        },
+      },
     },
   });
 

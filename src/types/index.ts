@@ -38,6 +38,7 @@ export interface CreateCardLinkDTO {
   templateId?: string;
   expiryDays?: number;
   tags?: string[];
+  type?: 'email' | 'sms';
 }
 
 /**
@@ -55,4 +56,5 @@ export interface CardLinkResponseDTO {
   templateId?: string;
   expiryDays?: number;
   tags: string[];
+  type: 'email' | 'sms';
 }

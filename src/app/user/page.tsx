@@ -203,10 +203,19 @@ export default function UserPage() {
                 disabled={false}
               />
               <NavigationCard
-                href="/user/cardlinks"
-                title="卡密链接管理"
-                description="创建和管理带有链接的卡密，用于短信验证码过滤"
+                href="/user/cardlinks?type=sms"
+                title="短信卡密链接管理"
+                description="创建和管理短信卡密链接，用于短信验证码过滤"
                 colorTheme="blue"
+                randomColor={false}
+                className=""
+                disabled={false}
+              />
+              <NavigationCard
+                href="/user/cardlinks?type=email"
+                title="邮件卡密链接管理"
+                description="创建和管理邮件卡密链接，用于邮件验证码过滤"
+                colorTheme="indigo"
                 randomColor={false}
                 className=""
                 disabled={false}
