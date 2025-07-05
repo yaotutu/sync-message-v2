@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { CardLink, Template as AppTemplate } from '@prisma/client';
 import { userApi } from '@/lib/utils/api-client';
 import { copyToClipboard } from '@/lib/utils/clipboard';
@@ -38,8 +38,9 @@ import ContentCopyIcon from '@mui/icons-material/ContentCopy';
 import AddIcon from '@mui/icons-material/Add';
 import LabelIcon from '@mui/icons-material/Label';
 
-export default function CardLinksPage({ searchParams }) {
-    const type = searchParams?.type || 'sms';
+export default function CardLinksPage() {
+    const searchParams = useSearchParams();
+    const type = searchParams.get('type') || 'sms';
     const [selectedTemplate, setSelectedTemplate] = useState('');
     const [phones, setPhones] = useState(['']);
     const [groupCountInput, setGroupCountInput] = useState('1');
