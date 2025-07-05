@@ -117,20 +117,26 @@ export async function POST(request: NextRequest) {
 
     // 处理手机号
     let phone = null;
-    if (data.phone) {
-      const phoneStr = data.phone.trim();
-      if (phoneStr && /^1\d{10}$/.test(phoneStr)) {
-        phone = phoneStr;
-        console.log(`有效手机号: ${phone}`);
-      } else {
-        console.log('错误: 无效的手机号格式');
-        return NextResponse.json(
-          { success: false, message: '请提供有效的手机号（11位数字，以1开头）' },
-          { status: 400 },
-        );
-      }
+
+    if (data.type != 'sms') {
+      // 如果不是短信类型，则为邮箱，不做任何验证就好
+      phone = data.phone?.trim();
     } else {
-      console.log('未提供手机号，将创建不带手机号的卡密链接');
+      if (data.phone) {
+        const phoneStr = data.phone.trim();
+        if (phoneStr && /^1\d{10}$/.test(phoneStr)) {
+          phone = phoneStr;
+          console.log(`有效手机号: ${phone}`);
+        } else {
+          console.log('错误: 无效的手机号格式');
+          return NextResponse.json(
+            { success: false, message: '请提供有效的手机号（11位数字，以1开头）' },
+            { status: 400 },
+          );
+        }
+      } else {
+        console.log('未提供手机号，将创建不带手机号的卡密链接');
+      }
     }
 
     // 验证标签
