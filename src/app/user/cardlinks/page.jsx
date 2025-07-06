@@ -875,11 +875,7 @@ export default function CardLinksPage() {
                 fullWidth
                 sx={{ py: 1.5 }}
               >
-                {isLoading
-                  ? '生成中...'
-                  : `生成 ${
-                      groupCount * phones.filter((p) => p.trim() && isValidPhone(p)).length
-                    } 个卡密链接`}
+                {isLoading ? '生成中...' : `生成卡密链接`}
               </Button>
 
               {error && (
