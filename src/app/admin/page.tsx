@@ -78,6 +78,7 @@ export default function AdminPage() {
                 colorTheme="blue"
                 randomColor={false}
                 className=""
+                disabled={false}
               />
               {/* <NavigationCard
                 href="/templates"

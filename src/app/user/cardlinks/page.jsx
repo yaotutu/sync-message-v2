@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, Suspense } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { CardLink, Template as AppTemplate } from '@prisma/client';
 import { userApi } from '@/lib/utils/api-client';
@@ -41,7 +41,7 @@ import ContentCopyIcon from '@mui/icons-material/ContentCopy';
 import AddIcon from '@mui/icons-material/Add';
 import LabelIcon from '@mui/icons-material/Label';
 
-export default function CardLinksPage() {
+function CardLinksContent() {
   const searchParams = useSearchParams();
   const type = searchParams.get('type') || 'sms';
   const [selectedTemplate, setSelectedTemplate] = useState('');
@@ -1350,5 +1350,13 @@ export default function CardLinksPage() {
         onTagsChange={handleTagsChange}
       />
     </Box>
+  );
+}
+
+export default function CardLinksPage() {
+  return (
+    <Suspense fallback={<div>Loading...</div>}>
+      <CardLinksContent />
+    </Suspense>
   );
 }
