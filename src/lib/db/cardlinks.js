@@ -69,7 +69,7 @@ export async function createCardLink(username, data) {
   // 处理标签
   const tags = Array.isArray(data.tags) ? JSON.stringify(data.tags) : '[]';
 
-  await prisma.cardLink.create({
+  const cardLink = await prisma.cardLink.create({
     data: {
       id,
       cardKey,
@@ -82,20 +82,13 @@ export async function createCardLink(username, data) {
       firstUsedAt: null,
       expiryDays,
       tags,
+      type: data.type || 'sms',
     },
   });
 
   return {
-    id,
-    cardKey,
-    username,
-    appName: data.appName,
-    phone,
-    createdAt: now,
-    url,
-    templateId: data.templateId,
-    expiryDays,
-    tags: data.tags || [],
+    ...cardLink,
+    tags: JSON.parse(cardLink.tags || '[]'),
   };
 }
 
@@ -108,6 +101,7 @@ export async function createCardLink(username, data) {
  * @param {string|null} [search]
  * @param {string|null} [tag]
  * @param {string|null} [templateId]
+ * @param {string|null} [type]
  * @returns {Promise<{links: Array<Object>, total: number}>}
  */
 export async function getUserCardLinks(
@@ -118,6 +112,7 @@ export async function getUserCardLinks(
   search,
   tag,
   templateId,
+  type,
 ) {
   const where = { username };
 
@@ -148,6 +143,11 @@ export async function getUserCardLinks(
     where.templateId = templateId;
   }
 
+  // 添加类型筛选
+  if (type) {
+    where.type = type;
+  }
+
   const [count, links] = await Promise.all([
     prisma.cardLink.count({ where }),
     prisma.cardLink.findMany({
@@ -167,6 +167,7 @@ export async function getUserCardLinks(
         expiryDays: true,
         tags: true,
         templateId: true,
+        type: true, // 添加 type 字段
       },
     }),
   ]);
@@ -203,6 +204,7 @@ export async function getUserCardLinks(
       expiryDays: link.expiryDays,
       tags: JSON.parse(link.tags || '[]'),
       templateId: link.templateId,
+      type: link.type,
     };
   });
 

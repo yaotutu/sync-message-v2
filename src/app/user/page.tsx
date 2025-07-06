@@ -152,7 +152,8 @@ export default function UserPage() {
               )}
               {user?.createdAt && (
                 <p className="text-gray-700 dark:text-gray-300">
-                  <span className="font-medium">创建时间:</span> {new Date(Number(user.createdAt)).toLocaleString()}
+                  <span className="font-medium">创建时间:</span>
+                  {new Date(Number(user.createdAt)).toLocaleString()}
                 </p>
               )}
               {user?.canManageTemplates && (
@@ -176,8 +177,8 @@ export default function UserPage() {
                 sx={{
                   backgroundColor: '#1976d2',
                   '&:hover': {
-                    backgroundColor: '#1565c0'
-                  }
+                    backgroundColor: '#1565c0',
+                  },
                 }}
               >
                 查看配置文件
@@ -193,10 +194,28 @@ export default function UserPage() {
             <h3 className="text-xl font-bold text-gray-900 dark:text-white mb-4">功能导航</h3>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <NavigationCard
-                href="/user/cardlinks"
-                title="卡密链接管理"
-                description="创建和管理带有链接的卡密，用于短信验证码过滤"
+                href="/user/emails"
+                title="邮箱绑定"
+                description="绑定您的邮箱列表到当前账号"
+                colorTheme="orange"
+                randomColor={false}
+                className=""
+                disabled={false}
+              />
+              <NavigationCard
+                href="/user/cardlinks?type=sms"
+                title="短信卡密链接管理"
+                description="创建和管理短信卡密链接，用于短信验证码过滤"
                 colorTheme="blue"
+                randomColor={false}
+                className=""
+                disabled={false}
+              />
+              <NavigationCard
+                href="/user/cardlinks?type=email"
+                title="邮件卡密链接管理"
+                description="创建和管理邮件卡密链接，用于邮件验证码过滤"
+                colorTheme="indigo"
                 randomColor={false}
                 className=""
                 disabled={false}
@@ -213,9 +232,8 @@ export default function UserPage() {
               <NavigationCard
                 href="/templates"
                 title="应用模版"
-                description={user?.canManageTemplates
-                  ? "查看和管理应用模版"
-                  : "请联系管理员开通该权限"
+                description={
+                  user?.canManageTemplates ? '查看和管理应用模版' : '请联系管理员开通该权限'
                 }
                 colorTheme="purple"
                 randomColor={false}
@@ -228,10 +246,7 @@ export default function UserPage() {
       </div>
 
       {/* 配置文件对话框 */}
-      <ConfigDialog
-        open={configDialogOpen}
-        onClose={handleCloseConfig}
-      />
+      <ConfigDialog open={configDialogOpen} onClose={handleCloseConfig} />
     </div>
   );
 }

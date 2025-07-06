@@ -18,14 +18,32 @@ import { randomUUID } from 'crypto';
  * @param {boolean} canManageTemplates
  * @param {boolean} showFooter 是否显示底部
  * @param {boolean} showAds 是否显示广告
+ * @param {string[]} emails 用户邮箱列表
  */
-async function createUser(username, password, canManageTemplates = false, showFooter = true, showAds = true) {
+async function createUser(
+  username,
+  password,
+  canManageTemplates = false,
+  showFooter = true,
+  showAds = true,
+  emails = [],
+) {
   try {
     const webhookKey = randomUUID();
     const now = Date.now();
     const cardLinkTags = []; // 新用户默认空标签数组，由用户自己维护
 
-    const result = await createUserDb(username, password, webhookKey, now, canManageTemplates, cardLinkTags, showFooter, showAds);
+    const result = await createUserDb(
+      username,
+      password,
+      webhookKey,
+      now,
+      canManageTemplates,
+      cardLinkTags,
+      emails,
+      showFooter,
+      showAds,
+    );
     if (result.error) {
       return { success: false, message: result.error };
     }
@@ -40,6 +58,7 @@ async function createUser(username, password, canManageTemplates = false, showFo
         username,
         webhookKey,
         cardLinkTags,
+        emails,
         showFooter,
         showAds,
       },
@@ -151,6 +170,22 @@ async function updateUser(username, updates) {
       validUpdates.showAds = updates.showAds;
     }
 
+    if ('emails' in updates) {
+      if (!Array.isArray(updates.emails)) {
+        return { success: false, message: '邮箱列表必须是数组格式' };
+      }
+      // 验证邮箱格式
+      for (const email of updates.emails) {
+        if (typeof email !== 'string' || !email.includes('@')) {
+          return { success: false, message: '邮箱格式不正确' };
+        }
+        if (email.length > 100) {
+          return { success: false, message: '邮箱长度不能超过100个字符' };
+        }
+      }
+      validUpdates.emails = updates.emails;
+    }
+
     if (Object.keys(validUpdates).length === 0) {
       return { success: false, message: '没有有效的更新字段' };
     }
@@ -210,7 +245,7 @@ async function updateUserProfile(username, updates) {
   try {
     const validUpdates = {};
 
-    // 只允许用户更新cardLinkTags字段
+    // 允许用户更新cardLinkTags和emails字段
     if ('cardLinkTags' in updates) {
       if (!Array.isArray(updates.cardLinkTags)) {
         return { success: false, message: '卡密链接标签必须是数组格式' };
@@ -225,6 +260,22 @@ async function updateUserProfile(username, updates) {
         }
       }
       validUpdates.cardLinkTags = updates.cardLinkTags;
+    }
+
+    if ('emails' in updates) {
+      if (!Array.isArray(updates.emails)) {
+        return { success: false, message: '邮箱列表必须是数组格式' };
+      }
+      // 验证邮箱格式
+      for (const email of updates.emails) {
+        if (typeof email !== 'string' || !email.includes('@')) {
+          return { success: false, message: '邮箱格式不正确' };
+        }
+        if (email.length > 100) {
+          return { success: false, message: '邮箱长度不能超过100个字符' };
+        }
+      }
+      validUpdates.emails = updates.emails;
     }
 
     if (Object.keys(validUpdates).length === 0) {

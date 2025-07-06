@@ -9,6 +9,7 @@ import { getPermanentExpiryDate } from '../utils/account.js';
  * @param {number} createdAt
  * @param {boolean} canManageTemplates
  * @param {string[]} cardLinkTags 卡密链接标签数组
+ * @param {string[]} emails 用户邮箱列表
  * @param {boolean} showFooter 是否显示底部
  * @param {boolean} showAds 是否显示广告
  * @returns {Promise<{lastID?: number, changes?: number, error?: string}>}
@@ -20,6 +21,7 @@ export async function createUserDb(
   createdAt,
   canManageTemplates = false,
   cardLinkTags = [],
+  emails = [],
   showFooter = true,
   showAds = true,
 ) {
@@ -42,6 +44,7 @@ export async function createUserDb(
         canManageTemplates,
         expiryDate: getPermanentExpiryDate(), // 使用统一永久有效日期
         cardLinkTags: JSON.stringify(cardLinkTags), // 将标签数组转换为JSON字符串
+        emails: JSON.stringify(emails), // 将邮箱数组转换为JSON字符串
         showFooter,
         showAds,
       },
@@ -71,6 +74,7 @@ export async function getUserByIdDb(userId) {
       canManageTemplates: true,
       expiryDate: true,
       cardLinkTags: true,
+      emails: true,
       showFooter: true,
       showAds: true,
     },
@@ -79,6 +83,7 @@ export async function getUserByIdDb(userId) {
   if (user) {
     // 将JSON字符串转换回数组
     user.cardLinkTags = JSON.parse(user.cardLinkTags || '[]');
+    user.emails = JSON.parse(user.emails || '[]');
   }
 
   return user;
@@ -125,15 +130,17 @@ export async function getAllUsersDb() {
       canManageTemplates: true,
       expiryDate: true,
       cardLinkTags: true,
+      emails: true,
       showFooter: true,
       showAds: true,
     },
   });
 
   // 将每个用户的标签JSON字符串转换回数组
-  return users.map(user => ({
+  return users.map((user) => ({
     ...user,
-    cardLinkTags: JSON.parse(user.cardLinkTags || '[]')
+    cardLinkTags: JSON.parse(user.cardLinkTags || '[]'),
+    emails: JSON.parse(user.emails || '[]'),
   }));
 }
 
@@ -158,6 +165,7 @@ export async function validateUserDb(username, password) {
       expiryDate: true,
       createdAt: true,
       cardLinkTags: true,
+      emails: true,
       showFooter: true,
       showAds: true,
     },
@@ -166,6 +174,7 @@ export async function validateUserDb(username, password) {
   if (user) {
     // 将JSON字符串转换回数组
     user.cardLinkTags = JSON.parse(user.cardLinkTags || '[]');
+    user.emails = JSON.parse(user.emails || '[]');
   }
 
   return user;
@@ -182,6 +191,9 @@ export async function updateUserDb(username, updates) {
   const dataToUpdate = { ...updates };
   if (dataToUpdate.cardLinkTags && Array.isArray(dataToUpdate.cardLinkTags)) {
     dataToUpdate.cardLinkTags = JSON.stringify(dataToUpdate.cardLinkTags);
+  }
+  if (dataToUpdate.emails && Array.isArray(dataToUpdate.emails)) {
+    dataToUpdate.emails = JSON.stringify(dataToUpdate.emails);
   }
 
   await prisma.user.update({
@@ -206,6 +218,7 @@ export async function getUserByUsernameDb(username) {
       canManageTemplates: true,
       expiryDate: true,
       cardLinkTags: true,
+      emails: true,
       showFooter: true,
       showAds: true,
     },
@@ -214,6 +227,7 @@ export async function getUserByUsernameDb(username) {
   if (user) {
     // 将JSON字符串转换回数组
     user.cardLinkTags = JSON.parse(user.cardLinkTags || '[]');
+    user.emails = JSON.parse(user.emails || '[]');
   }
 
   return user;
