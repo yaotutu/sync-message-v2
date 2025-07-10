@@ -15,12 +15,16 @@ export async function createMessage(data) {
  * @param {number} page - 页码
  * @param {number} pageSize - 每页数量
  * @param {string} [search] - 搜索内容
+ * @param {string} [sourceType] - 来源类型筛选 (sms, email)
  * @returns {Promise<{messages: Array<Message>, total: number}>}
  */
-export async function findUserMessages(username, page, pageSize, search) {
+export async function findUserMessages(username, page, pageSize, search, sourceType) {
   const where = { username };
   if (search) {
     where.smsContent = { contains: search };
+  }
+  if (sourceType) {
+    where.sourceType = sourceType;
   }
 
   const [messages, total] = await Promise.all([

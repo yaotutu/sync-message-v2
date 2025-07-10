@@ -28,13 +28,18 @@ export async function GET(request: NextRequest) {
     const page = parseInt(url.searchParams.get('page') || '1');
     const pageSize = parseInt(url.searchParams.get('pageSize') || '10');
     const search = url.searchParams.get('search');
+    const sourceType = url.searchParams.get('sourceType');
+
+    // 将sourceType转换为大写以匹配数据库中的值
+    const normalizedSourceType = sourceType ? sourceType.toUpperCase() : undefined;
 
     // 获取用户消息
-    const result = await getUserMessages(
+    const result = await (getUserMessages as any)(
       username,
       page,
       pageSize,
-      search || undefined
+      search || undefined,
+      normalizedSourceType
     );
 
     if (!result.success) {

@@ -56,11 +56,12 @@ export async function addMessage(
  * @param {number} [page=1] - 页码
  * @param {number} [pageSize=10] - 每页数量
  * @param {string} [search] - 搜索内容
+ * @param {string} [sourceType] - 来源类型筛选 (sms, email)
  * @returns {Promise<{success: boolean, data?: Array<Message>, total?: number, message?: string}>}
  */
-export async function getUserMessages(username, page = 1, pageSize = 10, search) {
+export async function getUserMessages(username, page = 1, pageSize = 10, search, sourceType) {
   try {
-    const { messages, total } = await findUserMessages(username, page, pageSize, search);
+    const { messages, total } = await findUserMessages(username, page, pageSize, search, sourceType);
     return { success: true, data: messages, total };
   } catch (error) {
     console.error('获取用户消息失败:', error);

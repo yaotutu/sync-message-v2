@@ -16,7 +16,9 @@ import {
     ListItem,
     ListItemText,
     Tooltip,
-    Stack
+    Stack,
+    Chip,
+    ButtonGroup
 } from '@mui/material';
 import {
     Refresh as RefreshIcon,
@@ -26,7 +28,8 @@ import {
     Email as EmailIcon,
     Phone as PhoneIcon,
     Schedule as ScheduleIcon,
-    ArrowBack as ArrowBackIcon
+    ArrowBack as ArrowBackIcon,
+    FilterList as FilterListIcon
 } from '@mui/icons-material';
 import { userApi } from '@/lib/utils/api-client';
 
@@ -104,10 +107,11 @@ export default function MessagesPage() {
     const [isLoadingMore, setIsLoadingMore] = useState(false);
     const [searchQuery, setSearchQuery] = useState('');
     const [isSearching, setIsSearching] = useState(false);
+    const [sourceTypeFilter, setSourceTypeFilter] = useState<string>('all'); // 'all', 'sms', 'email'
 
     // 当用户名和密码设置后，加载消息
     useEffect(() => {
-        loadMessages(1);
+        loadMessages(1, false, undefined, sourceTypeFilter);
     }, []);
 
     // 加载消息
@@ -115,14 +119,21 @@ export default function MessagesPage() {
         page: number,
         append: boolean = false,
         search?: string,
+        sourceType?: string,
     ) => {
         try {
             setIsLoading(true);
             setIsLoadingMore(append);
             setError('');
 
-            const apiUrl = `/api/user/messages?page=${page}&pageSize=${pagination.pageSize}${search ? `&search=${encodeURIComponent(search)}` : ''
-                }&_t=${Date.now()}`;
+            let apiUrl = `/api/user/messages?page=${page}&pageSize=${pagination.pageSize}`;
+            if (search) {
+                apiUrl += `&search=${encodeURIComponent(search)}`;
+            }
+            if (sourceType && sourceType !== 'all') {
+                apiUrl += `&sourceType=${sourceType}`;
+            }
+            apiUrl += `&_t=${Date.now()}`;
 
             const response = await userApi.get(apiUrl);
 
@@ -152,26 +163,32 @@ export default function MessagesPage() {
     const handleSearch = (e: React.FormEvent) => {
         e.preventDefault();
         setIsSearching(true);
-        loadMessages(1, false, searchQuery).finally(() => setIsSearching(false));
+        loadMessages(1, false, searchQuery, sourceTypeFilter).finally(() => setIsSearching(false));
     };
 
     // 清除搜索
     const clearSearch = () => {
         setSearchQuery('');
-        loadMessages(1, false, '');
+        loadMessages(1, false, '', sourceTypeFilter);
     };
 
     // 切换页码
     const changePage = (newPage: number) => {
         if (newPage >= 1 && newPage <= pagination.totalPages) {
-            loadMessages(newPage, false, searchQuery);
+            loadMessages(newPage, false, searchQuery, sourceTypeFilter);
         }
     };
 
     // 手动刷新数据
     const refreshData = () => {
         setError('');
-        loadMessages(1, false, searchQuery);
+        loadMessages(1, false, searchQuery, sourceTypeFilter);
+    };
+
+    // 处理来源类型筛选
+    const handleSourceTypeFilter = (newSourceType: string) => {
+        setSourceTypeFilter(newSourceType);
+        loadMessages(1, false, searchQuery, newSourceType);
     };
 
     // 生成分页按钮范围
@@ -282,6 +299,100 @@ export default function MessagesPage() {
                             搜索 "{searchQuery}" 找到 {messages.length} 个结果
                         </Typography>
                     )}
+                </Paper>
+
+                {/* 消息类型筛选 */}
+                <Paper sx={{
+                    p: 3,
+                    mb: 3,
+                    bgcolor: 'white',
+                    borderRadius: 2,
+                    boxShadow: '0 2px 8px rgba(0,0,0,0.1)'
+                }}>
+                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, flexWrap: 'wrap' }}>
+                        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                            <FilterListIcon sx={{ color: '#666' }} />
+                            <Typography variant="body1" color="#333" fontWeight="500">
+                                消息类型:
+                            </Typography>
+                        </Box>
+                        <ButtonGroup variant="outlined" size="medium">
+                            <Button
+                                variant={sourceTypeFilter === 'all' ? 'contained' : 'outlined'}
+                                onClick={() => handleSourceTypeFilter('all')}
+                                sx={{
+                                    ...(sourceTypeFilter === 'all' ? {
+                                        bgcolor: '#1976d2',
+                                        '&:hover': { bgcolor: '#1565c0' }
+                                    } : {
+                                        borderColor: '#ddd',
+                                        color: '#666',
+                                        '&:hover': {
+                                            borderColor: '#1976d2',
+                                            color: '#1976d2'
+                                        }
+                                    })
+                                }}
+                            >
+                                全部消息
+                            </Button>
+                            <Button
+                                variant={sourceTypeFilter === 'sms' ? 'contained' : 'outlined'}
+                                onClick={() => handleSourceTypeFilter('sms')}
+                                startIcon={<SmsIcon />}
+                                sx={{
+                                    ...(sourceTypeFilter === 'sms' ? {
+                                        bgcolor: '#1976d2',
+                                        '&:hover': { bgcolor: '#1565c0' }
+                                    } : {
+                                        borderColor: '#ddd',
+                                        color: '#666',
+                                        '&:hover': {
+                                            borderColor: '#1976d2',
+                                            color: '#1976d2'
+                                        }
+                                    })
+                                }}
+                            >
+                                短信
+                            </Button>
+                            <Button
+                                variant={sourceTypeFilter === 'email' ? 'contained' : 'outlined'}
+                                onClick={() => handleSourceTypeFilter('email')}
+                                startIcon={<EmailIcon />}
+                                sx={{
+                                    ...(sourceTypeFilter === 'email' ? {
+                                        bgcolor: '#1976d2',
+                                        '&:hover': { bgcolor: '#1565c0' }
+                                    } : {
+                                        borderColor: '#ddd',
+                                        color: '#666',
+                                        '&:hover': {
+                                            borderColor: '#1976d2',
+                                            color: '#1976d2'
+                                        }
+                                    })
+                                }}
+                            >
+                                邮件
+                            </Button>
+                        </ButtonGroup>
+                        
+                        {/* 筛选统计信息 */}
+                        {sourceTypeFilter !== 'all' && (
+                            <Chip
+                                label={`当前筛选: ${sourceTypeFilter === 'sms' ? '短信' : '邮件'} (${pagination.total || 0} 条)`}
+                                onDelete={() => handleSourceTypeFilter('all')}
+                                sx={{
+                                    bgcolor: '#e3f2fd',
+                                    color: '#1976d2',
+                                    '& .MuiChip-deleteIcon': {
+                                        color: '#1976d2'
+                                    }
+                                }}
+                            />
+                        )}
+                    </Box>
                 </Paper>
 
                 {/* 消息列表 */}
